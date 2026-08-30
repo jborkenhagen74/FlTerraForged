@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>dev.foucaultleon</groupId>
+  <artifactId>flterraforged-engine-api</artifactId>
+  <versioning>
+    <latest>0.1.0-SNAPSHOT</latest>
+    <versions>
+      <version>0.1.0-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20260830135207</lastUpdated>
+  </versioning>
+</metadata>
