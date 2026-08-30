@@ -1,0 +1,50 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "minecraft:overworld",
+      "generator": {
+        "type": "flterraforged:chunk_generator",
+        "biome_source": {
+          "type": "flterraforged:biome_source",
+          "palette": {
+            "ocean": "minecraft:ocean",
+            "coast": "minecraft:beach",
+            "river": "minecraft:river",
+            "plains": "minecraft:plains",
+            "forest": "minecraft:forest",
+            "desert": "minecraft:desert",
+            "jungle": "minecraft:jungle",
+            "mountains": "minecraft:windswept_hills",
+            "snowy": "minecraft:snowy_plains"
+          }
+        },
+        "settings": "minecraft:overworld",
+        "engine": "flterraforged:default",
+        "engine_config": {
+          "preset": "balanced"
+        }
+      }
+    },
+    "minecraft:the_nether": {
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:nether"
+        },
+        "settings": "minecraft:nether"
+      }
+    },
+    "minecraft:the_end": {
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:the_end"
+        },
+        "settings": "minecraft:end"
+      }
+    }
+  }
+}

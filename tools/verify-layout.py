@@ -67,7 +67,7 @@ def main() -> None:
         ROOT / "versions/1.20.1/fabric/build.gradle",
         ROOT / "versions/1.20.1/fabric/src/main/resources/fabric.mod.json",
         ROOT / "versions/1.20.1/fabric/src/main/resources/flterraforged.mixins.json",
-        ROOT / "versions/1.20.1/fabric/src/main/resources/data/flterraforged/worldgen/world_preset/flterraforged.json",
+        ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset/flterraforged.json",
         ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/FlTerraForgedChunkGenerator.java",
         ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/FlTerraForgedBiomeSource.java",
         ROOT / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201/mixin/NoiseConfigMixin.java",
@@ -155,6 +155,23 @@ def main() -> None:
         fail("1.20.1 world preset does not use the FlTerraForged chunk generator")
     if overworld.get("biome_source", {}).get("type") != "flterraforged:biome_source":
         fail("1.20.1 world preset does not use the FlTerraForged biome source")
+
+    preset_tag_file = ROOT / "families/mc1201/common/src/main/resources/data/minecraft/tags/worldgen/world_preset/normal.json"
+    if not preset_tag_file.is_file():
+        fail("missing minecraft:normal world-preset tag contribution for FlTerraForged")
+    preset_tag = json.loads(preset_tag_file.read_text(encoding="utf-8"))
+    if preset_tag.get("replace", False):
+        fail("FlTerraForged must merge with, not replace, minecraft:normal world presets")
+    if "flterraforged:flterraforged" not in preset_tag.get("values", []):
+        fail("FlTerraForged world preset is not exposed through minecraft:normal")
+
+    for locale in ("en_us", "de_de"):
+        language_file = ROOT / f"families/mc1201/common/src/main/resources/assets/flterraforged/lang/{locale}.json"
+        if not language_file.is_file():
+            fail(f"missing {locale} world-preset translation")
+        language = json.loads(language_file.read_text(encoding="utf-8"))
+        if language.get("generator.flterraforged.flterraforged") != "FlTerraForged":
+            fail(f"invalid {locale} FlTerraForged world-preset translation")
 
 
     # The Loom-backed multi-project must run Gradle on Java 21 while retaining a

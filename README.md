@@ -99,3 +99,7 @@ These are intentionally different: Loom 1.17.x requires Java 21 to load, while t
 Every successful GitHub Actions `Verify` job now uploads the installable Minecraft 1.20.1 Fabric JAR as a direct workflow artifact. The file is named `FlTerraForged-1.20.1-Fabric-<short-sha>.jar`, retained for 30 days and linked from the job summary together with GitHub's SHA-256 artifact digest. Sources, Javadoc, dev and shadow JARs are excluded.
 
 Use the downloaded JAR directly in a Minecraft 1.20.1 Fabric instance; the external Engine, Engine API and common module are embedded by the Loom build.
+
+### Minecraft 1.20.1 world preset
+
+The Fabric 1.20.1 artifact ships `flterraforged:flterraforged` as a data-driven world preset and contributes it to `minecraft:normal`. It should appear as **FlTerraForged** in the Create World → World → World Type selector.

@@ -1,3 +1,10 @@
+## r16 – MC 1.20.1 world-preset discovery fix
+
+- Added the actual `data/flterraforged/worldgen/world_preset/flterraforged.json` datapack resource.
+- Added `flterraforged:flterraforged` to the `minecraft:normal` world-preset tag without replacing Vanilla presets.
+- Added German and English `generator.flterraforged.flterraforged` translations so the selector shows `FlTerraForged`.
+- Extended layout verification to require preset, tag, and translations.
+
 # Snapshot
 
 Current repository snapshot: **0.1.0-SNAPSHOT-r15**.
