@@ -1,0 +1,115 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.20'
+}
+
+base {
+    archivesName = 'flterraforged-fabric-1.20.1'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+}
+
+def engineVersion = providers.gradleProperty('flterraforged_engine_version').get()
+def configuredLocalEngineRepository = providers
+        .gradleProperty('flterraforged_engine_local_repository')
+        .orElse(providers.environmentVariable('FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY'))
+        .getOrNull()
+def remoteEngineRepository = providers
+        .gradleProperty('flterraforged_engine_repository_url')
+        .orElse(providers.environmentVariable('FLTERRAFORGED_ENGINE_REPOSITORY_URL'))
+        .orElse('https://raw.githubusercontent.com/jborkenhagen74/FlTerraForged-Engine/maven/')
+        .get()
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+
+    if (configuredLocalEngineRepository != null && !configuredLocalEngineRepository.isBlank()) {
+        maven {
+            name = 'flTerraForgedEngineLocalBuild'
+            url = uri(configuredLocalEngineRepository)
+        }
+    } else {
+        File siblingRepository = rootProject.file('../FlTerraForged-Engine/build/maven-repository')
+        if (siblingRepository.isDirectory()) {
+            maven {
+                name = 'flTerraForgedEngineSiblingBuild'
+                url = siblingRepository.toURI()
+            }
+        }
+    }
+
+    mavenLocal()
+    mavenCentral()
+
+    if (remoteEngineRepository != null && !remoteEngineRepository.isBlank()) {
+        maven {
+            name = 'flTerraForgedEnginePublic'
+            url = uri(remoteEngineRepository)
+            content {
+                includeModule 'dev.foucaultleon', 'flterraforged-engine'
+            }
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDirs(
+                rootProject.file('families/mc1201/common/src/main/java'),
+                rootProject.file('families/mc1201/fabric/src/main/java'),
+                rootProject.file('platforms/fabric/common/src/main/java'),
+                file('src/main/java'))
+        resources.srcDirs(
+                rootProject.file('families/mc1201/common/src/main/resources'),
+                rootProject.file('families/mc1201/fabric/src/main/resources'),
+                rootProject.file('platforms/fabric/common/src/main/resources'),
+                file('src/main/resources'))
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${providers.gradleProperty('mc1201_minecraft_version').get()}"
+    mappings "net.fabricmc:yarn:${providers.gradleProperty('mc1201_yarn_mappings').get()}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${providers.gradleProperty('mc1201_fabric_loader_version').get()}"
+
+    implementation project(':common')
+    implementation project(':engine-api')
+    include project(':common')
+    include project(':engine-api')
+
+    implementation("dev.foucaultleon:flterraforged-engine:${engineVersion}") {
+        changing = engineVersion.endsWith('-SNAPSHOT')
+    }
+    include("dev.foucaultleon:flterraforged-engine:${engineVersion}")
+}
+
+configurations.configureEach {
+    if (engineVersion.endsWith('-SNAPSHOT')) {
+        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+    }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version
+    }
+}
+
+loom {
+    runs {
+        server {
+            server()
+            name = 'FlTerraForged 1.20.1 Server'
+        }
+    }
+}

@@ -1,4 +1,15 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = 'FlTerraForged'
 
 include 'engine-api'
 include 'common'
+
+include 'mc1201-fabric'
+project(':mc1201-fabric').projectDir = file('versions/1.20.1/fabric')

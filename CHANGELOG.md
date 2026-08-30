@@ -1,4 +1,15 @@
 # Changelog
+## 0.1.0-SNAPSHOT r7
+
+- Added the first real Minecraft binding: Fabric 1.20.1.
+- Added `FlTerraForgedChunkGenerator` and `FlTerraForgedBiomeSource`.
+- Added `NoiseConfigMixin` to bind the external engine to the actual world seed.
+- Added the data-driven `flterraforged:flterraforged` world preset with vanilla Nether/End.
+- Added native biome routing from engine terrain/climate signals.
+- Added FEF-style external Engine Maven resolution and Loom jar-in-jar packaging.
+- Added static verification for the MC 1.20.1 reference binding.
+- Documented current limitations (carvers, full surface rules, aquifers and density integration are follow-ups).
+
 
 ## 0.1.0-SNAPSHOT-r6
 

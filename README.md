@@ -80,3 +80,7 @@ develop -> build/test -> publish 0.1.0-SNAPSHOT to maven branch
 main    -> build/test only (release publishing will be added separately)
 PR      -> build/test only
 ```
+
+## First Minecraft binding
+
+`versions/1.20.1/fabric` is now the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. See `MC1201-FIRST-BINDING.md` for build/use details and the intentionally deferred vanilla-density/carver integration.

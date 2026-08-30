@@ -100,4 +100,5 @@ tasks.named('check') {
     dependsOn 'verifyEngineApiIsolation'
     dependsOn ':engine-api:check'
     dependsOn ':common:check'
+    dependsOn ':mc1201-fabric:build'
 }

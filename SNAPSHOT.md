@@ -27,3 +27,7 @@ The snapshot explicitly declares the JUnit Platform launcher as a test runtime d
 Engine API snapshots are distributed from the repository's public `maven` branch,
 not GitHub Packages. The generated repository originates at
 `build/maven-repository` and retains Maven's normal version directory structure.
+
+### r7 integration checkpoint
+
+Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public external-engine Maven artifact, embeds engine/API/common dependencies, registers data-driven worldgen codecs and ships a selectable world preset.

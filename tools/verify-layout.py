@@ -63,7 +63,36 @@ def main() -> None:
     if "packages: write" in workflow or "packages: read" in workflow:
         fail("workflow must not require GitHub Packages permissions")
 
-    print(f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, public Maven publishing configured")
+    binding_files = (
+        ROOT / "versions/1.20.1/fabric/build.gradle",
+        ROOT / "versions/1.20.1/fabric/src/main/resources/fabric.mod.json",
+        ROOT / "versions/1.20.1/fabric/src/main/resources/flterraforged.mixins.json",
+        ROOT / "versions/1.20.1/fabric/src/main/resources/data/flterraforged/worldgen/world_preset/flterraforged.json",
+        ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/FlTerraForgedChunkGenerator.java",
+        ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/FlTerraForgedBiomeSource.java",
+        ROOT / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201/mixin/NoiseConfigMixin.java",
+    )
+    for binding_file in binding_files:
+        if not binding_file.is_file():
+            fail(f"missing Minecraft 1.20.1 Fabric binding file: {binding_file.relative_to(ROOT)}")
+
+    fabric_build = binding_files[0].read_text(encoding="utf-8")
+    if "net.fabricmc.fabric-loom-remap" not in fabric_build:
+        fail("1.20.1 Fabric binding must use the non-deprecated Loom remap plugin id")
+    if "flterraforged-engine" not in fabric_build:
+        fail("1.20.1 Fabric binding does not consume the external engine artifact")
+
+    preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
+    overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
+    if overworld.get("type") != "flterraforged:chunk_generator":
+        fail("1.20.1 world preset does not use the FlTerraForged chunk generator")
+    if overworld.get("biome_source", {}).get("type") != "flterraforged:biome_source":
+        fail("1.20.1 world preset does not use the FlTerraForged biome source")
+
+    print(
+        f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
+        "public Maven publishing configured, mc1201 Fabric reference binding present"
+    )
 
 
 if __name__ == "__main__":
