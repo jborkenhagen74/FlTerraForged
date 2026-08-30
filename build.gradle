@@ -1,0 +1,103 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'base'
+}
+
+group = providers.gradleProperty('flterraforged_group').get()
+version = providers.gradleProperty('flterraforged_version').get()
+
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+}
+
+def matrixFile = file('gradle/targets.json')
+def matrix = new JsonSlurper().parse(matrixFile)
+
+tasks.register('verifyVersionMatrix') {
+    group = 'verification'
+    description = 'Validates target uniqueness, snapshot policy and family/version skeletons.'
+
+    doLast {
+        def targets = matrix.targets
+        def versions = targets.collect { it.minecraft as String }
+        def duplicates = versions.groupBy { it }.findAll { key, values -> values.size() > 1 }.keySet()
+        if (!duplicates.empty) {
+            throw new GradleException("Duplicate Minecraft targets: ${duplicates.join(', ')}")
+        }
+
+        def snapshots = targets.findAll { it.channel == 'snapshot' }
+        def maxSnapshots = (matrix.snapshotPolicy.maxSnapshots ?: 1) as int
+        if (snapshots.size() > maxSnapshots) {
+            throw new GradleException("Snapshot policy violated: ${snapshots.size()} snapshots, max ${maxSnapshots}")
+        }
+
+        targets.each { target ->
+            File familyRoot = file("families/${target.family}")
+            if (!familyRoot.isDirectory()) {
+                throw new GradleException("Missing family directory for ${target.minecraft}: ${familyRoot}")
+            }
+            ['common', 'fabric', 'neoforge'].each { part ->
+                File dir = new File(familyRoot, part)
+                if (!dir.isDirectory()) {
+                    throw new GradleException("Missing family part '${part}' for ${target.family}: ${dir}")
+                }
+            }
+
+            ['fabric', 'neoforge'].each { loader ->
+                File versionDir = file("versions/${target.minecraft}/${loader}")
+                if (!versionDir.isDirectory()) {
+                    throw new GradleException("Missing version skeleton for ${target.minecraft}/${loader}: ${versionDir}")
+                }
+            }
+        }
+    }
+}
+
+tasks.register('verifyEngineApiIsolation') {
+    group = 'verification'
+    description = 'Ensures engine-api does not import Minecraft, loader or Mojang serialization APIs.'
+
+    doLast {
+        def banned = [
+            'net.minecraft.',
+            'net.fabricmc.',
+            'net.neoforged.',
+            'net.minecraftforge.',
+            'com.mojang.serialization.'
+        ]
+
+        fileTree('engine-api/src/main/java') {
+            include '**/*.java'
+        }.each { source ->
+            def text = source.getText('UTF-8')
+            banned.each { prefix ->
+                if (text.contains(prefix)) {
+                    throw new GradleException("Forbidden dependency '${prefix}' in ${source}")
+                }
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'verifyVersionMatrix'
+    dependsOn 'verifyEngineApiIsolation'
+    dependsOn ':engine-api:check'
+    dependsOn ':common:check'
+}

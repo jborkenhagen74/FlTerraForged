@@ -1,0 +1,4 @@
+rootProject.name = 'FlTerraForged'
+
+include 'engine-api'
+include 'common'

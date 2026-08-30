@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "snapshotPolicy": {
+    "maxSnapshots": 1,
+    "preReleases": false,
+    "releaseCandidates": false
+  },
+  "targets": [
+    {
+      "minecraft": "1.20.1",
+      "channel": "stable",
+      "family": "mc1201",
+      "java": 17,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.2",
+      "channel": "stable",
+      "family": "mc1202-1204",
+      "java": 17,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.3",
+      "channel": "stable",
+      "family": "mc1202-1204",
+      "java": 17,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.4",
+      "channel": "stable",
+      "family": "mc1202-1204",
+      "java": 17,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.5",
+      "channel": "stable",
+      "family": "mc1205-1206",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.6",
+      "channel": "stable",
+      "family": "mc1205-1206",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21",
+      "channel": "stable",
+      "family": "mc1210-1211",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.1",
+      "channel": "stable",
+      "family": "mc1210-1211",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.2",
+      "channel": "stable",
+      "family": "mc1212-1214",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.3",
+      "channel": "stable",
+      "family": "mc1212-1214",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.4",
+      "channel": "stable",
+      "family": "mc1212-1214",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.5",
+      "channel": "stable",
+      "family": "mc1215-1218",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.6",
+      "channel": "stable",
+      "family": "mc1215-1218",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.7",
+      "channel": "stable",
+      "family": "mc1215-1218",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.8",
+      "channel": "stable",
+      "family": "mc1215-1218",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.9",
+      "channel": "stable",
+      "family": "mc1219-12110",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.10",
+      "channel": "stable",
+      "family": "mc1219-12110",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.11",
+      "channel": "stable",
+      "family": "mc12111",
+      "java": 21,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "26.1",
+      "channel": "stable",
+      "family": "mc26x",
+      "java": 25,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "26.1.1",
+      "channel": "stable",
+      "family": "mc26x",
+      "java": 25,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "26.1.2",
+      "channel": "stable",
+      "family": "mc26x",
+      "java": 25,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "26.2",
+      "channel": "stable",
+      "family": "mc26x",
+      "java": 25,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    },
+    {
+      "minecraft": "26.3-snapshot-10",
+      "displayName": "26.3 Snapshot 10",
+      "channel": "snapshot",
+      "family": "mc263-snapshot",
+      "java": 25,
+      "familyStatus": "provisional",
+      "loaders": {
+        "fabric": {
+          "planned": true
+        },
+        "neoforge": {
+          "planned": true
+        }
+      }
+    }
+  ]
+}

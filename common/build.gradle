@@ -1,0 +1,22 @@
+plugins {
+    id 'java-library'
+}
+
+base {
+    archivesName = 'flterraforged-common'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}
+
+dependencies {
+    api project(':engine-api')
+    testImplementation libs.junit.jupiter
+}
