@@ -1,6 +1,6 @@
 # Snapshot
 
-Current package revision: **r10** 0.1.0-SNAPSHOT
+Current package revision: **r11** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -33,3 +33,5 @@ not GitHub Packages. The generated repository originates at
 ### r7 integration checkpoint
 
 Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public external-engine Maven artifact while substituting the Engine POM's transitive API with the local `:engine-api` project. It embeds Engine/API/common dependencies explicitly, registers data-driven worldgen codecs and ships a selectable world preset.
+
+- CI/Gradle runtime is Java 21; Minecraft 1.20.1 bytecode remains Java 17.

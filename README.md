@@ -84,3 +84,11 @@ PR      -> build/test only
 ## First Minecraft binding
 
 `versions/1.20.1/fabric` is now the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. See `MC1201-FIRST-BINDING.md` for build/use details and the intentionally deferred vanilla-density/carver integration.
+
+
+### Build JVM for the 1.20.1 reference adapter
+
+- Gradle/Loom runtime: Java 21
+- Minecraft 1.20.1 compilation/toolchain target: Java 17
+
+These are intentionally different: Loom 1.17.x requires Java 21 to load, while the generated 1.20.1 mod remains targeted to Java 17.

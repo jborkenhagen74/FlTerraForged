@@ -110,3 +110,12 @@ return (NoiseConfigSeedAccess) (Object) noiseConfig;
 If the Mixin is not applied, the resulting `ClassCastException` is converted to a
 descriptive `IllegalStateException` that points to `flterraforged.mixins.json`.
 
+
+## Java runtime versus Minecraft target
+
+The 1.20.1 adapter has two deliberately different Java requirements:
+
+- **Gradle/Loom runtime:** Java 21. Fabric Loom 1.17.x is compiled for Java 21 and therefore cannot be loaded by a Gradle daemon running on Java 17.
+- **Minecraft/mod bytecode target:** Java 17. The `mc1201-fabric` project keeps a Java 17 toolchain and `options.release = 17`, so the produced 1.20.1 mod remains Java-17-compatible.
+
+CI installs both JDKs. Java 17 is installed first so Gradle can discover it as a compilation toolchain; Java 21 is installed last and therefore becomes `JAVA_HOME` for the Gradle process. The same rule applies to the Engine API publish job because Gradle configures all subprojects, including the Loom-backed 1.20.1 project, before executing `:engine-api:publish`.

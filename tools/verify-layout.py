@@ -124,11 +124,29 @@ def main() -> None:
     if overworld.get("biome_source", {}).get("type") != "flterraforged:biome_source":
         fail("1.20.1 world preset does not use the FlTerraForged biome source")
 
-    print(
-        f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
-        "public Maven publishing configured, mc1201 Fabric reference binding present"
-    )
 
+    # The Loom-backed multi-project must run Gradle on Java 21 while retaining a
+    # Java 17 compilation toolchain for Minecraft 1.20.1. The publish job also
+    # configures mc1201-fabric, so both jobs need the Java 21 runtime.
+    workflow = (ROOT / '.github' / 'workflows' / 'build.yml').read_text(encoding='utf-8')
+    if workflow.count("java-version: '21'") < 2:
+        fail('Both verify and Engine API publish jobs must run Gradle on Java 21')
+    if workflow.count("java-version: '17'") < 2:
+        fail('Both verify and publish jobs must install Java 17 as a toolchain')
+    if workflow.count('FLTERRAFORGED_JAVA17_HOME=$JAVA_HOME') < 2:
+        fail('Both jobs must remember the Java 17 toolchain path before switching to Java 21')
+    if workflow.count('org.gradle.java.installations.paths') < 2:
+        fail('Both Gradle invocations must receive explicit Java 17/21 toolchain search paths')
+    if workflow.find("java-version: '17'") > workflow.find("java-version: '21'"):
+        fail('Verify job must install Java 17 before activating Java 21 as JAVA_HOME')
+    mc1201_build = (ROOT / 'versions' / '1.20.1' / 'fabric' / 'build.gradle').read_text(encoding='utf-8')
+    if 'JavaLanguageVersion.of(17)' not in mc1201_build or 'options.release = 17' not in mc1201_build:
+        fail('Minecraft 1.20.1 must continue targeting Java 17')
+
+    print(
+            f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
+            "public Maven publishing configured, mc1201 Fabric reference binding present"
+        )
 
 if __name__ == "__main__":
     main()

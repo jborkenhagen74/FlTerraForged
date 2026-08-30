@@ -20,7 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Java
+      - name: Install Java 17 toolchain
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Remember Java 17 toolchain
+        run: echo "FLTERRAFORGED_JAVA17_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - name: Set up Java 21 build runtime
         uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -35,7 +44,7 @@ jobs:
         run: python3 tools/verify-layout.py
 
       - name: Build and test
-        run: gradle --no-daemon --warning-mode all clean check
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
   publish-engine-api-snapshot:
     name: Publish Engine API Snapshot
@@ -48,11 +57,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Java 17
+      - name: Install Java 17 toolchain
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Remember Java 17 toolchain
+        run: echo "FLTERRAFORGED_JAVA17_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - name: Set up Java 21 build runtime
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -60,7 +78,7 @@ jobs:
           gradle-version: '9.7.1'
 
       - name: Build Maven repository
-        run: gradle --no-daemon --warning-mode all :engine-api:publish
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
       - name: Publish Maven repository branch
         uses: peaceiris/actions-gh-pages@v4.1.0

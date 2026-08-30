@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r11
+
+- Run the complete Gradle multi-project build on Java 21 because Fabric Loom 1.17.x is itself compiled for Java 21.
+- Install Java 17 alongside Java 21 in CI and keep the Minecraft 1.20.1 source/toolchain target at Java 17.
+- Apply the same Java 21 Gradle runtime to the Engine API Maven publish job because Gradle configures the Loom-backed `mc1201-fabric` subproject even when only `:engine-api:publish` is requested.
+- Add layout verification for the split build-runtime/toolchain contract.
+
 ## 0.1.0-SNAPSHOT-r10
 
 - Fixed the Minecraft 1.20.1 seed-access bridge for Fabric Mixins.
