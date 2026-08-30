@@ -52,7 +52,18 @@ def main() -> None:
             if prefix in text:
                 fail(f"forbidden dependency {prefix!r} in {source.relative_to(ROOT)}")
 
-    print(f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated")
+    api_build = (ROOT / "engine-api" / "build.gradle").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+    if "maven.pkg.github.com" in api_build:
+        fail("engine-api must not publish through GitHub Packages")
+    if "build/maven-repository" not in api_build and "maven-repository" not in api_build:
+        fail("engine-api build Maven repository is not configured")
+    if "publish_branch: maven" not in workflow:
+        fail("workflow does not publish the API repository to the maven branch")
+    if "packages: write" in workflow or "packages: read" in workflow:
+        fail("workflow must not require GitHub Packages permissions")
+
+    print(f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, public Maven publishing configured")
 
 
 if __name__ == "__main__":

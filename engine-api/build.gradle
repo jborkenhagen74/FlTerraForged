@@ -51,18 +51,13 @@ publishing {
         }
     }
 
+    // FEF-style build repository. CI publishes here first and then mirrors
+    // this directory to the public `maven` branch. Consumers never need a
+    // GitHub Packages token.
     repositories {
         maven {
-            name = 'GitHubPackages'
-            url = uri('https://maven.pkg.github.com/jborkenhagen74/FlTerraForged')
-            credentials {
-                username = providers.gradleProperty('gpr.user')
-                        .orElse(providers.environmentVariable('GITHUB_ACTOR'))
-                        .getOrNull()
-                password = providers.gradleProperty('gpr.key')
-                        .orElse(providers.environmentVariable('GITHUB_TOKEN'))
-                        .getOrNull()
-            }
+            name = 'buildRepository'
+            url = rootProject.layout.buildDirectory.dir('maven-repository')
         }
     }
 }

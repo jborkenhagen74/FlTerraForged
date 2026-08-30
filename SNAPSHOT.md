@@ -20,3 +20,10 @@ Acceptance criteria:
 ## Build fix
 
 The snapshot explicitly declares the JUnit Platform launcher as a test runtime dependency for Gradle 9.x.
+
+
+## r3 distribution model
+
+Engine API snapshots are distributed from the repository's public `maven` branch,
+not GitHub Packages. The generated repository originates at
+`build/maven-repository` and retains Maven's normal version directory structure.

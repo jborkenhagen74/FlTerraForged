@@ -1,10 +1,13 @@
 # FlTerraForged
 
-FlTerraForged is a clean-room project structure for a multi-version Minecraft terrain generator integration. The terrain engine is external and replaceable through the Java-only `flterraforged-engine-api` SPI.
+FlTerraForged is the Minecraft integration layer for an external and replaceable
+terrain engine. Engines communicate with FlTerraForged exclusively through the
+Java-only `flterraforged-engine-api` SPI.
 
 ## Current snapshot
 
-`0.1.0-SNAPSHOT` establishes the architecture only. It intentionally does not yet contain TerraForged/ReTerraForged/FreeTerraForged world-generation code.
+`0.1.0-SNAPSHOT` establishes the architecture only. It intentionally does not
+yet contain TerraForged/ReTerraForged/FreeTerraForged world-generation code.
 
 ## Modules
 
@@ -17,21 +20,29 @@ FlTerraForged is a clean-room project structure for a multi-version Minecraft te
 
 ## Engine API publication
 
-`engine-api` is owned and published by this repository. CI performs `clean check` first. Only a successful push to `main` publishes:
+`FlTerraForged` owns and publishes the Engine API. Development snapshots from
+`develop` are first written to:
+
+```text
+build/maven-repository
+```
+
+and GitHub Actions mirrors that Maven repository to the public `maven` branch.
+The public repository URL is:
+
+```text
+https://raw.githubusercontent.com/jborkenhagen74/FlTerraForged/maven/
+```
+
+Current coordinate:
 
 ```text
 dev.foucaultleon:flterraforged-engine-api:0.1.0-SNAPSHOT
 ```
 
-to:
-
-```text
-https://maven.pkg.github.com/jborkenhagen74/FlTerraForged
-```
-
-The external engine repository consumes that package; it does not check out or build FlTerraForged in CI.
-
-GitHub Actions publishing uses the repository-scoped `GITHUB_TOKEN`. No long-lived publishing token is required for the normal workflow.
+Consumers do not need GitHub Packages credentials while the repository remains
+public. The publishing workflow itself only needs the repository-scoped
+`GITHUB_TOKEN` to push the generated files to the `maven` branch.
 
 ## Local development
 
@@ -41,10 +52,31 @@ Build and test:
 gradle --no-daemon clean check
 ```
 
-Publish the API to Maven Local only when explicitly needed for local testing:
+Publish the API to the FEF-style local build repository:
+
+```bash
+gradle --no-daemon :engine-api:publish
+```
+
+This creates the normal Maven directory hierarchy below:
+
+```text
+build/maven-repository/dev/foucaultleon/flterraforged-engine-api/
+```
+
+Multiple API versions can coexist there in their normal Maven version
+directories.
+
+You can also use Gradle's standard Maven Local task when explicitly wanted:
 
 ```bash
 gradle --no-daemon :engine-api:publishToMavenLocal
 ```
 
-The default Engine repository instead supports a Gradle composite build, which is preferred when API and engine are edited together.
+## Branch model
+
+```text
+develop -> build/test -> publish 0.1.0-SNAPSHOT to maven branch
+main    -> build/test only (release publishing will be added separately)
+PR      -> build/test only
+```

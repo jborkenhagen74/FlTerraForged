@@ -131,3 +131,11 @@ Geplante Provider:
 ## Package ownership and CI boundary
 
 `FlTerraForged` owns `flterraforged-engine-api` and is the only repository that builds and publishes that API in CI. External engines consume a published API version. This prevents engine workflows from duplicating or implicitly rebuilding the host project.
+
+
+## Maven boundary
+
+`engine-api` is published to `build/maven-repository` and mirrored by CI to the
+public `maven` branch. This deliberately avoids a runtime or build dependency on
+GitHub Packages authentication. External engines compile against the Maven
+coordinate only and do not need the FlTerraForged source tree.

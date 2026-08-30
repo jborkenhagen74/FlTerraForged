@@ -20,3 +20,17 @@
 - Publishes `flterraforged-engine-api` to GitHub Packages after a successful `main` build.
 - Uses `GITHUB_TOKEN` with repository-scoped `packages: write` permission in CI.
 - Aligns CI on Gradle 9.7.1.
+
+
+### r3
+- Replaced GitHub Packages publishing with the FEF-style public Maven repository model.
+- `engine-api` now publishes into `build/maven-repository`.
+- `develop` mirrors the generated Maven repository to the public `maven` branch.
+- Added `develop`/`main` workflow separation; snapshots publish only from `develop`.
+- Consumers no longer require GitHub Packages credentials.
+
+
+### r4
+- Updated GitHub Actions to Node 24 compatible releases: `actions/checkout@v6`, `actions/setup-java@v6`, and `gradle/actions/setup-gradle@v6`.
+- Pinned `peaceiris/actions-gh-pages@v4.1.0`, whose action runtime uses Node 24.
+- Removes Node 20 deprecation warnings from the build and Maven-branch publishing workflow.
