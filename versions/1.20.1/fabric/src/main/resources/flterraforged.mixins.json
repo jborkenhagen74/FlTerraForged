@@ -3,6 +3,8 @@
   "package": "dev.foucaultleon.flterraforged.fabric.mc1201.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "BiomeSourcesMixin",
+    "ChunkGeneratorsMixin",
     "NoiseConfigMixin"
   ],
   "injectors": {

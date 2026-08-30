@@ -124,3 +124,8 @@ CI installs both JDKs. Java 17 is installed first so Gradle can discover it as a
 ## r12 functional completion
 
 The reference adapter no longer fills synthetic solid columns during `populateNoise`. It now delegates the configured vanilla `NoiseChunkGenerator` for NoiseRouter/aquifers and remaps that 3D substrate to the Engine surface. Vanilla surface rules, carvers and mob population are delegated as well; ores/features use the inherited `ChunkGenerator.generateFeatures` path. See `MC1201-FUNCTIONAL-WORLDGEN.md` for the exact ownership boundary.
+
+
+## Built-in codec registry timing
+
+Minecraft 1.20.1 freezes the built-in `BIOME_SOURCE` and `CHUNK_GENERATOR` codec registries before Fabric invokes normal `ModInitializer` entrypoints. FlTerraForged therefore injects into `BiomeSources.registerAndGetDefault` and `ChunkGenerators.registerAndGetDefault`, registering the codecs while the registries are still mutable. `FlTerraForgedFabric.onInitialize()` performs validation only.

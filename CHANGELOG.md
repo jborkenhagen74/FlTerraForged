@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r15
+
+- Fix Minecraft 1.20.1 startup crash caused by registering `BIOME_SOURCE` and `CHUNK_GENERATOR` codecs from the late Fabric `main` entrypoint after built-in registries were frozen.
+- Register both codecs during vanilla bootstrap via `BiomeSourcesMixin` and `ChunkGeneratorsMixin`.
+- Keep `ModInitializer` read-only: it now validates that both bootstrap registrations succeeded.
+- Add a layout regression check preventing late worldgen codec registration from returning.
+
+
 ## 0.1.0-SNAPSHOT-r14
 
 - Extended the GitHub Actions verify job to publish the installable Minecraft 1.20.1 Fabric mod JAR after every successful build (push, pull request and manual dispatch).

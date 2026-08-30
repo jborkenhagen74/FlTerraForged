@@ -183,10 +183,36 @@ def main() -> None:
     if 'JavaLanguageVersion.of(17)' not in mc1201_build or 'options.release = 17' not in mc1201_build:
         fail('Minecraft 1.20.1 must continue targeting Java 17')
 
+    verify_mc1201_registry_bootstrap(ROOT)
+
     print(
             f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
             "public Maven publishing configured, mc1201 Fabric functional binding present"
         )
+
+
+
+def verify_mc1201_registry_bootstrap(root):
+    fabric = root / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201"
+    initializer = (fabric / "FlTerraForgedFabric.java").read_text()
+    registries = (fabric / "FlTerraForgedWorldgenRegistries.java").read_text()
+    biome_mixin = (fabric / "mixin/BiomeSourcesMixin.java").read_text()
+    chunk_mixin = (fabric / "mixin/ChunkGeneratorsMixin.java").read_text()
+    mixin_json = (root / "versions/1.20.1/fabric/src/main/resources/flterraforged.mixins.json").read_text()
+
+    if "FlTerraForgedWorldgenRegistries.register();" in initializer:
+        raise SystemExit("mc1201 must not register frozen worldgen codec registries from ModInitializer")
+    for required in ("BiomeSourcesMixin", "ChunkGeneratorsMixin", "NoiseConfigMixin"):
+        if required not in mixin_json:
+            raise SystemExit(f"mc1201 mixin config missing {required}")
+    if 'method = "registerAndGetDefault"' not in biome_mixin or "registerBiomeSource(registry)" not in biome_mixin:
+        raise SystemExit("mc1201 biome-source codec is not registered during vanilla bootstrap")
+    if 'method = "registerAndGetDefault"' not in chunk_mixin or "registerChunkGenerator(registry)" not in chunk_mixin:
+        raise SystemExit("mc1201 chunk-generator codec is not registered during vanilla bootstrap")
+    if "Registry.register(registry, BIOME_SOURCE_ID" not in registries:
+        raise SystemExit("mc1201 biome-source bootstrap registration missing")
+    if "Registry.register(registry, CHUNK_GENERATOR_ID" not in registries:
+        raise SystemExit("mc1201 chunk-generator bootstrap registration missing")
 
 if __name__ == "__main__":
     main()

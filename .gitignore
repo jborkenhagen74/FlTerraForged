@@ -10,5 +10,5 @@ run/
 Thumbs.db
 *.log
 *.class
-gradlew.bat
 gradlew
+gradlew.bat

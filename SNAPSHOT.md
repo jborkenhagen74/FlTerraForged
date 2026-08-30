@@ -1,6 +1,6 @@
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r14**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r15**.
 
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
@@ -51,3 +51,8 @@ The Fabric reference adapter is functionally connected to vanilla NoiseRouter/aq
 ## r14 CI artifact
 
 Successful Verify runs publish the installable Minecraft 1.20.1 Fabric JAR directly as a 30-day GitHub Actions artifact and expose its download link/digest in the job summary.
+
+
+### Minecraft 1.20.1 registry bootstrap
+
+Biome-source and chunk-generator codecs are registered from mixins into the vanilla bootstrap helpers before the built-in registries freeze; the normal Fabric entrypoint only validates the result.
