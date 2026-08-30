@@ -1,5 +1,7 @@
 # Snapshot
 
+Current repository snapshot: **0.1.0-SNAPSHOT-r14**.
+
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
@@ -45,3 +47,7 @@ The Fabric reference adapter is functionally connected to vanilla NoiseRouter/aq
 ## Minecraft 1.20.1 validation gate (r13)
 
 `MC1201-TEST-MATRIX.md` defines the mandatory P0 and extended P1 test gates that must pass before the 1.20.1 Fabric adapter is used as the reference implementation for another Minecraft API family.
+
+## r14 CI artifact
+
+Successful Verify runs publish the installable Minecraft 1.20.1 Fabric JAR directly as a 30-day GitHub Actions artifact and expose its download link/digest in the job summary.

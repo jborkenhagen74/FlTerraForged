@@ -46,6 +46,63 @@ jobs:
       - name: Build and test
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
+      - name: Collect installable 1.20.1 Fabric JAR
+        id: collect_mc1201_fabric
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          lib_dir="versions/1.20.1/fabric/build/libs"
+          mapfile -t jars < <(
+            find "$lib_dir" -maxdepth 1 -type f -name '*.jar' \
+              ! -name '*-sources.jar' \
+              ! -name '*-javadoc.jar' \
+              ! -name '*-dev.jar' \
+              ! -name '*-dev-shadow.jar' \
+              ! -name '*-shadow.jar' \
+              -print | sort
+          )
+
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one installable JAR in $lib_dir, found ${#jars[@]}."
+            if [ "${#jars[@]}" -gt 0 ]; then
+              printf 'Candidate: %s\n' "${jars[@]}"
+            fi
+            exit 1
+          fi
+
+          mkdir -p build/artifacts
+          short_sha="${GITHUB_SHA:0:7}"
+          artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-${short_sha}.jar"
+          cp "${jars[0]}" "$artifact_path"
+
+          echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
+          echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload installable 1.20.1 Fabric JAR
+        id: upload_mc1201_fabric
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: ${{ steps.collect_mc1201_fabric.outputs.artifact_path }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Add artifact link to job summary
+        shell: bash
+        env:
+          ARTIFACT_URL: ${{ steps.upload_mc1201_fabric.outputs.artifact-url }}
+          ARTIFACT_DIGEST: ${{ steps.upload_mc1201_fabric.outputs.artifact-digest }}
+          JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
+        run: |
+          {
+            echo "### Minecraft 1.20.1 Fabric artifact"
+            echo
+            echo "- JAR: \`$JAR_NAME\`"
+            echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
+            echo "- [Download artifact]($ARTIFACT_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   publish-engine-api-snapshot:
     name: Publish Engine API Snapshot
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'

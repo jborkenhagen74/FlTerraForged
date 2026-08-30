@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r14
+
+- Extended the GitHub Actions verify job to publish the installable Minecraft 1.20.1 Fabric mod JAR after every successful build (push, pull request and manual dispatch).
+- Uses `actions/upload-artifact@v7.0.1` on the Node 24 runtime and uploads the JAR directly with `archive: false`.
+- Filters sources, Javadoc, dev and shadow artifacts and fails if the build produces zero or multiple installable candidates.
+- Renames the downloadable test JAR to include the short commit SHA, retains it for 30 days and writes its authenticated download link plus SHA-256 digest to the GitHub Actions job summary.
+- Added layout regression checks for the CI artifact contract.
+
 ## 0.1.0-SNAPSHOT-r13
 
 - Added `MC1201-TEST-MATRIX.md`, a gated functional validation matrix for the Minecraft 1.20.1 Fabric reference adapter.

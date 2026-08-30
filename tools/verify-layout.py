@@ -169,6 +169,14 @@ def main() -> None:
         fail('Both jobs must remember the Java 17 toolchain path before switching to Java 21')
     if workflow.count('org.gradle.java.installations.paths') < 2:
         fail('Both Gradle invocations must receive explicit Java 17/21 toolchain search paths')
+    if 'actions/upload-artifact@v7.0.1' not in workflow:
+        fail('Verify job must upload the installable Minecraft 1.20.1 Fabric JAR with upload-artifact v7.0.1')
+    if 'archive: false' not in workflow:
+        fail('Minecraft test artifact must be uploaded as a direct JAR, not wrapped in an artifact ZIP')
+    if 'FlTerraForged-1.20.1-Fabric-${short_sha}.jar' not in workflow:
+        fail('Minecraft test artifact must have a deterministic commit-qualified JAR name')
+    if workflow.count('if-no-files-found: error') < 1:
+        fail('Minecraft artifact upload must fail when the installable JAR is missing')
     if workflow.find("java-version: '17'") > workflow.find("java-version: '21'"):
         fail('Verify job must install Java 17 before activating Java 21 as JAVA_HOME')
     mc1201_build = (ROOT / 'versions' / '1.20.1' / 'fabric' / 'build.gradle').read_text(encoding='utf-8')
