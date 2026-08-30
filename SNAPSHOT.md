@@ -30,4 +30,4 @@ not GitHub Packages. The generated repository originates at
 
 ### r7 integration checkpoint
 
-Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public external-engine Maven artifact, embeds engine/API/common dependencies, registers data-driven worldgen codecs and ships a selectable world preset.
+Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public external-engine Maven artifact while substituting the Engine POM's transitive API with the local `:engine-api` project. It embeds Engine/API/common dependencies explicitly, registers data-driven worldgen codecs and ships a selectable world preset.

@@ -93,9 +93,20 @@ dependencies {
     include project(':common')
     include project(':engine-api')
 
+    // The external Engine POM declares flterraforged-engine-api transitively.
+    // In the host FlTerraForged build that API is already the local :engine-api
+    // project, so exclude the remote copy and compile/runtime-link the Engine
+    // against the exact API classes produced by this build. This also prevents
+    // CI from depending on a previously published API snapshot just to compile
+    // the host project.
     implementation("dev.foucaultleon:flterraforged-engine:${engineVersion}") {
         changing = engineVersion.endsWith('-SNAPSHOT')
+        exclude group: 'dev.foucaultleon', module: 'flterraforged-engine-api'
     }
+
+    // Loom's include configuration is intentionally non-transitive. The Engine
+    // jar is embedded here; :engine-api and :common are embedded explicitly
+    // above, so the final mod jar contains exactly one API implementation.
     include("dev.foucaultleon:flterraforged-engine:${engineVersion}")
 }
 

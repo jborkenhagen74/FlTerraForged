@@ -81,6 +81,12 @@ def main() -> None:
         fail("1.20.1 Fabric binding must use the non-deprecated Loom remap plugin id")
     if "flterraforged-engine" not in fabric_build:
         fail("1.20.1 Fabric binding does not consume the external engine artifact")
+    if "exclude group: 'dev.foucaultleon', module: 'flterraforged-engine-api'" not in fabric_build:
+        fail("1.20.1 Fabric binding must exclude the Engine POM's remote engine-api dependency")
+    if "implementation project(':engine-api')" not in fabric_build:
+        fail("1.20.1 Fabric binding must compile against the local :engine-api project")
+    if "include project(':engine-api')" not in fabric_build:
+        fail("1.20.1 Fabric binding must embed the local :engine-api project")
 
     if "java.setSrcDirs([" not in fabric_build or "resources.setSrcDirs([" not in fabric_build:
         fail("1.20.1 Fabric binding must replace Gradle's default source roots with setSrcDirs(...)")

@@ -133,6 +133,10 @@ Geplante Provider:
 `FlTerraForged` owns `flterraforged-engine-api` and is the only repository that builds and publishes that API in CI. External engines consume a published API version. This prevents engine workflows from duplicating or implicitly rebuilding the host project.
 
 
+## Host dependency substitution boundary
+
+When FlTerraForged itself consumes an external Engine artifact, the Engine's transitive `flterraforged-engine-api` dependency is excluded. The host build owns that API and supplies the local `:engine-api` project instead. This prevents the host CI from depending on an already-published API snapshot and guarantees that Engine, common code and the Minecraft adapter compile against the same API classes.
+
 ## Maven boundary
 
 `engine-api` is published to `build/maven-repository` and mirrored by CI to the

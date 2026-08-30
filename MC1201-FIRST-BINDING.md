@@ -87,3 +87,9 @@ Für bestehende Welten wird der Generator nicht automatisch umgestellt; die Refe
 The version project replaces (`setSrcDirs`) Gradle's conventional Java/resource roots instead of appending them. This is important because `src/main/resources` is already a default resource root; appending it again makes `processResources` see `fabric.mod.json` twice and Gradle 9.7.1 fails on the duplicate.
 
 CI uses `--warning-mode all` so Gradle/Loom deprecations are attributable to a concrete build script or plugin.
+
+## Engine/API dependency boundary
+
+The 1.20.1 host adapter consumes `dev.foucaultleon:flterraforged-engine` from the external Engine Maven repository, but it does **not** resolve that Engine POM's `flterraforged-engine-api` dependency remotely. FlTerraForged owns the API and therefore compiles against the local `:engine-api` project. The transitive API dependency is excluded from the Engine declaration, while Loom embeds the Engine non-transitively and embeds `:engine-api` and `:common` explicitly.
+
+This keeps a clean checkout buildable without requiring a previously published API snapshot and guarantees one API copy/version inside the final Fabric jar.

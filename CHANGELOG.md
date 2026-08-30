@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r9
+
+- Fixed `mc1201-fabric` dependency resolution when consuming the external Engine snapshot.
+- The external Engine POM declares `flterraforged-engine-api` transitively; the host build now excludes that remote transitive module and uses the local `:engine-api` project instead.
+- Keeps Loom jar-in-jar deterministic: Engine is included non-transitively, while `:engine-api` and `:common` are embedded explicitly.
+- Added layout regression checks so the 1.20.1 adapter cannot accidentally reintroduce a remote API dependency during the host build.
+
 ## 0.1.0-SNAPSHOT-r8
 
 - Fixed the Minecraft 1.20.1 Fabric resource source-set configuration: `srcDirs(...)` appended the conventional `src/main/resources` root a second time, causing `fabric.mod.json` to be copied twice by Gradle 9.7.1.
