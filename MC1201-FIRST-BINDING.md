@@ -119,3 +119,8 @@ The 1.20.1 adapter has two deliberately different Java requirements:
 - **Minecraft/mod bytecode target:** Java 17. The `mc1201-fabric` project keeps a Java 17 toolchain and `options.release = 17`, so the produced 1.20.1 mod remains Java-17-compatible.
 
 CI installs both JDKs. Java 17 is installed first so Gradle can discover it as a compilation toolchain; Java 21 is installed last and therefore becomes `JAVA_HOME` for the Gradle process. The same rule applies to the Engine API publish job because Gradle configures all subprojects, including the Loom-backed 1.20.1 project, before executing `:engine-api:publish`.
+
+
+## r12 functional completion
+
+The reference adapter no longer fills synthetic solid columns during `populateNoise`. It now delegates the configured vanilla `NoiseChunkGenerator` for NoiseRouter/aquifers and remaps that 3D substrate to the Engine surface. Vanilla surface rules, carvers and mob population are delegated as well; ores/features use the inherited `ChunkGenerator.generateFeatures` path. See `MC1201-FUNCTIONAL-WORLDGEN.md` for the exact ownership boundary.

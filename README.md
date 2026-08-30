@@ -83,7 +83,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is now the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. See `MC1201-FIRST-BINDING.md` for build/use details and the intentionally deferred vanilla-density/carver integration.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. Snapshot r12 also delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population while remapping the resulting 3D columns to Engine heights. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`.
 
 
 ### Build JVM for the 1.20.1 reference adapter

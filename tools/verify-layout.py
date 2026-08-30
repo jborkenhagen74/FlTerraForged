@@ -117,6 +117,38 @@ def main() -> None:
     if "(NoiseConfigSeedAccess) (Object) noiseConfig" not in engine_session_text:
         fail("mc1201 EngineWorldSession must bridge NoiseConfigSeedAccess through Object")
 
+    worldgen_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen"
+    functional_files = (
+        worldgen_root / "EngineDensityBridge.java",
+        worldgen_root / "VanillaWorldgenDelegate.java",
+        worldgen_root / "EngineSurfaceGuard.java",
+    )
+    for functional_file in functional_files:
+        if not functional_file.is_file():
+            fail(f"missing functional mc1201 worldgen file: {functional_file.relative_to(ROOT)}")
+
+    generator_text = (worldgen_root / "FlTerraForgedChunkGenerator.java").read_text(encoding="utf-8")
+    required_generator_fragments = (
+        "vanilla.populateNoise",
+        "densityBridge.reshape",
+        "vanilla.buildSurface",
+        "surfaceGuard.apply",
+        "vanilla.carve",
+        "vanilla.populateEntities",
+    )
+    for fragment in required_generator_fragments:
+        if fragment not in generator_text:
+            fail(f"mc1201 generator is missing functional worldgen delegation: {fragment}")
+    if "intentionally a follow-up integration step" in generator_text:
+        fail("mc1201 generator still contains deferred carver integration")
+    if "simple solid/water columns" in generator_text:
+        fail("mc1201 generator still describes the obsolete column-only adapter")
+
+    delegate_text = functional_files[1].read_text(encoding="utf-8")
+    for fragment in ("new NoiseChunkGenerator", ".populateNoise(", ".buildSurface(", ".carve(", ".populateEntities("):
+        if fragment not in delegate_text:
+            fail(f"vanilla worldgen delegate is incomplete: {fragment}")
+
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
     if overworld.get("type") != "flterraforged:chunk_generator":
@@ -145,7 +177,7 @@ def main() -> None:
 
     print(
             f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
-            "public Maven publishing configured, mc1201 Fabric reference binding present"
+            "public Maven publishing configured, mc1201 Fabric functional binding present"
         )
 
 if __name__ == "__main__":

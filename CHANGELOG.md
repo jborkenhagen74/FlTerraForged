@@ -84,3 +84,13 @@
 - Added complete Javadoc coverage for all public Engine API members.
 - Added package-level API documentation.
 - Configured Javadoc with `-Werror` so Maven publication cannot silently emit Javadoc warnings.
+
+## r12 - functional Minecraft 1.20.1 worldgen binding
+
+- Replaced the column-only 1.20.1 noise fill with a hybrid vanilla/Engine pipeline.
+- Added `VanillaWorldgenDelegate` around Minecraft 1.20.1 `NoiseChunkGenerator`.
+- Added `EngineDensityBridge` to remap vanilla NoiseRouter/aquifer columns to Engine heights.
+- Delegated vanilla `buildSurface`, AIR/LIQUID `carve`, and `populateEntities`.
+- Kept vanilla feature/ore generation on the inherited `ChunkGenerator.generateFeatures` path.
+- Added `EngineSurfaceGuard` for Engine-specific coast/river/snow semantics and surface fallback.
+- Added `MC1201-FUNCTIONAL-WORLDGEN.md` documenting stage ownership and known boundaries.

@@ -35,3 +35,8 @@ not GitHub Packages. The generated repository originates at
 Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public external-engine Maven artifact while substituting the Engine POM's transitive API with the local `:engine-api` project. It embeds Engine/API/common dependencies explicitly, registers data-driven worldgen codecs and ships a selectable world preset.
 
 - CI/Gradle runtime is Java 21; Minecraft 1.20.1 bytecode remains Java 17.
+
+
+## Minecraft 1.20.1 integration status (r12)
+
+The Fabric reference adapter is functionally connected to vanilla NoiseRouter/aquifers, surface rules, carvers, placed features/ores and mob population. FlTerraForged remains authoritative for surface shape, rivers, climate and biome routing.

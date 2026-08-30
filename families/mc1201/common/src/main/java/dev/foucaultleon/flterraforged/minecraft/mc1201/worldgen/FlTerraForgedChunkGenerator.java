@@ -10,10 +10,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import net.minecraft.block.BlockState;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.Heightmap;
@@ -30,11 +28,12 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 import net.minecraft.world.chunk.Chunk;
 
 /**
- * First Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
+ * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
  *
- * <p>This reference adapter intentionally fills simple solid/water columns. It
- * proves engine seed binding, height generation, native biome routing and data
- * driven world-preset loading before vanilla caves/surface rules are integrated.</p>
+ * <p>The external engine owns the large-scale surface shape and climate. A
+ * vanilla {@code NoiseChunkGenerator} supplies the 3D NoiseRouter substrate,
+ * aquifers, surface rules, carvers and mob population; the density bridge
+ * remaps that substrate to the engine surface before later vanilla stages run.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -65,6 +64,9 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final FlTerraForgedBiomeSource engineBiomeSource;
     private final EngineWorldSession session;
     private final ColumnComposer columns;
+    private final VanillaWorldgenDelegate vanilla;
+    private final EngineDensityBridge densityBridge;
+    private final EngineSurfaceGuard surfaceGuard;
 
     /** Creates a data-driven generator from the registered codec. */
     public FlTerraForgedChunkGenerator(
@@ -94,6 +96,10 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                 value.seaLevel(),
                 value.defaultBlock(),
                 value.defaultFluid());
+        this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
+        this.densityBridge = new EngineDensityBridge(value);
+        this.surfaceGuard = new EngineSurfaceGuard(
+                minY, maxYExclusive, value.seaLevel(), value.defaultBlock());
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -135,11 +141,11 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk) {
         TerrainWorld world = bind(noiseConfig);
-        return CompletableFuture.supplyAsync(() -> {
-            fillChunk(chunk, world);
-            Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
-            return chunk;
-        }, executor);
+        return vanilla.populateNoise(executor, blender, noiseConfig, structureAccessor, chunk)
+                .thenApply(generated -> {
+                    densityBridge.reshape(generated, world);
+                    return generated;
+                });
     }
 
     @Override
@@ -184,7 +190,10 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structures,
             NoiseConfig noiseConfig,
             Chunk chunk) {
-        // The first reference adapter composes its basic surface while filling columns.
+        TerrainWorld world = bind(noiseConfig);
+        vanilla.buildSurface(region, structures, noiseConfig, chunk);
+        surfaceGuard.apply(chunk, world);
+        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override
@@ -196,12 +205,14 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             GenerationStep.Carver carverStep) {
-        // Vanilla cave/carver delegation is intentionally a follow-up integration step.
+        bind(noiseConfig);
+        vanilla.carve(
+                chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
     }
 
     @Override
     public void populateEntities(ChunkRegion region) {
-        // Entity population is intentionally left to a later vanilla-delegation pass.
+        vanilla.populateEntities(region);
     }
 
     @Override
@@ -224,28 +235,5 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         return world;
     }
 
-    private void fillChunk(Chunk chunk, TerrainWorld world) {
-        ChunkPos pos = chunk.getPos();
-        int startX = pos.getStartX();
-        int startZ = pos.getStartZ();
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-        for (int localZ = 0; localZ < 16; localZ++) {
-            int blockZ = startZ + localZ;
-            for (int localX = 0; localX < 16; localX++) {
-                int blockX = startX + localX;
-                TerrainSample sample = world.sample(blockX, blockZ);
-                BlockState[] states = columns.compose(sample);
-                for (int index = 0; index < states.length; index++) {
-                    BlockState state = states[index];
-                    if (state.isAir()) {
-                        continue;
-                    }
-                    int y = getMinimumY() + index;
-                    mutable.set(blockX, y, blockZ);
-                    chunk.setBlockState(mutable, state, false);
-                }
-            }
-        }
-    }
 }

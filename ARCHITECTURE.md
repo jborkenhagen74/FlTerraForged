@@ -149,3 +149,36 @@ coordinate only and do not need the FlTerraForged source tree.
 The first real adapter lives in the `mc1201` family and is packaged by `versions/1.20.1/fabric`. The family-common layer owns engine session binding, biome routing and the custom chunk generator. Fabric owns only codec registration, Loader entrypoint and the `NoiseConfig` seed-capture mixin. The chunk generator and biome source share one `TerrainWorld`, so terrain and biome decisions cannot drift to different engine instances/seeds.
 
 The reference adapter currently materializes simple columns directly. Minecraft density functions, aquifers, carvers and full surface-rule delegation are deliberately left as the next integration stage rather than leaking those APIs into the external engine.
+
+## Minecraft 1.20.1 functional reference pipeline
+
+The 1.20.1 Fabric adapter is intentionally hybrid rather than a second terrain
+engine inside the Minecraft module:
+
+```text
+FlTerraForged Engine TerrainWorld
+             |
+             | surface height / climate / rivers
+             v
+      EngineDensityBridge
+             ^
+             |
+Vanilla NoiseChunkGenerator
+  NoiseRouter + aquifers
+             |
+             v
+   vanilla Surface Rules
+             |
+             v
+      EngineSurfaceGuard
+             |
+             v
+      vanilla Carvers
+             |
+             v
+  vanilla Features / Ores
+```
+
+The Minecraft-family layer may depend on Minecraft classes and vanilla worldgen.
+The Engine API and external Engine remain Java-only and are not allowed to import
+Minecraft, Fabric, NeoForge or Mojang Codec types.
