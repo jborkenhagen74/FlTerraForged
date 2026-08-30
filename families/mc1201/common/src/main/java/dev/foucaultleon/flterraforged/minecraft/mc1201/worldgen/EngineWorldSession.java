@@ -112,6 +112,11 @@ public final class EngineWorldSession implements AutoCloseable {
         return provider.id();
     }
 
+    /** Returns the external engine implementation version reported by the provider. */
+    public String providerVersion() {
+        return provider.engineVersion();
+    }
+
     @Override
     public synchronized void close() {
         closeBoundResources();

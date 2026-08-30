@@ -157,7 +157,11 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             HeightLimitView world,
             NoiseConfig noiseConfig) {
         TerrainSample sample = bind(noiseConfig).sample(x, z);
-        return columns.surfaceTop(sample);
+        if (heightmap == Heightmap.Type.OCEAN_FLOOR
+                || heightmap == Heightmap.Type.OCEAN_FLOOR_WG) {
+            return columns.surfaceTop(sample);
+        }
+        return columns.worldSurfaceTop(sample);
     }
 
     @Override
@@ -219,7 +223,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     @Override
     public void getDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
         TerrainSample sample = bind(noiseConfig).sample(pos.getX(), pos.getZ());
-        text.add("FlTerraForged engine: " + session.providerId());
+        text.add("FlTerraForged engine: " + session.providerId() + " @ " + session.providerVersion());
         text.add(String.format(
                 java.util.Locale.ROOT,
                 "FTF h=%.2f slope=%.3f erosion=%.3f continent=%.3f terrain=%s",
@@ -228,6 +232,16 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                 sample.erosion(),
                 sample.continentalness(),
                 sample.terrainType()));
+        if (sample.river().hasWaterSurfaceHeight()) {
+            text.add(String.format(
+                    java.util.Locale.ROOT,
+                    "FTF river d=%.2f w=%.2f water=%.2f flow=%.2f wet=%s",
+                    sample.river().depth(),
+                    sample.river().width(),
+                    sample.river().waterSurfaceHeight(),
+                    sample.river().flow(),
+                    HydrologyColumn.hasMaterializedRiverWater(sample)));
+        }
     }
 
     private TerrainWorld bind(NoiseConfig noiseConfig) {

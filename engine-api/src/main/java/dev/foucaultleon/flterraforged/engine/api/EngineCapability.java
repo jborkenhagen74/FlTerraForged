@@ -14,6 +14,8 @@ public enum EngineCapability {
     CLIMATE,
     /** Engine exposes river or hydrology samples. */
     RIVERS,
+    /** Engine exposes a continuous, world-space river-water surface. */
+    RIVER_WATER_LEVEL,
     /** Engine exposes semantic terrain types. */
     TERRAIN_TYPE
 }

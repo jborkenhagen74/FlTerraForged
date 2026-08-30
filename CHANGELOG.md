@@ -1,26 +1,15 @@
-## r16 – MC 1.20.1 world-preset discovery fix
-
-
-## 0.1.0-SNAPSHOT-r18
-
-- Declare Fabric API `0.92.2+1.20.1` as an explicit Minecraft 1.20.1 Fabric runtime/build dependency.
-- This supplies `fabric-resource-loader-v0`, which exposes mod `data/` resources as a data pack during the dynamic worldgen registry reload.
-- Keep the FlTerraForged world preset and `minecraft:normal` tag in `families/mc1201/common/src/main/resources`; no manual data-pack copy is required.
-- Extend layout verification so CI rejects a 1.20.1 Fabric adapter that ships a world preset without declaring Fabric API/resource-loader support.
-
-## 0.1.0-SNAPSHOT-r17
-
-- Fix duplicate MC 1.20.1 Fabric resources by keeping world-preset/tag/lang files only in `families/mc1201/common`.
-- Fix Gradle 10 deprecation in `processResources` by capturing `version` during configuration instead of accessing `Task.project` at execution time.
-- Extend layout verification to reject duplicate relative resource paths and execution-time `project.version` access.
-
-
-- Added the actual `data/flterraforged/worldgen/world_preset/flterraforged.json` datapack resource.
-- Added `flterraforged:flterraforged` to the `minecraft:normal` world-preset tag without replacing Vanilla presets.
-- Added German and English `generator.flterraforged.flterraforged` translations so the selector shows `FlTerraForged`.
-- Extended layout verification to require preset, tag, and translations.
-
 # Changelog
+
+## 0.1.0-SNAPSHOT-r21
+
+- Show the external Engine provider version in the F3 debug HUD so snapshot integration can be verified in-game.
+- Extend the Engine API `RiverSample` additively with `waterSurfaceHeight` and `flow` while retaining the legacy three-argument constructor for binary/source compatibility.
+- Add `RIVER_WATER_LEVEL` as an optional Engine capability.
+- Add `HydrologyColumn` to materialize Engine-provided river-water surfaces consistently in both chunk shaping and synchronous column sampling.
+- Keep river water tied to the directed drainage segment rather than deriving a separate level from each terrain column.
+- Make `getHeight(...)` water-aware: ocean-floor heightmaps return the solid bed while world-surface-style height queries include river/ocean water.
+- Extend the F3 debug text with river depth, width, water level, flow and whether the continuous water surface materializes as at least one full Minecraft water block.
+- Add CI/layout guards preventing a return to ad-hoc per-column river-height guesses.
 
 ## 0.1.0-SNAPSHOT-r20
 
@@ -39,6 +28,25 @@
 - Avoid writing unchanged block states during the density reshape to reduce chunk-generation work.
 - Mark full aquifer-fluid restoration as a deferred, height-stable Minecraft adapter task rather than claiming translated vanilla aquifers are safe.
 
+## 0.1.0-SNAPSHOT-r18
+
+- Declare Fabric API `0.92.2+1.20.1` as an explicit Minecraft 1.20.1 Fabric runtime/build dependency.
+- This supplies `fabric-resource-loader-v0`, which exposes mod `data/` resources as a data pack during the dynamic worldgen registry reload.
+- Keep the FlTerraForged world preset and `minecraft:normal` tag in `families/mc1201/common/src/main/resources`; no manual data-pack copy is required.
+- Extend layout verification so CI rejects a 1.20.1 Fabric adapter that ships a world preset without declaring Fabric API/resource-loader support.
+
+## 0.1.0-SNAPSHOT-r17
+
+- Fix duplicate MC 1.20.1 Fabric resources by keeping world-preset/tag/lang files only in `families/mc1201/common`.
+- Fix Gradle 10 deprecation in `processResources` by capturing `version` during configuration instead of accessing `Task.project` at execution time.
+- Extend layout verification to reject duplicate relative resource paths and execution-time `project.version` access.
+
+## 0.1.0-SNAPSHOT-r16
+
+- Added the actual `data/flterraforged/worldgen/world_preset/flterraforged.json` datapack resource.
+- Added `flterraforged:flterraforged` to the `minecraft:normal` world-preset tag without replacing Vanilla presets.
+- Added German and English `generator.flterraforged.flterraforged` translations so the selector shows `FlTerraForged`.
+- Extended layout verification to require preset, tag, and translations.
 
 ## 0.1.0-SNAPSHOT-r15
 

@@ -71,7 +71,12 @@ public final class EngineDensityBridge {
                         minY + 1,
                         maxYExclusive - 2);
                 int sealBottomY = Math.max(minY + 1, targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
-                int waterTopExclusive = waterTopExclusive(targetSurfaceY + 1);
+                int waterTopExclusive = HydrologyColumn.waterTopExclusive(
+                        sample,
+                        targetSurfaceY + 1,
+                        seaLevel,
+                        minY,
+                        maxYExclusive);
 
                 for (int y = minY; y < maxYExclusive; y++) {
                     BlockState state = reconciledState(
@@ -151,13 +156,6 @@ public final class EngineDensityBridge {
 
         BlockState state = source[y - minY];
         return state == null ? defaultBlock : state;
-    }
-
-    private int waterTopExclusive(int surfaceTop) {
-        // Until the engine exposes a hydrologically consistent river-water
-        // level, only oceans/low terrain are filled to Minecraft's global sea
-        // level. No per-column highland river water is synthesized here.
-        return clamp(Math.max(surfaceTop, seaLevel + 1), minY, maxYExclusive);
     }
 
     private static int clamp(int value, int min, int max) {

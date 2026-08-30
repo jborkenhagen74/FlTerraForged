@@ -187,3 +187,11 @@ Minecraft, Fabric, NeoForge or Mojang Codec types.
 
 The 1.20.1 Fabric adapter has an explicit runtime dependency on Fabric API 0.92.2+1.20.1. Its `fabric-resource-loader-v0` module exposes the mod JAR's `data/` tree as a built-in data pack during world-creation registry loading. This is required for the `flterraforged:flterraforged` world preset and its `minecraft:normal` tag contribution to reach the dynamic `WORLD_PRESET` registry.
 
+
+
+## Additive hydrology contract (r21)
+
+`RiverSample` keeps distance/width/depth as the baseline hydrology contract and adds optional
+`waterSurfaceHeight` plus `flow`. The legacy three-argument constructor remains available, so an older
+Engine binary can still link against the newer API; its water/flow values are simply unavailable.
+Minecraft adapters must materialize water only when `hasWaterSurfaceHeight()` is true.

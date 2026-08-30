@@ -4,8 +4,8 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r20 keeps the hybrid FlTerraForged/vanilla pipeline but removes the
-unsafe per-column vertical translation introduced by the first density bridge.
+Snapshot r21 keeps the r20 absolute-Y substrate model and adds the first stable
+Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
 
@@ -14,7 +14,7 @@ FlTerraForged Engine owns:
 1. continent layout,
 2. terrain regions and fractional surface height,
 3. erosion,
-4. river/rivermap signals,
+4. river/rivermap signals including continuous river-water elevation and accumulated flow,
 5. climate and native-biome routing.
 
 Minecraft 1.20.1 owns:
@@ -40,6 +40,7 @@ EngineDensityBridge.reshape
         |
         | keep vanilla substrate at absolute Y; truncate/extend to Engine surface
         | enforce a 6-block solid surface skin
+        | fill Engine river channels to the directed-segment water surface
         v
 NoiseChunkGenerator.buildSurface
         |
@@ -75,7 +76,8 @@ For each x/z column it:
 6. preserves vanilla caves, deepslate/noise substrate and aquifer states below
    the original surface at their original absolute Y coordinates,
 7. enforces a six-block solid skin below the Engine surface before carvers,
-8. reconstructs stable global sea-level water above low terrain.
+8. reconstructs stable global sea-level water above low terrain,
+9. materializes highland river water only from the Engine-provided directed-segment water surface.
 
 The old r12-r19 algorithm computed a separate vertical delta for every x/z
 column and translated the entire 3D profile. Because neighboring columns have
@@ -88,6 +90,25 @@ intersect a pre-existing vanilla cave, the base terrain is sealed first.
 Minecraft's normal carver stage then creates cave mouths against the final
 Engine terrain instead of inheriting accidental thin roofs from an unrelated
 vanilla surface height.
+
+
+## River water realization (r21)
+
+The Engine now exposes two additive hydrology values through `RiverSample`:
+
+- `waterSurfaceHeight`: continuous world-space Y of the nearest active channel water surface;
+- `flow`: accumulated drainage weight of that channel segment.
+
+The water surface is derived from the directed `RiverSegment` itself. It therefore uses the same
+upstream/downstream drainage nodes as the river centerline and does **not** use a noisy per-column
+formula based on local terrain depth. Across a river cross-section the segment water level is stable;
+along the segment it descends with the drainage direction. `HydrologyColumn` is the single Minecraft
+1.20.1 realization rule used by both `EngineDensityBridge` and `ColumnComposer`. A column receives
+river water only when the local incised bed is below the Engine water surface.
+
+This is intentionally the first river-water stage, not the final hydrology feature set. Lakes/basin
+filling, explicit waterfall shaping and a later 3D density-native river/aquifer integration remain
+separate follow-up work.
 
 ## Surface rules
 

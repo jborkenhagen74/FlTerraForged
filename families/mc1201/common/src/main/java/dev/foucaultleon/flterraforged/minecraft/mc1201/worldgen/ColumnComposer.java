@@ -36,12 +36,20 @@ public final class ColumnComposer {
         return clamp((int) Math.floor(sample.surfaceHeight()) + 1, minY + 1, maxYExclusive);
     }
 
+    /** Returns the first block above solid terrain plus ocean or river water. */
+    public int worldSurfaceTop(TerrainSample sample) {
+        int solidTop = surfaceTop(sample);
+        return HydrologyColumn.waterTopExclusive(
+                sample, solidTop, seaLevel, minY, maxYExclusive);
+    }
+
     /** Builds a full vertical column suitable for chunk fill and structure sampling. */
     public BlockState[] compose(TerrainSample sample) {
         BlockState[] states = new BlockState[maxYExclusive - minY];
         int surfaceTop = surfaceTop(sample);
         int surfaceY = surfaceTop - 1;
-        int waterTopExclusive = waterTopExclusive(sample, surfaceTop);
+        int waterTopExclusive = HydrologyColumn.waterTopExclusive(
+                sample, surfaceTop, seaLevel, minY, maxYExclusive);
         BlockState top = topState(sample);
         BlockState filler = fillerState(sample);
 
@@ -63,13 +71,6 @@ public final class ColumnComposer {
             states[y - minY] = state;
         }
         return states;
-    }
-
-    private int waterTopExclusive(TerrainSample sample, int surfaceTop) {
-        // Keep synchronous column sampling consistent with EngineDensityBridge:
-        // only the global sea level is materialized until a stable river-water
-        // level is part of the engine contract.
-        return clamp(Math.max(surfaceTop, seaLevel + 1), minY, maxYExclusive);
     }
 
     private BlockState topState(TerrainSample sample) {

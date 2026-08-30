@@ -153,13 +153,17 @@ Use `/locate biome <id>` where useful, then verify the surrounding terrain manua
 | D05 | P1 | Highland river | Inspect rivers in elevated terrain when found. | River generation/classification is not artificially restricted to sea-level lowlands. | |
 | D06 | P0 | Coast surface | Walk along an ocean coast for >= 500 blocks. | Beach/coast surface is continuous and no exposed default-stone strip repeats on chunk borders. | |
 | D07 | P1 | Snow surface guard | Inspect high cold terrain. | Snow correction is coherent; no isolated one-column snow spikes caused by the guard. | |
+| D08 | P0 | River water present | Follow at least three Engine river channels, including one above sea level. | Incised channel centers contain water where the Engine water surface is above the bed; rivers are not universally dry sand trenches. | |
+| D09 | P0 | River water continuity | Follow one wet river for >= 500 blocks and >= 10 chunk borders. | Water follows the channel continuously without chunk-aligned breaks or unrelated isolated source blocks. | |
+| D10 | P0 | River water stability | Stand near a newly generated wet river for >= 2 minutes and inspect `latest.log`. | No repeated `Too many chained neighbor updates` and no sustained fluid-update lag caused by generated river water. | |
+| D11 | P1 | Highland river grade | Follow a wet river that descends through elevated terrain. | Water elevation trends downhill with the channel; no noisy one-column up/down sawtooth water surface. | |
 
 ---
 
 # Gate E — NoiseRouter, caves and aquifers
 
 Run these primarily in Spectator mode. The purpose is to prove that the vanilla 3D substrate
-survives the Engine height remap.
+survives the Engine surface reconciliation without vertical translation.
 
 | ID | Prio | Test | Procedure | Pass criteria | Result |
 | --- | --- | --- | --- | --- | --- |

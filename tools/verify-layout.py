@@ -143,6 +143,7 @@ def main() -> None:
         worldgen_root / "EngineDensityBridge.java",
         worldgen_root / "VanillaWorldgenDelegate.java",
         worldgen_root / "EngineSurfaceGuard.java",
+        worldgen_root / "HydrologyColumn.java",
     )
     for functional_file in functional_files:
         if not functional_file.is_file():
@@ -181,7 +182,25 @@ def main() -> None:
 
     column_text = (worldgen_root / "ColumnComposer.java").read_text(encoding="utf-8")
     if "sample.river().depth() * 0.25" in column_text:
-        fail("mc1201 synchronous column composer must match stable sea-level-only water policy")
+        fail("mc1201 synchronous column composer must not recreate per-column river-height guesses")
+    hydrology_text = functional_files[3].read_text(encoding="utf-8")
+    for fragment in ("river.hasWaterSurfaceHeight()", "river.waterSurfaceHeight()", "river.depth()"):
+        if fragment not in hydrology_text:
+            fail(f"mc1201 hydrology realization is missing stable river-water logic: {fragment}")
+    if "HydrologyColumn.waterTopExclusive" not in density_text:
+        fail("mc1201 density bridge must materialize Engine hydrology through HydrologyColumn")
+    if "HydrologyColumn.waterTopExclusive" not in column_text:
+        fail("mc1201 synchronous column composer must match Engine hydrology realization")
+    if "columns.worldSurfaceTop(sample)" not in generator_text:
+        fail("mc1201 height queries must include materialized river/ocean water")
+
+    river_api = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/river/RiverSample.java").read_text(encoding="utf-8")
+    for fragment in ("waterSurfaceHeight", "flow", "public RiverSample(double distance, double width, double depth)"):
+        if fragment not in river_api:
+            fail(f"engine-api RiverSample is missing additive hydrology compatibility: {fragment}")
+    capability_api = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/EngineCapability.java").read_text(encoding="utf-8")
+    if "RIVER_WATER_LEVEL" not in capability_api:
+        fail("engine-api must advertise the additive RIVER_WATER_LEVEL capability")
 
     delegate_text = functional_files[1].read_text(encoding="utf-8")
     for fragment in ("new NoiseChunkGenerator", ".populateNoise(", ".buildSurface(", ".carve(", ".populateEntities("):

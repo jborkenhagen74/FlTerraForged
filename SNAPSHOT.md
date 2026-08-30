@@ -86,3 +86,13 @@ aquifers remain at absolute Y. Engine terrain truncates or extends the substrate
 to the target surface, with a six-block solid pre-carver surface skin. This
 removes the floating-platform, horizontal-gap and vertical-shear artefacts seen
 in r19 while retaining vanilla carvers, surface rules and features.
+
+
+### r21 river-water integration
+
+`RiverSample` now carries optional `waterSurfaceHeight` and `flow` values while preserving its legacy
+three-argument constructor. The Minecraft 1.20.1 adapter consumes those values through a single
+`HydrologyColumn` rule shared by density shaping and synchronous column/height sampling. River water
+is therefore based on the directed drainage segment rather than a per-column depth guess. Ocean-floor
+height queries still report the bed; world-surface queries include materialized water. Lakes, basin
+filling and explicit waterfall shaping remain follow-up hydrology stages.
