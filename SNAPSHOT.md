@@ -96,3 +96,11 @@ three-argument constructor. The Minecraft 1.20.1 adapter consumes those values t
 is therefore based on the directed drainage segment rather than a per-column depth guess. Ocean-floor
 height queries still report the bed; world-surface queries include materialized water. Lakes, basin
 filling and explicit waterfall shaping remain follow-up hydrology stages.
+
+
+### r22 hydrology integration
+
+Use Engine r16 with this host snapshot. r22 realizes depression-aware ponds/lakes and terrain-refined
+river centerlines, removes the old forced river-sand surface behavior and keeps water placement routed
+through `HydrologyColumn`. Climate defaults are also broadened in Engine r16 to reduce small, abrupt
+biome patches.

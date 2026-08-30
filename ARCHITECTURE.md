@@ -195,3 +195,13 @@ The 1.20.1 Fabric adapter has an explicit runtime dependency on Fabric API 0.92.
 `waterSurfaceHeight` plus `flow`. The legacy three-argument constructor remains available, so an older
 Engine binary can still link against the newer API; its water/flow values are simply unavailable.
 Minecraft adapters must materialize water only when `hasWaterSurfaceHeight()` is true.
+
+
+## Depression-aware hydrology realization (r22)
+
+The host does not reconstruct hydrology from Minecraft columns. Engine r16 supplies the curved
+channel/lake geometry and continuous water level; `HydrologyColumn` only converts that semantic
+height into Minecraft water blocks. `NativeBiomeRouter` treats `LAKE` as aquatic terrain and
+`EngineSurfaceGuard` no longer stamps every river sample with sand: coasts remain sandy while wet
+river/lake beds receive restrained gravel correction. This keeps D8 topology, lake spill logic and
+minimum-depth decisions entirely on the replaceable Java-only Engine side.

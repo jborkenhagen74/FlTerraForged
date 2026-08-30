@@ -94,9 +94,14 @@ public final class EngineSurfaceGuard {
     }
 
     private BlockState forcedTop(TerrainSample sample) {
-        if (StandardTerrainTypes.COAST.equals(sample.terrainType())
-                || StandardTerrainTypes.RIVER.equals(sample.terrainType())) {
+        if (StandardTerrainTypes.COAST.equals(sample.terrainType())) {
             return Blocks.SAND.getDefaultState();
+        }
+        if ((StandardTerrainTypes.RIVER.equals(sample.terrainType())
+                || StandardTerrainTypes.LAKE.equals(sample.terrainType()))
+                && sample.river().hasWaterSurfaceHeight()
+                && sample.river().waterSurfaceHeight() > sample.surfaceHeight() + 0.10D) {
+            return Blocks.GRAVEL.getDefaultState();
         }
         if (sample.climate().isAvailable()
                 && sample.climate().temperature() < 0.20
@@ -115,8 +120,7 @@ public final class EngineSurfaceGuard {
 
     private BlockState fillerFor(TerrainSample sample) {
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
-                || StandardTerrainTypes.COAST.equals(sample.terrainType())
-                || StandardTerrainTypes.RIVER.equals(sample.terrainType())) {
+                || StandardTerrainTypes.COAST.equals(sample.terrainType())) {
             return Blocks.SAND.getDefaultState();
         }
         return Blocks.DIRT.getDefaultState();

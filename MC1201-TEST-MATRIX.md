@@ -132,7 +132,8 @@ Use `/locate biome <id>` where useful, then verify the surrounding terrain manua
 | --- | --- | --- | --- | --- | --- |
 | C01 | P0 | BiomeSource active | Use F3 while travelling through several regions. | Biome changes occur; world is not stuck on a single fallback biome. | |
 | C02 | P0 | Ocean biome | `/locate biome minecraft:ocean` and visit result. | Located area is genuinely oceanic and not dry land with ocean biome only. | |
-| C03 | P0 | River biome | `/locate biome minecraft:river` and inspect nearby river channel. | River biome broadly follows an actual Engine river corridor. | |
+| C03 | P0 | River biome | `/locate biome minecraft:river` and inspect nearby river channel. | River biome broadly follows an actual Engine river/lake corridor. | |
+| C04 | P1 | Biome scale/blend | Fly >= 3 km across normal land while watching F3 biome names. | Climate biomes form broad regions with soft geographic transitions; no rapid checkerboard of tiny sharply bounded patches. | |
 | C04 | P1 | Dry climate | `/locate biome minecraft:desert`. | Desert appears in plausible dry/warm terrain and surface rules/features match desert. | |
 | C05 | P1 | Wet climate | `/locate biome minecraft:jungle` or forest fallback if jungle is absent on seed. | Wet biome is associated with visibly wetter climate routing, not an isolated single column. | |
 | C06 | P1 | Cold climate | `/locate biome minecraft:snowy_plains`. | Cold region has coherent snowy/cold surface over more than a few columns. | |
@@ -157,6 +158,10 @@ Use `/locate biome <id>` where useful, then verify the surrounding terrain manua
 | D09 | P0 | River water continuity | Follow one wet river for >= 500 blocks and >= 10 chunk borders. | Water follows the channel continuously without chunk-aligned breaks or unrelated isolated source blocks. | |
 | D10 | P0 | River water stability | Stand near a newly generated wet river for >= 2 minutes and inspect `latest.log`. | No repeated `Too many chained neighbor updates` and no sustained fluid-update lag caused by generated river water. | |
 | D11 | P1 | Highland river grade | Follow a wet river that descends through elevated terrain. | Water elevation trends downhill with the channel; no noisy one-column up/down sawtooth water surface. | |
+| D12 | P0 | Terrain-guided centerline | Follow >= 3 rivers for >= 750 blocks each from above. | Visible channels curve/meander with valleys and do not expose long 0/45/90-degree D8 lines or starburst geometry. | |
+| D13 | P0 | Minimum wet depth | Follow a wet channel through shallow-looking terrain and inspect cross-sections. | Small bed humps are incised through; the wet core does not repeatedly stop and restart because the water surface falls below local bed noise. | |
+| D14 | P0 | Ponds and lakes | Explore >= 5 km or locate naturally occurring inland water bodies. | Depression basins create irregular ponds/lakes above sea level where appropriate; shores are not perfect circles and water uses one coherent spill elevation. | |
+| D15 | P0 | Lake outlet / sink escape | Find a pond/lake with an outlet or a river entering a local depression. | The watercourse does not terminate solely at a local minimum; overflow continues downstream from the basin spill point where terrain permits. | |
 
 ---
 
@@ -185,7 +190,7 @@ survives the Engine surface reconciliation without vertical translation.
 | F01 | P0 | Plains topsoil | Inspect normal temperate plains/forest. | Grass/topsoil and dirt filler exist; broad naked-stone plains do not occur. | |
 | F02 | P0 | Desert surface | Inspect desert. | Sand surface/filler behaves like a normal desert. | |
 | F03 | P0 | Ocean floor | Inspect ocean floor. | Floor material is plausible and not universally grass or exposed top stone. | |
-| F04 | P0 | River surface override | Inspect riverbanks/bed. | River-specific sand correction is present where appropriate without replacing whole surrounding biome. | |
+| F04 | P0 | River/lake bed override | Inspect river and lake beds plus nearby banks. | Wet channel/body beds use restrained gravel/vanilla material; no circular sand halos are stamped around hydrology samples. | |
 | F05 | P1 | Steep terrain | Inspect cliffs/mountains. | Vanilla/guard interaction does not smear grass vertically down cliff faces in a repeating pattern. | |
 | F06 | P1 | Large height-difference fallback | Search highest mountains for exposed default stone at otherwise soil-covered tops. | Surface guard fills missed surface columns but does not overwrite valid special surfaces globally. | |
 

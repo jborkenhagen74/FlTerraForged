@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r22
+
+- Integrate Engine r16 depression-aware hydrology: terrain-guided curved streams/rivers, guaranteed wet-channel depth and pond/lake water surfaces.
+- Treat Engine `LAKE` semantics as native river-style aquatic biome routing in the Minecraft 1.20.1 reference adapter.
+- Stop forcing every river surface to sand; wet river/lake beds use gravel while sand remains a coast/ocean surface material, removing the circular sand patches seen around channel samples.
+- Keep `HydrologyColumn` as the single water materialization path, so river and lake water use Engine-owned continuous surfaces rather than per-column guesses.
+- Extend layout verification for lake routing and the no-river-sand surface contract.
+
 ## 0.1.0-SNAPSHOT-r21
 
 - Show the external Engine provider version in the F3 debug HUD so snapshot integration can be verified in-game.

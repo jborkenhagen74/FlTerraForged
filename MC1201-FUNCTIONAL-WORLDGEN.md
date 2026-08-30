@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r21 keeps the r20 absolute-Y substrate model and adds the first stable
+Snapshot r22 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -92,23 +92,24 @@ Engine terrain instead of inheriting accidental thin roofs from an unrelated
 vanilla surface height.
 
 
-## River water realization (r21)
+## River and lake realization (r22)
 
 The Engine now exposes two additive hydrology values through `RiverSample`:
 
 - `waterSurfaceHeight`: continuous world-space Y of the nearest active channel water surface;
 - `flow`: accumulated drainage weight of that channel segment.
 
-The water surface is derived from the directed `RiverSegment` itself. It therefore uses the same
-upstream/downstream drainage nodes as the river centerline and does **not** use a noisy per-column
-formula based on local terrain depth. Across a river cross-section the segment water level is stable;
-along the segment it descends with the drainage direction. `HydrologyColumn` is the single Minecraft
-1.20.1 realization rule used by both `EngineDensityBridge` and `ColumnComposer`. A column receives
-river water only when the local incised bed is below the Engine water surface.
+Engine r16 keeps D8 only as the hidden drainage skeleton. A depression-fill/spill pass prevents local
+minima from terminating watercourses, and meaningful basins become ponds/lakes with a shared spill
+elevation. Visible stream and river centerlines are multi-point, terrain-guided paths rather than raw
+D8 axis/diagonal segments.
 
-This is intentionally the first river-water stage, not the final hydrology feature set. Lakes/basin
-filling, explicit waterfall shaping and a later 3D density-native river/aquifer integration remain
-separate follow-up work.
+The water surface remains Engine-owned and downstream-monotonic. Channel incision reserves a wet core
+and the Engine deepens the actual eroded local bed when a small terrain hump would otherwise interrupt
+water. `HydrologyColumn` is still the single Minecraft 1.20.1 realization rule used by both
+`EngineDensityBridge` and `ColumnComposer`; it materializes both channel and lake water only below the
+Engine-provided water surface. Explicit waterfall/rapid shaping and a later 3D density-native
+river/aquifer integration remain follow-up work.
 
 ## Surface rules
 
@@ -118,7 +119,7 @@ vanilla density height, `EngineSurfaceGuard` runs afterward.
 
 The guard is intentionally narrow:
 
-- engine coast/river surfaces are sand,
+- coasts remain sand while wet river/lake beds use gravel instead of a radial sand override,
 - cold elevated surfaces can be snow,
 - if vanilla left the exact engine surface as the default stone block, a
   grass/dirt or sand fallback is applied.

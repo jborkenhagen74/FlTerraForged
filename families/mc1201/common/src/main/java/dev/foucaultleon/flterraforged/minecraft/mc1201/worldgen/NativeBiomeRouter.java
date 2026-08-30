@@ -28,7 +28,8 @@ public final class NativeBiomeRouter {
         if (StandardTerrainTypes.COAST.equals(terrain)) {
             return palette.coast();
         }
-        if (StandardTerrainTypes.RIVER.equals(terrain)) {
+        if (StandardTerrainTypes.RIVER.equals(terrain)
+                || StandardTerrainTypes.LAKE.equals(terrain)) {
             return palette.river();
         }
 

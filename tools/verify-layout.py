@@ -191,6 +191,14 @@ def main() -> None:
         fail("mc1201 density bridge must materialize Engine hydrology through HydrologyColumn")
     if "HydrologyColumn.waterTopExclusive" not in column_text:
         fail("mc1201 synchronous column composer must match Engine hydrology realization")
+    surface_text = (worldgen_root / "EngineSurfaceGuard.java").read_text(encoding="utf-8")
+    if "StandardTerrainTypes.LAKE" not in surface_text or "Blocks.GRAVEL" not in surface_text:
+        fail("mc1201 surface guard must realize lake/river beds without circular sand forcing")
+    if "StandardTerrainTypes.RIVER.equals(sample.terrainType())) {\n            return Blocks.SAND" in surface_text:
+        fail("mc1201 surface guard must not force every river surface to sand")
+    biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
+    if "StandardTerrainTypes.LAKE" not in biome_router_text:
+        fail("mc1201 biome router must recognize Engine lake semantics")
     if "columns.worldSurfaceTop(sample)" not in generator_text:
         fail("mc1201 height queries must include materialized river/ocean water")
 
