@@ -19,6 +19,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 def engineVersion = providers.gradleProperty('flterraforged_engine_version').get()
+def modVersion = version.toString()
 def configuredLocalEngineRepository = providers
         .gradleProperty('flterraforged_engine_local_repository')
         .orElse(providers.environmentVariable('FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY'))
@@ -117,9 +118,9 @@ configurations.configureEach {
 }
 
 processResources {
-    inputs.property 'version', project.version
+    inputs.property 'version', modVersion
     filesMatching('fabric.mod.json') {
-        expand version: project.version
+        expand version: modVersion
     }
 }
 

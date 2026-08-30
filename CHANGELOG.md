@@ -1,4 +1,10 @@
 ## r16 – MC 1.20.1 world-preset discovery fix
+## 0.1.0-SNAPSHOT-r17
+
+- Fix duplicate MC 1.20.1 Fabric resources by keeping world-preset/tag/lang files only in `families/mc1201/common`.
+- Fix Gradle 10 deprecation in `processResources` by capturing `version` during configuration instead of accessing `Task.project` at execution time.
+- Extend layout verification to reject duplicate relative resource paths and execution-time `project.version` access.
+
 
 - Added the actual `data/flterraforged/worldgen/world_preset/flterraforged.json` datapack resource.
 - Added `flterraforged:flterraforged` to the `minecraft:normal` world-preset tag without replacing Vanilla presets.

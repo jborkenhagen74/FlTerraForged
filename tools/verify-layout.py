@@ -110,6 +110,27 @@ def main() -> None:
     if len(mod_descriptors) != 1:
         fail(f"expected exactly one fabric.mod.json across mc1201 resource roots, found {len(mod_descriptors)}")
 
+    relative_resources = {}
+    for resource_root in resource_roots:
+        if not resource_root.exists():
+            continue
+        for resource_file in resource_root.rglob("*"):
+            if not resource_file.is_file():
+                continue
+            relative_path = resource_file.relative_to(resource_root).as_posix()
+            relative_resources.setdefault(relative_path, []).append(resource_file)
+    duplicates = {
+        relative_path: files
+        for relative_path, files in relative_resources.items()
+        if len(files) > 1
+    }
+    if duplicates:
+        formatted = "; ".join(
+            f"{relative_path}: {', '.join(str(file.relative_to(ROOT)) for file in files)}"
+            for relative_path, files in sorted(duplicates.items())
+        )
+        fail(f"duplicate relative resources across mc1201 Fabric roots: {formatted}")
+
     engine_session = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/EngineWorldSession.java"
     engine_session_text = engine_session.read_text(encoding="utf-8")
     if "instanceof NoiseConfigSeedAccess" in engine_session_text:
@@ -199,6 +220,12 @@ def main() -> None:
     mc1201_build = (ROOT / 'versions' / '1.20.1' / 'fabric' / 'build.gradle').read_text(encoding='utf-8')
     if 'JavaLanguageVersion.of(17)' not in mc1201_build or 'options.release = 17' not in mc1201_build:
         fail('Minecraft 1.20.1 must continue targeting Java 17')
+    if 'project.version' in mc1201_build:
+        fail('mc1201 build must not access Task.project during processResources execution')
+    if 'def modVersion = version.toString()' not in mc1201_build:
+        fail('mc1201 build must capture the mod version during configuration')
+    if "expand version: modVersion" not in mc1201_build:
+        fail('mc1201 processResources must expand the captured modVersion value')
 
     verify_mc1201_registry_bootstrap(ROOT)
 
