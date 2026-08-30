@@ -1,5 +1,11 @@
 # Changelog
-## 0.1.0-SNAPSHOT r7
+
+## 0.1.0-SNAPSHOT-r8
+
+- Fixed the Minecraft 1.20.1 Fabric resource source-set configuration: `srcDirs(...)` appended the conventional `src/main/resources` root a second time, causing `fabric.mod.json` to be copied twice by Gradle 9.7.1.
+- `mc1201-fabric` now uses `setSrcDirs(...)` for Java and resource roots, making each source root unique.
+- CI now runs Gradle with `--warning-mode all` so any remaining Gradle/Loom deprecation is printed with its actual source instead of only the generic Gradle 10 compatibility summary.
+
 
 - Added the first real Minecraft binding: Fabric 1.20.1.
 - Added `FlTerraForgedChunkGenerator` and `FlTerraForgedBiomeSource`.

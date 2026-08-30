@@ -35,7 +35,7 @@ jobs:
         run: python3 tools/verify-layout.py
 
       - name: Build and test
-        run: gradle --no-daemon clean check
+        run: gradle --no-daemon --warning-mode all clean check
 
   publish-engine-api-snapshot:
     name: Publish Engine API Snapshot
@@ -60,7 +60,7 @@ jobs:
           gradle-version: '9.7.1'
 
       - name: Build Maven repository
-        run: gradle --no-daemon :engine-api:publish
+        run: gradle --no-daemon --warning-mode all :engine-api:publish
 
       - name: Publish Maven repository branch
         uses: peaceiris/actions-gh-pages@v4.1.0

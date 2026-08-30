@@ -81,3 +81,9 @@ level-type=flterraforged:flterraforged
 ```
 
 Für bestehende Welten wird der Generator nicht automatisch umgestellt; die Referenzanbindung ist zunächst für neu erzeugte Welten gedacht.
+
+## Gradle 9 resource roots
+
+The version project replaces (`setSrcDirs`) Gradle's conventional Java/resource roots instead of appending them. This is important because `src/main/resources` is already a default resource root; appending it again makes `processResources` see `fabric.mod.json` twice and Gradle 9.7.1 fails on the duplicate.
+
+CI uses `--warning-mode all` so Gradle/Loom deprecations are attributable to a concrete build script or plugin.

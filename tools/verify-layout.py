@@ -82,6 +82,28 @@ def main() -> None:
     if "flterraforged-engine" not in fabric_build:
         fail("1.20.1 Fabric binding does not consume the external engine artifact")
 
+    if "java.setSrcDirs([" not in fabric_build or "resources.setSrcDirs([" not in fabric_build:
+        fail("1.20.1 Fabric binding must replace Gradle's default source roots with setSrcDirs(...)")
+    if "java.srcDirs(" in fabric_build or "resources.srcDirs(" in fabric_build:
+        fail("1.20.1 Fabric binding appends source roots and can duplicate src/main resources")
+
+    resource_roots = (
+        ROOT / "families/mc1201/common/src/main/resources",
+        ROOT / "families/mc1201/fabric/src/main/resources",
+        ROOT / "platforms/fabric/common/src/main/resources",
+        ROOT / "versions/1.20.1/fabric/src/main/resources",
+    )
+    existing_resource_roots = [root.resolve() for root in resource_roots if root.exists()]
+    if len(existing_resource_roots) != len(set(existing_resource_roots)):
+        fail("duplicate Minecraft 1.20.1 Fabric resource root")
+    mod_descriptors = [
+        descriptor
+        for root in existing_resource_roots
+        for descriptor in root.rglob("fabric.mod.json")
+    ]
+    if len(mod_descriptors) != 1:
+        fail(f"expected exactly one fabric.mod.json across mc1201 resource roots, found {len(mod_descriptors)}")
+
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
     if overworld.get("type") != "flterraforged:chunk_generator":

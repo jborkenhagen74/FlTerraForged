@@ -63,16 +63,23 @@ repositories {
 
 sourceSets {
     main {
-        java.srcDirs(
+        // SourceDirectorySet.srcDirs(...) appends to Gradle's conventional
+        // src/main/* directories. Because this version project already uses
+        // those conventional directories, appending them again causes the
+        // same resource (notably fabric.mod.json) to be processed twice on
+        // Gradle 9.x. Replace the default roots instead of appending to them.
+        java.setSrcDirs([
                 rootProject.file('families/mc1201/common/src/main/java'),
                 rootProject.file('families/mc1201/fabric/src/main/java'),
                 rootProject.file('platforms/fabric/common/src/main/java'),
-                file('src/main/java'))
-        resources.srcDirs(
+                file('src/main/java')
+        ])
+        resources.setSrcDirs([
                 rootProject.file('families/mc1201/common/src/main/resources'),
                 rootProject.file('families/mc1201/fabric/src/main/resources'),
                 rootProject.file('platforms/fabric/common/src/main/resources'),
-                file('src/main/resources'))
+                file('src/main/resources')
+        ])
     }
 }
 
