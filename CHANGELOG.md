@@ -34,3 +34,9 @@
 - Updated GitHub Actions to Node 24 compatible releases: `actions/checkout@v6`, `actions/setup-java@v6`, and `gradle/actions/setup-gradle@v6`.
 - Pinned `peaceiris/actions-gh-pages@v4.1.0`, whose action runtime uses Node 24.
 - Removes Node 20 deprecation warnings from the build and Maven-branch publishing workflow.
+
+## 0.1.0-SNAPSHOT-r5
+
+- Added complete Javadoc coverage for all public Engine API members.
+- Added package-level API documentation.
+- Configured Javadoc with `-Werror` so Maven publication cannot silently emit Javadoc warnings.

@@ -22,23 +22,54 @@ public final class EngineConfig {
         this.values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
     }
 
+    /**
+     * Returns an empty configuration.
+     *
+     * @return shared immutable empty configuration
+     */
     public static EngineConfig empty() {
         return EMPTY;
     }
 
+    /**
+     * Creates an immutable configuration from string key/value pairs.
+     *
+     * @param values configuration values
+     * @return immutable configuration
+     */
     public static EngineConfig of(Map<String, String> values) {
         Objects.requireNonNull(values, "values");
         return values.isEmpty() ? EMPTY : new EngineConfig(values);
     }
 
+    /**
+     * Looks up a configuration value.
+     *
+     * @param key configuration key
+     * @return optional value associated with the key
+     */
     public Optional<String> get(String key) {
-        return Optional.ofNullable(values.get(key));
+        return Optional.ofNullable(values.get(Objects.requireNonNull(key, "key")));
     }
 
+    /**
+     * Looks up a configuration value with a fallback.
+     *
+     * @param key configuration key
+     * @param defaultValue value returned when the key is absent
+     * @return configured value or {@code defaultValue}
+     */
     public String getOrDefault(String key, String defaultValue) {
-        return values.getOrDefault(key, defaultValue);
+        return values.getOrDefault(
+                Objects.requireNonNull(key, "key"),
+                Objects.requireNonNull(defaultValue, "defaultValue"));
     }
 
+    /**
+     * Returns the immutable configuration map.
+     *
+     * @return immutable configuration values
+     */
     public Map<String, String> asMap() {
         return values;
     }
