@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r6
+
+- Added explicit `@param` documentation to all public record compact constructors.
+- Fixes Java 17 Javadoc `-Werror` failures (`18 warnings`) during `engine-api:javadoc` / Maven publishing.
+
+
 ## 0.1.0-SNAPSHOT
 
 - Fix: declare the JUnit Platform launcher on the test runtime classpath for Gradle 9.x.

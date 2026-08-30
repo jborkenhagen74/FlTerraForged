@@ -19,6 +19,8 @@ public record TerrainType(String namespace, String value) {
     /**
      * Creates and validates a terrain type.
      *
+     * @param namespace terrain namespace
+     * @param value terrain identifier within the namespace
      * @throws NullPointerException if a component is {@code null}
      * @throws IllegalArgumentException if a component contains unsupported characters
      */

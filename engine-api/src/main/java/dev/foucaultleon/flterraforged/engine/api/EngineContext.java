@@ -13,6 +13,10 @@ public record EngineContext(long seed, int minY, int maxYExclusive, int seaLevel
     /**
      * Creates and validates a world context.
      *
+     * @param seed deterministic world seed
+     * @param minY inclusive minimum build height
+     * @param maxYExclusive exclusive maximum build height
+     * @param seaLevel sea level in block coordinates
      * @throws IllegalArgumentException if the world bounds are invalid or sea level lies outside them
      */
     public EngineContext {

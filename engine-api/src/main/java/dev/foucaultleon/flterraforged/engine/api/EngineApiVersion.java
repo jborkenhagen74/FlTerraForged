@@ -20,6 +20,9 @@ public record EngineApiVersion(int major, int minor, int patch)
     /**
      * Creates and validates an API version.
      *
+     * @param major major API version
+     * @param minor minor API version
+     * @param patch patch API version
      * @throws IllegalArgumentException if a version component is negative
      */
     public EngineApiVersion {

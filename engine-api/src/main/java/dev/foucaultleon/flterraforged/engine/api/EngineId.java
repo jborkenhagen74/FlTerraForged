@@ -16,6 +16,8 @@ public record EngineId(String namespace, String value) {
     /**
      * Creates and validates an engine identifier.
      *
+     * @param namespace provider namespace
+     * @param value provider-specific identifier
      * @throws NullPointerException if a component is {@code null}
      * @throws IllegalArgumentException if a component contains unsupported characters
      */

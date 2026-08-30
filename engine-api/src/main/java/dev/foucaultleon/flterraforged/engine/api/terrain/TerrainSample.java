@@ -30,6 +30,13 @@ public record TerrainSample(
     /**
      * Creates and validates a terrain sample.
      *
+     * @param surfaceHeight continuous surface height in block coordinates
+     * @param slope engine-defined terrain slope value, or {@link Double#NaN}
+     * @param erosion engine-defined erosion value, or {@link Double#NaN}
+     * @param continentalness engine-defined continentalness value, or {@link Double#NaN}
+     * @param terrainType semantic terrain type
+     * @param climate climate sample or {@link ClimateSample#UNAVAILABLE}
+     * @param river river sample or {@link RiverSample#UNAVAILABLE}
      * @throws IllegalArgumentException if {@code surfaceHeight} is not finite
      * @throws NullPointerException if a semantic sample object is {@code null}
      */
