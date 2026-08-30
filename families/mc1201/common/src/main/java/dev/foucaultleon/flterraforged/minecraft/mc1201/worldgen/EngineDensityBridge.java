@@ -1,7 +1,6 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
-import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -18,8 +17,9 @@ import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
  * <p>The vanilla noise generator first fills a chunk using the configured
  * {@link ChunkGeneratorSettings}. This bridge then vertically remaps each
  * column so that its solid density boundary follows the engine surface while
- * preserving caves, aquifer pockets, ore-vein substrate and other 3D states
- * already present in the vanilla density result.</p>
+ * preserving caves and solid 3D substrate. Vanilla aquifer fluids are not
+ * translated with the column because moving their absolute fluid levels can
+ * expose deep lava or create unstable fluid cascades near the surface.</p>
  */
 public final class EngineDensityBridge {
 
@@ -66,8 +66,11 @@ public final class EngineDensityBridge {
 
                 for (int y = minY; y < maxYExclusive; y++) {
                     BlockState state = remapState(source, y, targetSurfaceY, delta, waterTopExclusive);
-                    mutable.set(blockX, y, blockZ);
-                    chunk.setBlockState(mutable, state, false);
+                    BlockState current = source[y - minY];
+                    if (!state.equals(current)) {
+                        mutable.set(blockX, y, blockZ);
+                        chunk.setBlockState(mutable, state, false);
+                    }
                 }
             }
         }
@@ -121,23 +124,24 @@ public final class EngineDensityBridge {
             return defaultBlock;
         }
 
-        // Do not let the translated vanilla sea overwrite land below the engine
-        // surface. Genuine underground aquifer fluid is retained because it is
-        // surrounded by non-air density and is below the target surface.
-        if (!state.getFluidState().isEmpty() && y >= targetSurfaceY - 1) {
-            return defaultBlock;
+        // The density/cave geometry may move vertically, but aquifer fluid levels
+        // are absolute world-height phenomena. Translating water or lava together
+        // with the column can move deep lava to spawn height and opens large fluid
+        // fronts that immediately schedule thousands of neighbor updates. Treat a
+        // translated fluid cell as an empty cave here. Surface/ocean water is
+        // reconstructed separately above the engine surface.
+        if (!state.getFluidState().isEmpty()) {
+            return Blocks.AIR.getDefaultState();
         }
         return state;
     }
 
     private int waterTopExclusive(TerrainSample sample, int surfaceTop) {
-        int waterTop = seaLevel + 1;
-        if (StandardTerrainTypes.RIVER.equals(sample.terrainType()) && sample.river().isAvailable()) {
-            double riverWater = sample.surfaceHeight()
-                    + Math.min(2.0, Math.max(0.5, sample.river().depth() * 0.25));
-            waterTop = Math.max(waterTop, (int) Math.ceil(riverWater) + 1);
-        }
-        return clamp(Math.max(surfaceTop, waterTop), minY, maxYExclusive);
+        // Until the engine exposes a hydrologically consistent river-water level,
+        // only fill columns up to the global sea level. The previous per-column
+        // highland-river approximation created stepped source-water surfaces and
+        // large fluid-update cascades.
+        return clamp(Math.max(surfaceTop, seaLevel + 1), minY, maxYExclusive);
     }
 
     private static int clamp(int value, int min, int max) {

@@ -20,7 +20,7 @@ FlTerraForged Engine owns:
 Minecraft 1.20.1 owns:
 
 1. the `minecraft:overworld` NoiseRouter density substrate,
-2. vanilla aquifers and ore-vein substrate generated during noise fill,
+2. vanilla 3D cave/density and ore-vein substrate generated during noise fill,
 3. the configured vanilla surface-rule graph,
 4. AIR and LIQUID carvers,
 5. biome generation settings, placed features and ores,
@@ -34,7 +34,7 @@ algorithms into FlTerraForged.
 ```text
 NoiseChunkGenerator.populateNoise
         |
-        | vanilla NoiseRouter + aquifers
+        | vanilla NoiseRouter + preliminary aquifers
         v
 EngineDensityBridge.reshape
         |
@@ -70,12 +70,15 @@ For each x/z column it:
 2. finds the highest solid density boundary,
 3. samples FlTerraForged's target surface height,
 4. computes a vertical delta,
-5. remaps the complete underground vanilla column by that delta,
-6. preserves underground air and fluid pockets,
-7. restores the configured sea/river water above the final engine surface.
+5. remaps solid blocks and cave-space geometry by that delta,
+6. does not vertically translate underground water/lava cells,
+7. reconstructs only stable global sea-level water above the final engine surface.
 
-This keeps a usable 3D cave/aquifer substrate while making the externally
-replaceable engine authoritative for the visible large-scale terrain shape.
+The earlier r12-r18 bridge moved aquifer fluids with the terrain column. Large
+height deltas could therefore lift deep lava toward spawn height and expose huge
+fluid fronts that caused chained neighbor-update cascades. r19 uses a conservative
+stability baseline: caves remain, but translated underground aquifer fluids are
+removed until a dedicated height-stable aquifer adapter is implemented.
 
 ## Surface rules
 
@@ -95,8 +98,10 @@ Existing non-default blocks produced by vanilla surface rules are preserved.
 
 ## Carvers, aquifers, ores and features
 
-Aquifers are created as part of the delegated vanilla noise fill and are then
-vertically remapped with the surrounding density column.
+Vanilla still creates its preliminary aquifer states during delegated noise fill,
+but r19 deliberately does not translate those fluid blocks with the Engine height
+delta. Full underground aquifer-fluid restoration is deferred to a dedicated
+Minecraft-side adapter that can keep water/lava levels stable in absolute world Y.
 
 `carve(...)` is delegated directly to the vanilla noise generator with the same
 biome source and settings. This restores vanilla AIR/LIQUID carvers.
@@ -110,9 +115,10 @@ Minecraft-owned stage.
 
 This is a hybrid adapter rather than a replacement Mojang DensityFunction graph.
 The vanilla 3D substrate is vertically warped per x/z column, so very steep
-engine terrain can bend cave/aquifer geometry. That trade-off is intentional for
-the first complete 1.20.1 reference binding: it gives a functional vanilla
-underground without introducing Minecraft classes into the Engine API.
+engine terrain can bend cave geometry. Underground aquifer fluids are temporarily
+suppressed by the safe remap because moving absolute fluid levels proved unstable.
+This keeps the reference binding testable without introducing Minecraft classes
+into the Engine API.
 
 A later family-level density integration may inject an engine surface term into
 the version-specific density graph while keeping the external Engine API

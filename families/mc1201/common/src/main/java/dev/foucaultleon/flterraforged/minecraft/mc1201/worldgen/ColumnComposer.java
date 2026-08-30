@@ -66,13 +66,10 @@ public final class ColumnComposer {
     }
 
     private int waterTopExclusive(TerrainSample sample, int surfaceTop) {
-        int waterTop = seaLevel + 1;
-        if (StandardTerrainTypes.RIVER.equals(sample.terrainType()) && sample.river().isAvailable()) {
-            double riverWater = sample.surfaceHeight()
-                    + Math.min(2.0, Math.max(0.5, sample.river().depth() * 0.25));
-            waterTop = Math.max(waterTop, (int) Math.ceil(riverWater) + 1);
-        }
-        return clamp(Math.max(surfaceTop, waterTop), minY, maxYExclusive);
+        // Keep synchronous column sampling consistent with EngineDensityBridge:
+        // only the global sea level is materialized until a stable river-water
+        // level is part of the engine contract.
+        return clamp(Math.max(surfaceTop, seaLevel + 1), minY, maxYExclusive);
     }
 
     private BlockState topState(TerrainSample sample) {

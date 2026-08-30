@@ -7,7 +7,7 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r15**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r19**.
 
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
@@ -68,3 +68,11 @@ Biome-source and chunk-generator codecs are registered from mixins into the vani
 ### r18 runtime correction
 
 Minecraft 1.20.1 Fabric now explicitly requires Fabric API 0.92.2+1.20.1 so `fabric-resource-loader-v0` exposes the embedded world-preset data pack to the dynamic worldgen registries.
+
+
+### r19 fluid-stability correction
+
+The Minecraft 1.20.1 density bridge no longer translates underground aquifer
+fluid blocks with vertical terrain deltas. Caves/solid substrate remain remapped,
+while global sea-level water is reconstructed separately. Full aquifer restoration
+is deferred until the adapter has an absolute-Y-stable hydrology bridge.

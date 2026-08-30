@@ -165,12 +165,12 @@ survives the Engine height remap.
 | --- | --- | --- | --- | --- | --- |
 | E01 | P0 | Cave presence | Spectate below several terrain types. | Normal 1.20.1 cave systems exist; world is not solid columns only. | |
 | E02 | P0 | Cave continuity | Follow one cave through >= 8 chunk borders. | Cave continues naturally across borders; no vertical shearing exactly every 16 blocks. | |
-| E03 | P0 | Aquifer presence | Search caves below sea level. | Underground water aquifers occur naturally. | |
-| E04 | P1 | Lava aquifer/deep fluids | Search deep levels around deepslate. | Deep lava/fluid pockets occur without mass flooding of all caves. | |
+| E03 | P1 | Aquifer safe baseline | Search caves below sea level. | Caves remain usable and are not mass-flooded; full underground aquifer-fluid restoration is deferred after r19. | |
+| E04 | P0 | No lifted lava | Inspect spawn and terrain above Y=0, then deep levels. | No vanilla deep-aquifer lava is vertically lifted toward the Engine surface or spawn. | |
 | E05 | P0 | Mountain cave remap | Inspect caves inside a high mountain. | Caves remain inside terrain after vertical remap; no widespread caves floating above terrain. | |
 | E06 | P1 | Valley cave remap | Inspect beneath a low valley/coast. | Caves do not systematically clip through the surface because of downward remap. | |
 | E07 | P1 | Bedrock/deep floor | Inspect world bottom at several chunks. | Bedrock/deep terrain remains valid; no holes into void from remapping. | |
-| E08 | P1 | Fluid boundary seam | Follow an aquifer across a chunk border. | Fluid level/cavity does not reset abruptly at the border beyond normal vanilla variation. | |
+| E08 | P1 | Future aquifer seam | Reserved for the height-stable aquifer adapter. | Deferred in r19 safe-remap baseline. | |
 
 ---
 
@@ -278,6 +278,7 @@ Use the same machine/runtime for comparisons.
 
 | ID | Prio | Test | Procedure | Pass criteria | Result |
 | --- | --- | --- | --- | --- | --- |
+| K00 | P0 | Fluid-update stability | Generate spawn and travel through ocean/coast/cave terrain for >= 5 minutes while watching `latest.log`. | No repeated `Too many chained neighbor updates` errors and no multi-second fluid-update stalls attributable to the density bridge. | |
 | K01 | P0 | Continuous exploration | Fly in one direction for at least 10,000 blocks while generating new chunks. | No crash, deadlock, permanent chunk stall or runaway error spam. | |
 | K02 | P0 | Multi-direction generation | Two players generate new terrain in opposite directions for >= 10 minutes. | Server remains responsive; no deadlock/thread starvation. | |
 | K03 | P1 | Teleport burst | Teleport between 10 widely separated fresh locations (>= 4 km apart). | Chunks eventually complete; memory/CPU settles after generation. | |
@@ -311,7 +312,7 @@ The Minecraft 1.20.1 Fabric reference adapter is considered **functionally valid
 - At least one `P1` test has been executed for every functional area.
 - The primary seed has been explored to at least 10 km from spawn.
 - Seeds `0`, `-1` and `1234567890123456789` pass startup + basic terrain + determinism smoke tests.
-- Caves, aquifers, ores/features and at least village/mineshaft/stronghold have been observed.
+- Caves, ores/features and at least village/mineshaft/stronghold have been observed; full aquifer-fluid restoration is a post-r19 adapter gate.
 - A two-player concurrent-generation test has completed without deadlock or corruption.
 
 Only after this gate should the 1.20.1 binding be used as the reference implementation for the

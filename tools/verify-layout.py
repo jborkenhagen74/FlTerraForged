@@ -165,6 +165,20 @@ def main() -> None:
     if "simple solid/water columns" in generator_text:
         fail("mc1201 generator still describes the obsolete column-only adapter")
 
+    density_text = functional_files[0].read_text(encoding="utf-8")
+    if "if (!state.getFluidState().isEmpty())" not in density_text:
+        fail("mc1201 density bridge must explicitly handle translated underground fluids")
+    if "return Blocks.AIR.getDefaultState();" not in density_text:
+        fail("mc1201 safe density bridge must suppress translated aquifer fluids")
+    if "sample.river().depth() * 0.25" in density_text:
+        fail("mc1201 density bridge must not recreate unstable per-column highland-river water levels")
+    if "if (!state.equals(current))" not in density_text:
+        fail("mc1201 density bridge must avoid rewriting unchanged block states")
+
+    column_text = (worldgen_root / "ColumnComposer.java").read_text(encoding="utf-8")
+    if "sample.river().depth() * 0.25" in column_text:
+        fail("mc1201 synchronous column composer must match stable sea-level-only water policy")
+
     delegate_text = functional_files[1].read_text(encoding="utf-8")
     for fragment in ("new NoiseChunkGenerator", ".populateNoise(", ".buildSurface(", ".carve(", ".populateEntities("):
         if fragment not in delegate_text:

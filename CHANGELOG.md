@@ -22,6 +22,15 @@
 
 # Changelog
 
+## 0.1.0-SNAPSHOT-r19
+
+- Fix unsafe Minecraft 1.20.1 fluid remapping that could translate deep vanilla lava/aquifer fluids to the Engine surface and spawn area.
+- `EngineDensityBridge` now remaps solid/cave geometry but converts translated underground fluid cells to air; only stable global sea-level water is reconstructed above the Engine surface.
+- Remove the provisional per-column highland-river water-level approximation, which could create stepped source-water fronts and chained neighbor-update cascades.
+- Avoid writing unchanged block states during the density reshape to reduce chunk-generation work.
+- Mark full aquifer-fluid restoration as a deferred, height-stable Minecraft adapter task rather than claiming translated vanilla aquifers are safe.
+
+
 ## 0.1.0-SNAPSHOT-r15
 
 - Fix Minecraft 1.20.1 startup crash caused by registering `BIOME_SOURCE` and `CHUNK_GENERATOR` codecs from the late Fabric `main` entrypoint after built-in registries were frozen.
