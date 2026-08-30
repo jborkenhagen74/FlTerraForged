@@ -22,6 +22,15 @@
 
 # Changelog
 
+## 0.1.0-SNAPSHOT-r20
+
+- Removed per-column vertical translation from the Minecraft 1.20.1 density bridge.
+- Vanilla caves, underground strata and aquifers now stay at their absolute world Y coordinates.
+- Engine terrain truncates low columns or adds solid substrate for raised terrain instead of shifting the source column.
+- Added a six-block pre-carver surface seal to prevent unrelated vanilla caves from becoming broad floating plates or paper-thin roofs at the Engine surface.
+- Updated the 1.20.1 integration documentation and test matrix for the absolute-Y substrate model.
+- Extended layout verification to reject any reintroduction of delta-based substrate translation.
+
 ## 0.1.0-SNAPSHOT-r19
 
 - Fix unsafe Minecraft 1.20.1 fluid remapping that could translate deep vanilla lava/aquifer fluids to the Engine surface and spawn area.

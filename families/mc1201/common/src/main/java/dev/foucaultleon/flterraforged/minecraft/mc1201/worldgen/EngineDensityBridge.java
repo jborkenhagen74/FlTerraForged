@@ -11,17 +11,26 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
 
 /**
- * Bridges Minecraft's three-dimensional vanilla density/aquifer substrate to
- * the two-dimensional surface height produced by the external terrain engine.
+ * Adapts Minecraft's vanilla three-dimensional substrate to the surface height
+ * produced by the external terrain engine without translating the substrate in
+ * the vertical axis.
  *
- * <p>The vanilla noise generator first fills a chunk using the configured
- * {@link ChunkGeneratorSettings}. This bridge then vertically remaps each
- * column so that its solid density boundary follows the engine surface while
- * preserving caves and solid 3D substrate. Vanilla aquifer fluids are not
- * translated with the column because moving their absolute fluid levels can
- * expose deep lava or create unstable fluid cascades near the surface.</p>
+ * <p>Earlier revisions moved every vanilla column up or down by the difference
+ * between the vanilla and engine surfaces. Adjacent columns normally have
+ * different deltas, so caves, aquifers and stone layers were sheared apart and
+ * appeared as floating plates, horizontal gaps and vertical walls. This bridge
+ * keeps every vanilla substrate state at its original absolute Y coordinate.
+ * It only truncates material above the engine surface or adds solid material
+ * when the engine surface is higher.</p>
+ *
+ * <p>A small solid cap is enforced below the engine surface before vanilla
+ * carvers run. This prevents a pre-existing vanilla cave from becoming an
+ * accidental paper-thin roof solely because the engine surface intersects it.
+ * Normal cave mouths may still be created later by Minecraft's carver stage.</p>
  */
 public final class EngineDensityBridge {
+
+    private static final int SURFACE_SEAL_DEPTH = 6;
 
     private final int minY;
     private final int maxYExclusive;
@@ -39,7 +48,7 @@ public final class EngineDensityBridge {
     }
 
     /**
-     * Remaps all columns in {@code chunk} to the engine surface.
+     * Reconciles all vanilla noise-filled columns with the engine surface.
      *
      * @param chunk vanilla noise-filled chunk
      * @param world bound external terrain world
@@ -61,11 +70,17 @@ public final class EngineDensityBridge {
                         (int) Math.floor(sample.surfaceHeight()),
                         minY + 1,
                         maxYExclusive - 2);
-                int delta = targetSurfaceY - sourceSurfaceY;
-                int waterTopExclusive = waterTopExclusive(sample, targetSurfaceY + 1);
+                int sealBottomY = Math.max(minY + 1, targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
+                int waterTopExclusive = waterTopExclusive(targetSurfaceY + 1);
 
                 for (int y = minY; y < maxYExclusive; y++) {
-                    BlockState state = remapState(source, y, targetSurfaceY, delta, waterTopExclusive);
+                    BlockState state = reconciledState(
+                            source,
+                            y,
+                            sourceSurfaceY,
+                            targetSurfaceY,
+                            sealBottomY,
+                            waterTopExclusive);
                     BlockState current = source[y - minY];
                     if (!state.equals(current)) {
                         mutable.set(blockX, y, blockZ);
@@ -99,48 +114,49 @@ public final class EngineDensityBridge {
                 return y;
             }
         }
-        return seaLevel;
+        return minY;
     }
 
-    private BlockState remapState(
+    private BlockState reconciledState(
             BlockState[] source,
             int y,
+            int sourceSurfaceY,
             int targetSurfaceY,
-            int delta,
+            int sealBottomY,
             int waterTopExclusive) {
         if (y == minY) {
-            return Blocks.BEDROCK.getDefaultState();
+            BlockState floor = source[0];
+            return floor == null || floor.isAir()
+                    ? Blocks.BEDROCK.getDefaultState()
+                    : floor;
         }
+
         if (y > targetSurfaceY) {
             return y < waterTopExclusive ? defaultFluid : Blocks.AIR.getDefaultState();
         }
 
-        int sourceY = y - delta;
-        if (sourceY <= minY || sourceY >= maxYExclusive) {
-            return defaultBlock;
-        }
-        BlockState state = source[sourceY - minY];
-        if (state == null) {
+        // Always provide a stable solid skin for the engine surface. Vanilla's
+        // later surface-rule and carver stages are responsible for turning this
+        // into biome material and natural cave entrances.
+        if (y >= sealBottomY) {
             return defaultBlock;
         }
 
-        // The density/cave geometry may move vertically, but aquifer fluid levels
-        // are absolute world-height phenomena. Translating water or lava together
-        // with the column can move deep lava to spawn height and opens large fluid
-        // fronts that immediately schedule thousands of neighbor updates. Treat a
-        // translated fluid cell as an empty cave here. Surface/ocean water is
-        // reconstructed separately above the engine surface.
-        if (!state.getFluidState().isEmpty()) {
-            return Blocks.AIR.getDefaultState();
+        // Raised terrain receives new solid substrate only above the original
+        // vanilla surface. Nothing below is shifted: caves, deepslate, ore-vein
+        // substrate and aquifers retain their absolute world Y coordinates.
+        if (y > sourceSurfaceY) {
+            return defaultBlock;
         }
-        return state;
+
+        BlockState state = source[y - minY];
+        return state == null ? defaultBlock : state;
     }
 
-    private int waterTopExclusive(TerrainSample sample, int surfaceTop) {
-        // Until the engine exposes a hydrologically consistent river-water level,
-        // only fill columns up to the global sea level. The previous per-column
-        // highland-river approximation created stepped source-water surfaces and
-        // large fluid-update cascades.
+    private int waterTopExclusive(int surfaceTop) {
+        // Until the engine exposes a hydrologically consistent river-water
+        // level, only oceans/low terrain are filled to Minecraft's global sea
+        // level. No per-column highland river water is synthesized here.
         return clamp(Math.max(surfaceTop, seaLevel + 1), minY, maxYExclusive);
     }
 

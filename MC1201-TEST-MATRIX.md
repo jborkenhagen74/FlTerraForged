@@ -165,12 +165,12 @@ survives the Engine height remap.
 | --- | --- | --- | --- | --- | --- |
 | E01 | P0 | Cave presence | Spectate below several terrain types. | Normal 1.20.1 cave systems exist; world is not solid columns only. | |
 | E02 | P0 | Cave continuity | Follow one cave through >= 8 chunk borders. | Cave continues naturally across borders; no vertical shearing exactly every 16 blocks. | |
-| E03 | P1 | Aquifer safe baseline | Search caves below sea level. | Caves remain usable and are not mass-flooded; full underground aquifer-fluid restoration is deferred after r19. | |
+| E03 | P1 | Aquifer absolute-Y stability | Search caves below sea level. | Aquifer water/lava remains at plausible absolute depths; no systematic vertical displacement follows surface relief. | |
 | E04 | P0 | No lifted lava | Inspect spawn and terrain above Y=0, then deep levels. | No vanilla deep-aquifer lava is vertically lifted toward the Engine surface or spawn. | |
-| E05 | P0 | Mountain cave remap | Inspect caves inside a high mountain. | Caves remain inside terrain after vertical remap; no widespread caves floating above terrain. | |
-| E06 | P1 | Valley cave remap | Inspect beneath a low valley/coast. | Caves do not systematically clip through the surface because of downward remap. | |
-| E07 | P1 | Bedrock/deep floor | Inspect world bottom at several chunks. | Bedrock/deep terrain remains valid; no holes into void from remapping. | |
-| E08 | P1 | Future aquifer seam | Reserved for the height-stable aquifer adapter. | Deferred in r19 safe-remap baseline. | |
+| E05 | P0 | Mountain cave continuity | Inspect caves inside a high mountain. | No widespread floating stone plates or horizontal void sheets; raised mountain mass is continuous and vanilla carvers form local caves. | |
+| E06 | P1 | Valley cave intersection | Inspect beneath a low valley/coast. | Pre-existing absolute-Y cave substrate does not create broad sheet-like holes at the Engine surface; normal cave mouths remain local. | |
+| E07 | P1 | Bedrock/deep floor | Inspect world bottom at several chunks. | Bedrock/deep terrain remains valid; no holes into void from terrain reconciliation. | |
+| E08 | P1 | Aquifer seam | Follow an aquifer across chunk borders in Spectator. | Fluid level and cave geometry remain continuous because neither is vertically translated per column. | |
 
 ---
 
@@ -183,7 +183,7 @@ survives the Engine height remap.
 | F03 | P0 | Ocean floor | Inspect ocean floor. | Floor material is plausible and not universally grass or exposed top stone. | |
 | F04 | P0 | River surface override | Inspect riverbanks/bed. | River-specific sand correction is present where appropriate without replacing whole surrounding biome. | |
 | F05 | P1 | Steep terrain | Inspect cliffs/mountains. | Vanilla/guard interaction does not smear grass vertically down cliff faces in a repeating pattern. | |
-| F06 | P1 | Large vertical remap fallback | Search highest mountains for exposed default stone at otherwise soil-covered tops. | Surface guard fills missed surface columns but does not overwrite valid special surfaces globally. | |
+| F06 | P1 | Large height-difference fallback | Search highest mountains for exposed default stone at otherwise soil-covered tops. | Surface guard fills missed surface columns but does not overwrite valid special surfaces globally. | |
 
 ---
 

@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. Snapshot r12 also delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population while remapping the resulting 3D columns to Engine heights. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter

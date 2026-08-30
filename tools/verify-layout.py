@@ -166,10 +166,14 @@ def main() -> None:
         fail("mc1201 generator still describes the obsolete column-only adapter")
 
     density_text = functional_files[0].read_text(encoding="utf-8")
-    if "if (!state.getFluidState().isEmpty())" not in density_text:
-        fail("mc1201 density bridge must explicitly handle translated underground fluids")
-    if "return Blocks.AIR.getDefaultState();" not in density_text:
-        fail("mc1201 safe density bridge must suppress translated aquifer fluids")
+    if "SURFACE_SEAL_DEPTH" not in density_text:
+        fail("mc1201 density bridge must seal a stable surface skin before vanilla carvers")
+    if "int delta" in density_text or "sourceY = y - delta" in density_text:
+        fail("mc1201 density bridge must never vertically translate the vanilla substrate")
+    if "if (y > sourceSurfaceY)" not in density_text:
+        fail("mc1201 density bridge must extend raised engine terrain with new solid substrate")
+    if "return state == null ? defaultBlock : state;" not in density_text:
+        fail("mc1201 density bridge must preserve vanilla substrate at absolute Y")
     if "sample.river().depth() * 0.25" in density_text:
         fail("mc1201 density bridge must not recreate unstable per-column highland-river water levels")
     if "if (!state.equals(current))" not in density_text:

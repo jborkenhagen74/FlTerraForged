@@ -15,7 +15,7 @@ import net.minecraft.world.chunk.Chunk;
  * <p>Vanilla surface rules are retained for biome-owned variation. The guard
  * only enforces FlTerraForged semantics that vanilla cannot know about and
  * provides a deterministic grass/dirt fallback if the vanilla surface scan did
- * not reach a vertically remapped engine surface.</p>
+ * not reach an engine-shaped surface whose height differs from vanilla noise.</p>
  */
 public final class EngineSurfaceGuard {
 

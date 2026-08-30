@@ -7,7 +7,7 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r19**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r20**.
 
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
@@ -72,7 +72,17 @@ Minecraft 1.20.1 Fabric now explicitly requires Fabric API 0.92.2+1.20.1 so `fab
 
 ### r19 fluid-stability correction
 
-The Minecraft 1.20.1 density bridge no longer translates underground aquifer
-fluid blocks with vertical terrain deltas. Caves/solid substrate remain remapped,
-while global sea-level water is reconstructed separately. Full aquifer restoration
-is deferred until the adapter has an absolute-Y-stable hydrology bridge.
+Historical r19 mitigation: underground aquifer fluids were temporarily removed
+from translated columns to prevent lifted lava and fluid-update cascades. This
+intermediate policy is superseded by r20, which removes vertical translation
+entirely and therefore keeps vanilla aquifers at absolute world Y.
+
+
+### r20 terrain-continuity correction
+
+The Minecraft 1.20.1 density bridge no longer applies per-column vertical
+translation to the vanilla 3D substrate. Vanilla caves, underground layers and
+aquifers remain at absolute Y. Engine terrain truncates or extends the substrate
+to the target surface, with a six-block solid pre-carver surface skin. This
+removes the floating-platform, horizontal-gap and vertical-shear artefacts seen
+in r19 while retaining vanilla carvers, surface rules and features.

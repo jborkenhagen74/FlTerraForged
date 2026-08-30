@@ -31,9 +31,10 @@ import net.minecraft.world.chunk.Chunk;
  * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
  *
  * <p>The external engine owns the large-scale surface shape and climate. A
- * vanilla {@code NoiseChunkGenerator} supplies the 3D NoiseRouter substrate,
- * aquifers, surface rules, carvers and mob population; the density bridge
- * remaps that substrate to the engine surface before later vanilla stages run.</p>
+ * vanilla {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter
+ * substrate, aquifers, surface rules, carvers and mob population. The density
+ * bridge then truncates or extends that substrate to the engine surface without
+ * vertically translating caves or underground layers.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
