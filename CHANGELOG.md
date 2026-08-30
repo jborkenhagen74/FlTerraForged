@@ -2,6 +2,8 @@
 
 ## 0.1.0-SNAPSHOT
 
+- Fix: declare the JUnit Platform launcher on the test runtime classpath for Gradle 9.x.
+
 - Initialized clean FlTerraForged architecture.
 - Added pure Java 17 `flterraforged-engine-api`.
 - Added engine provider, lifecycle, capability and terrain sample contracts.

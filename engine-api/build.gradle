@@ -21,6 +21,7 @@ tasks.withType(JavaCompile).configureEach {
 
 dependencies {
     testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.platform.launcher
 }
 
 publishing {

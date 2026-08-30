@@ -19,4 +19,5 @@ tasks.withType(JavaCompile).configureEach {
 dependencies {
     api project(':engine-api')
     testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.platform.launcher
 }

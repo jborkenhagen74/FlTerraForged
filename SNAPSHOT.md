@@ -16,3 +16,7 @@ Acceptance criteria:
 - [x] Common -> family -> exact version policy is documented and verified.
 - [x] Only one snapshot is present in the target matrix.
 - [x] No upstream implementation source is imported in this snapshot.
+
+## Build fix
+
+The snapshot explicitly declares the JUnit Platform launcher as a test runtime dependency for Gradle 9.x.
