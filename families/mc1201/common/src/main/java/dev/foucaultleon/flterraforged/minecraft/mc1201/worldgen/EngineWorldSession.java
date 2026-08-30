@@ -71,10 +71,7 @@ public final class EngineWorldSession implements AutoCloseable {
      */
     public TerrainWorld bind(NoiseConfig noiseConfig) {
         Objects.requireNonNull(noiseConfig, "noiseConfig");
-        if (!(noiseConfig instanceof NoiseConfigSeedAccess seedAccess)) {
-            throw new IllegalStateException(
-                    "NoiseConfig seed accessor is unavailable; verify flterraforged.mixins.json");
-        }
+        NoiseConfigSeedAccess seedAccess = seedAccess(noiseConfig);
 
         EngineContext requested = new EngineContext(
                 seedAccess.flterraforged$getSeed(), minY, maxYExclusive, seaLevel);
@@ -94,6 +91,19 @@ public final class EngineWorldSession implements AutoCloseable {
             world = engine.openWorld(requested);
             context = requested;
             return world;
+        }
+    }
+
+
+    private static NoiseConfigSeedAccess seedAccess(NoiseConfig noiseConfig) {
+        try {
+            // Mixin adds NoiseConfigSeedAccess to the otherwise final Minecraft class at runtime.
+            // Cast through Object so javac does not reject the bridge as statically impossible.
+            return (NoiseConfigSeedAccess) (Object) noiseConfig;
+        } catch (ClassCastException exception) {
+            throw new IllegalStateException(
+                    "NoiseConfig seed accessor is unavailable; verify flterraforged.mixins.json",
+                    exception);
         }
     }
 

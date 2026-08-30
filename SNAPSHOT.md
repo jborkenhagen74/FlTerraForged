@@ -1,4 +1,6 @@
-# Snapshot 0.1.0-SNAPSHOT
+# Snapshot
+
+Current package revision: **r10** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.

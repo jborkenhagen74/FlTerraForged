@@ -110,6 +110,13 @@ def main() -> None:
     if len(mod_descriptors) != 1:
         fail(f"expected exactly one fabric.mod.json across mc1201 resource roots, found {len(mod_descriptors)}")
 
+    engine_session = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/EngineWorldSession.java"
+    engine_session_text = engine_session.read_text(encoding="utf-8")
+    if "instanceof NoiseConfigSeedAccess" in engine_session_text:
+        fail("mc1201 EngineWorldSession must not use direct instanceof NoiseConfigSeedAccess")
+    if "(NoiseConfigSeedAccess) (Object) noiseConfig" not in engine_session_text:
+        fail("mc1201 EngineWorldSession must bridge NoiseConfigSeedAccess through Object")
+
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
     if overworld.get("type") != "flterraforged:chunk_generator":

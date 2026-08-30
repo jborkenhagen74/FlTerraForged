@@ -93,3 +93,20 @@ CI uses `--warning-mode all` so Gradle/Loom deprecations are attributable to a c
 The 1.20.1 host adapter consumes `dev.foucaultleon:flterraforged-engine` from the external Engine Maven repository, but it does **not** resolve that Engine POM's `flterraforged-engine-api` dependency remotely. FlTerraForged owns the API and therefore compiles against the local `:engine-api` project. The transitive API dependency is excluded from the Engine declaration, while Loom embeds the Engine non-transitively and embeds `:engine-api` and `:common` explicitly.
 
 This keeps a clean checkout buildable without requiring a previously published API snapshot and guarantees one API copy/version inside the final Fabric jar.
+
+## Mixin seed-access bridge (r10)
+
+Minecraft 1.20.1 exposes `NoiseConfig` as a concrete type that does not declare
+`NoiseConfigSeedAccess` at compile time. Fabric Mixin adds that interface only after
+class transformation at runtime. Java therefore rejects a direct
+`noiseConfig instanceof NoiseConfigSeedAccess` test as statically impossible.
+
+The adapter intentionally bridges through `Object`:
+
+```java
+return (NoiseConfigSeedAccess) (Object) noiseConfig;
+```
+
+If the Mixin is not applied, the resulting `ClassCastException` is converted to a
+descriptive `IllegalStateException` that points to `flterraforged.mixins.json`.
+

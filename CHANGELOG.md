@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r10
+
+- Fixed the Minecraft 1.20.1 seed-access bridge for Fabric Mixins.
+- `NoiseConfig` is a concrete/final Minecraft type, so javac rejects a direct `instanceof NoiseConfigSeedAccess` check even though Mixin adds that interface at runtime.
+- `EngineWorldSession` now performs the Mixin bridge cast through `Object` and converts a missing Mixin into a descriptive `IllegalStateException`.
+- Added a layout regression check for the bridge so this compile-time incompatibility cannot be reintroduced accidentally.
+
 ## 0.1.0-SNAPSHOT-r9
 
 - Fixed `mc1201-fabric` dependency resolution when consuming the external Engine snapshot.
