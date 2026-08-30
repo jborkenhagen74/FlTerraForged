@@ -1,6 +1,6 @@
 # Snapshot
 
-Current package revision: **r11** 0.1.0-SNAPSHOT
+Current package revision: **r13** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -40,3 +40,8 @@ Fabric 1.20.1 is the first compiled target in the matrix. It consumes the public
 ## Minecraft 1.20.1 integration status (r12)
 
 The Fabric reference adapter is functionally connected to vanilla NoiseRouter/aquifers, surface rules, carvers, placed features/ores and mob population. FlTerraForged remains authoritative for surface shape, rivers, climate and biome routing.
+
+
+## Minecraft 1.20.1 validation gate (r13)
+
+`MC1201-TEST-MATRIX.md` defines the mandatory P0 and extended P1 test gates that must pass before the 1.20.1 Fabric adapter is used as the reference implementation for another Minecraft API family.

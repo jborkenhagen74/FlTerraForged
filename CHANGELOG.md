@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r13
+
+- Added `MC1201-TEST-MATRIX.md`, a gated functional validation matrix for the Minecraft 1.20.1 Fabric reference adapter.
+- Covers startup/preset decoding, Engine terrain, climate/biomes, rivers/coasts, NoiseRouter/caves/aquifers, surface rules, vanilla features/ores, structures, chunk boundaries, determinism, performance and multiplayer lifecycle.
+- Defines fixed regression seeds, evidence requirements, P0/P1 severity, release criteria and a reusable defect template.
+
 ## 0.1.0-SNAPSHOT-r11
 
 - Run the complete Gradle multi-project build on Java 21 because Fabric Loom 1.17.x is itself compiled for Java 21.

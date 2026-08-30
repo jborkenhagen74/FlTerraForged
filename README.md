@@ -6,8 +6,9 @@ Java-only `flterraforged-engine-api` SPI.
 
 ## Current snapshot
 
-`0.1.0-SNAPSHOT` establishes the architecture only. It intentionally does not
-yet contain TerraForged/ReTerraForged/FreeTerraForged world-generation code.
+`0.1.0-SNAPSHOT` contains the Engine API architecture and the first executable
+Minecraft 1.20.1 Fabric reference binding. The external terrain implementation remains
+in the separate `FlTerraForged-Engine` repository.
 
 ## Modules
 
@@ -83,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. Snapshot r12 also delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population while remapping the resulting 3D columns to Engine heights. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. Snapshot r12 also delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population while remapping the resulting 3D columns to Engine heights. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
