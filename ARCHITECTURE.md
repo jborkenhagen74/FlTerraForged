@@ -127,3 +127,7 @@ Geplante Provider:
 6. Zwischenversionen familienweise ergänzen.
 7. optionale TerraBlender-Integration.
 8. Surface-/Layer-/Conquest-Provider.
+
+## Package ownership and CI boundary
+
+`FlTerraForged` owns `flterraforged-engine-api` and is the only repository that builds and publishes that API in CI. External engines consume a published API version. This prevents engine workflows from duplicating or implicitly rebuilding the host project.

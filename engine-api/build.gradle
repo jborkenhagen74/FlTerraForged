@@ -29,6 +29,40 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             artifactId = 'flterraforged-engine-api'
+
+            pom {
+                name = 'FlTerraForged Engine API'
+                description = 'Minecraft-independent SPI/API used by FlTerraForged terrain engines.'
+                url = 'https://github.com/jborkenhagen74/FlTerraForged'
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/license/mit'
+                    }
+                }
+
+                scm {
+                    url = 'https://github.com/jborkenhagen74/FlTerraForged'
+                    connection = 'scm:git:https://github.com/jborkenhagen74/FlTerraForged.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/jborkenhagen74/FlTerraForged.git'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/jborkenhagen74/FlTerraForged')
+            credentials {
+                username = providers.gradleProperty('gpr.user')
+                        .orElse(providers.environmentVariable('GITHUB_ACTOR'))
+                        .getOrNull()
+                password = providers.gradleProperty('gpr.key')
+                        .orElse(providers.environmentVariable('GITHUB_TOKEN'))
+                        .getOrNull()
+            }
         }
     }
 }

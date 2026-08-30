@@ -14,3 +14,9 @@
 - Added Fabric/NeoForge, family, exact-version and optional compatibility skeletons.
 - Added isolation and layout verification.
 - No upstream source code imported yet.
+
+## 0.1.0-SNAPSHOT-r2
+
+- Publishes `flterraforged-engine-api` to GitHub Packages after a successful `main` build.
+- Uses `GITHUB_TOKEN` with repository-scoped `packages: write` permission in CI.
+- Aligns CI on Gradle 9.7.1.

@@ -1,88 +1,50 @@
 # FlTerraForged
 
-FlTerraForged ist eine neu aufgebaute, multi-versionale Worldgen-Plattform für
-Minecraft. Das Projekt wird bewusst **nicht** auf der alten TerraForged-
-Repositorystruktur weitergeführt.
+FlTerraForged is a clean-room project structure for a multi-version Minecraft terrain generator integration. The terrain engine is external and replaceable through the Java-only `flterraforged-engine-api` SPI.
 
-## Status dieses Snapshots
+## Current snapshot
 
-`0.1.0-SNAPSHOT` ist der Architektur- und Engine-API-Snapshot.
+`0.1.0-SNAPSHOT` establishes the architecture only. It intentionally does not yet contain TerraForged/ReTerraForged/FreeTerraForged world-generation code.
 
-Enthalten:
+## Modules
 
-- reine Java-17-Engine-API ohne Minecraft-, Fabric-, NeoForge- oder TerraBlender-Abhängigkeit;
-- Engine-Provider-/Lifecycle-Vertrag;
-- Capability-System für optionale Engine-Daten;
-- Terrain-, Klima- und Fluss-Datenmodell einschließlich fractional surface height;
-- ServiceLoader-basierte Engine-Erkennung im `common`-Modul;
-- Zielmatrix für alle stabilen Minecraft-Versionen von 1.20.1 bis 26.2 sowie genau den aktuellen Snapshot;
-- vorbereitete Family-/Version-/Loader-Struktur;
-- vorbereitete optionale Kompatibilitätsbereiche für TerraBlender, Conquest Reforged und Layer-Provider;
-- Architektur- und Matrix-Prüfungen.
+- `engine-api` — Java 17 API/SPI, independent of Minecraft and loaders.
+- `common` — Minecraft-facing common integration layer.
+- `platforms` — Fabric and NeoForge loader-specific code.
+- `families` — Minecraft API-family adaptations.
+- `versions` — exact-version overrides only when a family cannot cover a change.
+- `compat` — optional integrations such as TerraBlender, Conquest Reforged and layered surfaces.
 
-Noch **nicht** enthalten:
+## Engine API publication
 
-- TerraForged-/ReTerraForged-/FreeTerraForged-Quellcode;
-- konkrete Default-Engine;
-- Minecraft-Worldgen-Adapter;
-- Fabric- oder NeoForge-Builds;
-- TerraBlender-, Conquest- oder AronaLayers-Integration.
-
-## Architektur
+`engine-api` is owned and published by this repository. CI performs `clean check` first. Only a successful push to `main` publishes:
 
 ```text
-External Engine
-      |
-      v
-flterraforged-engine-api  (pure Java 17)
-      |
-      v
-FlTerraForged common
-      |
-      +--> Minecraft API family
-      |        |
-      |        +--> Fabric
-      |        +--> NeoForge
-      |
-      +--> optional biome integration
-      +--> optional surface/layer providers
+dev.foucaultleon:flterraforged-engine-api:0.1.0-SNAPSHOT
 ```
 
-Die wichtigste Portierungsregel lautet:
+to:
 
 ```text
-common -> platform-common -> family -> family/platform -> exact version
+https://maven.pkg.github.com/jborkenhagen74/FlTerraForged
 ```
 
-Versionsspezifischer Code ist die letzte, nicht die erste Lösung.
+The external engine repository consumes that package; it does not check out or build FlTerraForged in CI.
 
-## Build
+GitHub Actions publishing uses the repository-scoped `GITHUB_TOKEN`. No long-lived publishing token is required for the normal workflow.
 
-Der Snapshot verwendet Gradle 9.5.1 und kompiliert die Engine-API mit
-`--release 17`.
+## Local development
 
-Mit lokal installiertem Gradle:
+Build and test:
 
 ```bash
-gradle clean check
+gradle --no-daemon clean check
 ```
 
-Zusätzliche Architekturprüfung:
+Publish the API to Maven Local only when explicitly needed for local testing:
 
 ```bash
-python3 tools/verify-layout.py
+gradle --no-daemon :engine-api:publishToMavenLocal
 ```
 
-Der Gradle Wrapper wird absichtlich noch nicht als binäres Artefakt in diesem
-Snapshot mitgeliefert. Er kann nach dem ersten Checkout mit Gradle 9.5.1 erzeugt
-werden:
-
-```bash
-gradle wrapper --gradle-version 9.5.1
-```
-
-## Nächster Schritt
-
-Nach Annahme dieses API-Vertrags wird das separate Repository
-`FlTerraForged-Engine` gegen `flterraforged-engine-api` implementiert. Erst
-danach wird der Minecraft-Worldgen-Port begonnen.
+The default Engine repository instead supports a Gradle composite build, which is preferred when API and engine are edited together.
