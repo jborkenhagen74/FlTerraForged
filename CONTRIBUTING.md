@@ -30,3 +30,7 @@ Wenn Code aus TerraForged, ReTerraForged, FreeTerraForged oder AronaLayers
 ## Java versions for development
 
 The Minecraft 1.20.1 adapter targets Java 17 bytecode, but the current Fabric Loom 1.17.x plugin must be loaded by Gradle on Java 21. Use Java 21 to run Gradle and keep a Java 17 JDK installed for Gradle toolchains. CI enforces this split explicitly.
+
+## Minecraft 1.20.1 runtime test dependency
+
+Install Fabric API 0.92.2+1.20.1 in the test instance together with the FlTerraForged artifact. The reference world preset is data-driven and relies on Fabric Resource Loader to expose the mod's `data/` resources during the dynamic registry reload.

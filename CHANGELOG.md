@@ -1,4 +1,13 @@
 ## r16 – MC 1.20.1 world-preset discovery fix
+
+
+## 0.1.0-SNAPSHOT-r18
+
+- Declare Fabric API `0.92.2+1.20.1` as an explicit Minecraft 1.20.1 Fabric runtime/build dependency.
+- This supplies `fabric-resource-loader-v0`, which exposes mod `data/` resources as a data pack during the dynamic worldgen registry reload.
+- Keep the FlTerraForged world preset and `minecraft:normal` tag in `families/mc1201/common/src/main/resources`; no manual data-pack copy is required.
+- Extend layout verification so CI rejects a 1.20.1 Fabric adapter that ships a world preset without declaring Fabric API/resource-loader support.
+
 ## 0.1.0-SNAPSHOT-r17
 
 - Fix duplicate MC 1.20.1 Fabric resources by keeping world-preset/tag/lang files only in `families/mc1201/common`.

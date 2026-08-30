@@ -99,6 +99,7 @@ jobs:
             echo "### Minecraft 1.20.1 Fabric artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
+            echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
           } >> "$GITHUB_STEP_SUMMARY"

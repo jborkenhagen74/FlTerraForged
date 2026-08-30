@@ -1,5 +1,9 @@
 # Minecraft 1.20.1 Functional Test Matrix
 
+
+> **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
+
+
 This matrix validates the first functional FlTerraForged Minecraft binding:
 Minecraft **1.20.1 + Fabric**, external `FlTerraForged-Engine`, native biome routing,
 vanilla NoiseRouter/aquifers/surface rules/carvers/features/structures, and Engine-controlled

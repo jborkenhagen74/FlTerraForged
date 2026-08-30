@@ -1,5 +1,9 @@
 # Minecraft 1.20.1 – erste FlTerraForged-Anbindung
 
+
+> **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
+
+
 ## Ziel
 
 Dieser Stand verbindet die externe `FlTerraForged-Engine` erstmals mit echter Minecraft-Worldgen. Die Referenzimplementierung ist Fabric 1.20.1; der Minecraft-Familiencode liegt bewusst in `families/mc1201/common`, damit NeoForge denselben Kern später wiederverwenden kann.

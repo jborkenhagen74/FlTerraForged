@@ -228,6 +228,7 @@ def main() -> None:
         fail('mc1201 processResources must expand the captured modVersion value')
 
     verify_mc1201_registry_bootstrap(ROOT)
+    verify_mc1201_fabric_resource_loader_dependency()
 
     print(
             f"OK: {len(targets)} targets, {len(snapshots)} snapshot, engine-api isolated, "
@@ -257,6 +258,25 @@ def verify_mc1201_registry_bootstrap(root):
         raise SystemExit("mc1201 biome-source bootstrap registration missing")
     if "Registry.register(registry, CHUNK_GENERATOR_ID" not in registries:
         raise SystemExit("mc1201 chunk-generator bootstrap registration missing")
+
+
+
+def verify_mc1201_fabric_resource_loader_dependency():
+    gradle_props = (ROOT / "gradle.properties").read_text(encoding="utf-8")
+    build_gradle = (ROOT / "versions/1.20.1/fabric/build.gradle").read_text(encoding="utf-8")
+    fabric_mod = json.loads((ROOT / "versions/1.20.1/fabric/src/main/resources/fabric.mod.json").read_text(encoding="utf-8"))
+
+    if "mc1201_fabric_api_version=0.92.2+1.20.1" not in gradle_props:
+        fail("mc1201 Fabric API version is not pinned to 0.92.2+1.20.1")
+    if "net.fabricmc.fabric-api:fabric-api" not in build_gradle:
+        fail("mc1201-fabric does not compile/runtime-depend on Fabric API")
+    if "fabric-api" not in fabric_mod.get("depends", {}):
+        fail("fabric.mod.json does not declare the Fabric API runtime dependency")
+
+    preset = ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset/flterraforged.json"
+    normal_tag = ROOT / "families/mc1201/common/src/main/resources/data/minecraft/tags/worldgen/world_preset/normal.json"
+    if preset.exists() and normal_tag.exists() and "fabric-api" not in fabric_mod.get("depends", {}):
+        fail("world preset resources are present without Fabric API/resource-loader support")
 
 if __name__ == "__main__":
     main()

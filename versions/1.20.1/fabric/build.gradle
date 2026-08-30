@@ -88,6 +88,7 @@ dependencies {
     minecraft "com.mojang:minecraft:${providers.gradleProperty('mc1201_minecraft_version').get()}"
     mappings "net.fabricmc:yarn:${providers.gradleProperty('mc1201_yarn_mappings').get()}:v2"
     modImplementation "net.fabricmc:fabric-loader:${providers.gradleProperty('mc1201_fabric_loader_version').get()}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty('mc1201_fabric_api_version').get()}"
 
     implementation project(':common')
     implementation project(':engine-api')

@@ -182,3 +182,8 @@ Vanilla NoiseChunkGenerator
 The Minecraft-family layer may depend on Minecraft classes and vanilla worldgen.
 The Engine API and external Engine remain Java-only and are not allowed to import
 Minecraft, Fabric, NeoForge or Mojang Codec types.
+
+### Fabric 1.20.1 resource loading
+
+The 1.20.1 Fabric adapter has an explicit runtime dependency on Fabric API 0.92.2+1.20.1. Its `fabric-resource-loader-v0` module exposes the mod JAR's `data/` tree as a built-in data pack during world-creation registry loading. This is required for the `flterraforged:flterraforged` world preset and its `minecraft:normal` tag contribution to reach the dynamic `WORLD_PRESET` registry.
+

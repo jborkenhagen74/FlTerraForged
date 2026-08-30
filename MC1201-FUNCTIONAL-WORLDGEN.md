@@ -1,5 +1,9 @@
 # Minecraft 1.20.1 functional world-generation binding
 
+
+> **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
+
+
 Snapshot r12 turns the first Fabric binding from a column-only proof of concept
 into a hybrid FlTerraForged/vanilla world-generation pipeline.
 

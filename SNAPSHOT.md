@@ -63,3 +63,8 @@ Successful Verify runs publish the installable Minecraft 1.20.1 Fabric JAR direc
 ### Minecraft 1.20.1 registry bootstrap
 
 Biome-source and chunk-generator codecs are registered from mixins into the vanilla bootstrap helpers before the built-in registries freeze; the normal Fabric entrypoint only validates the result.
+
+
+### r18 runtime correction
+
+Minecraft 1.20.1 Fabric now explicitly requires Fabric API 0.92.2+1.20.1 so `fabric-resource-loader-v0` exposes the embedded world-preset data pack to the dynamic worldgen registries.

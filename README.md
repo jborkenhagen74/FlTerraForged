@@ -100,6 +100,18 @@ Every successful GitHub Actions `Verify` job now uploads the installable Minecra
 
 Use the downloaded JAR directly in a Minecraft 1.20.1 Fabric instance; the external Engine, Engine API and common module are embedded by the Loom build.
 
-### Minecraft 1.20.1 world preset
+#
+### Minecraft 1.20.1 Fabric runtime dependency
+
+The reference binding requires **Fabric API 0.92.2+1.20.1 or newer compatible 1.20.1 release** at runtime. In particular, `fabric-resource-loader-v0` is required so the bundled `data/` resources are exposed as a mod data pack and `flterraforged:flterraforged` can be loaded into the dynamic `WORLD_PRESET` registry.
+
+For a client or server installation use:
+
+- Minecraft 1.20.1
+- Fabric Loader
+- Fabric API 0.92.2+1.20.1
+- FlTerraForged 1.20.1 Fabric
+
+## Minecraft 1.20.1 world preset
 
 The Fabric 1.20.1 artifact ships `flterraforged:flterraforged` as a data-driven world preset and contributes it to `minecraft:normal`. It should appear as **FlTerraForged** in the Create World → World → World Type selector.
