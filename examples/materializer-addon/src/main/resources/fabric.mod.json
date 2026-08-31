@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "example_ftf_materializer",
+  "version": "1.0.0",
+  "name": "Example FlTerraForged Materializer",
+  "environment": "*",
+  "entrypoints": {
+    "flterraforged:materializer": [
+      "example.materializer.ExampleMaterializerProvider"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.14.22",
+    "minecraft": "=1.20.1",
+    "flterraforged": "*"
+  }
+}

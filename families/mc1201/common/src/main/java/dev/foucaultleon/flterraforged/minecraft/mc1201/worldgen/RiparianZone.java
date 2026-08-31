@@ -5,7 +5,7 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 
 /** Shared predicates for the vegetated fringe around materialized rivers. */
-final class RiparianZone {
+public final class RiparianZone {
 
     private static final double MINIMUM_FRINGE = 4.0D;
     private static final double MAXIMUM_FLOW_FRINGE = 10.0D;
@@ -14,8 +14,13 @@ final class RiparianZone {
     private RiparianZone() {
     }
 
-    /** Returns whether the sample is dry-climate riverbank rather than the wet channel itself. */
-    static boolean isDryBank(TerrainSample sample) {
+    /**
+     * Returns whether the sample is dry-climate riverbank rather than the wet channel itself.
+     *
+     * @param sample Engine terrain sample
+     * @return {@code true} when the sample belongs to the dry-climate riparian fringe
+     */
+    public static boolean isDryBank(TerrainSample sample) {
         if (StandardTerrainTypes.RIVER.equals(sample.terrainType())
                 || StandardTerrainTypes.LAKE.equals(sample.terrainType())) {
             return false;

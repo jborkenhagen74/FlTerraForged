@@ -1,46 +1,27 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
-import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
-import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
+import java.util.Objects;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 
-/** Composes the first block-column representation from an engine terrain sample. */
+/** Composes the synchronous block-column representation through the active materializer. */
 public final class ColumnComposer {
 
     private static final int FILLER_DEPTH = 3;
 
-    private final int minY;
-    private final int maxYExclusive;
-    private final int seaLevel;
-    private final BlockState baseState;
-    private final BlockState defaultFluid;
-    private final TerrainMaterializer materializer;
+    private final BlockMaterializer materializer;
+    private final MaterializerContext context;
 
     /**
-     * Creates a column composer for the generator's vertical settings.
+     * Creates a column composer using the configured replaceable materializer.
      *
-     * @param minY minimum world Y
-     * @param maxYExclusive exclusive maximum world Y
-     * @param seaLevel world sea level
-     * @param baseState default solid substrate
-     * @param defaultFluid default water/fluid state
-     * @param materializer active vertical-resolution materializer
+     * @param materializer active block materializer
      */
-    public ColumnComposer(
-            int minY,
-            int maxYExclusive,
-            int seaLevel,
-            BlockState baseState,
-            BlockState defaultFluid,
-            TerrainMaterializer materializer) {
-        this.minY = minY;
-        this.maxYExclusive = maxYExclusive;
-        this.seaLevel = seaLevel;
-        this.baseState = baseState;
-        this.defaultFluid = defaultFluid;
-        this.materializer = materializer;
+    public ColumnComposer(BlockMaterializer materializer) {
+        this.materializer = Objects.requireNonNull(materializer, "materializer");
+        this.context = materializer.context();
     }
 
     /**
@@ -50,7 +31,7 @@ public final class ColumnComposer {
      * @return first block above the solid surface
      */
     public int surfaceTop(TerrainSample sample) {
-        return materializer.solidSurfaceTop(sample, minY, maxYExclusive);
+        return materializer.solidSurfaceTop(sample);
     }
 
     /**
@@ -60,76 +41,43 @@ public final class ColumnComposer {
      * @return first block above the complete world surface
      */
     public int worldSurfaceTop(TerrainSample sample) {
-        return materializer.waterTopExclusive(sample, seaLevel, minY, maxYExclusive);
+        return materializer.waterTopExclusive(sample);
     }
 
     /**
      * Builds a full vertical column suitable for chunk fill and structure sampling.
      *
      * @param sample continuous Engine terrain sample
-     * @return block states from {@code minY} through the exclusive maximum Y
+     * @return block states from minimum Y through the exclusive maximum Y
      */
     public BlockState[] compose(TerrainSample sample) {
-        BlockState[] states = new BlockState[maxYExclusive - minY];
+        BlockState[] states = new BlockState[context.maxYExclusive() - context.minY()];
         int surfaceTop = surfaceTop(sample);
         int surfaceY = surfaceTop - 1;
-        int waterTopExclusive = materializer.waterTopExclusive(
-                sample, seaLevel, minY, maxYExclusive);
-        BlockState top = topState(sample);
-        BlockState filler = fillerState(sample);
+        int waterTopExclusive = materializer.waterTopExclusive(sample);
+        BlockState top = materializer.composedTopState(sample);
+        BlockState filler = materializer.fillerState(sample);
+        BlockState substrate = materializer.substrateState(sample);
+        BlockState fluid = materializer.fluidState(sample);
+        BlockState air = materializer.airState(sample);
 
-        for (int y = minY; y < maxYExclusive; y++) {
+        for (int y = context.minY(); y < context.maxYExclusive(); y++) {
             BlockState state;
-            if (y == minY) {
-                state = Blocks.BEDROCK.getDefaultState();
+            if (y == context.minY()) {
+                state = materializer.bedrockState(sample);
             } else if (y < surfaceY - FILLER_DEPTH + 1) {
-                state = baseState;
+                state = substrate;
             } else if (y < surfaceY) {
                 state = filler;
             } else if (y == surfaceY) {
                 state = top;
             } else if (y < waterTopExclusive) {
-                state = defaultFluid;
+                state = fluid;
             } else {
-                state = Blocks.AIR.getDefaultState();
+                state = air;
             }
-            states[y - minY] = state;
+            states[y - context.minY()] = state;
         }
         return states;
-    }
-
-    private BlockState topState(TerrainSample sample) {
-        TerrainType terrain = sample.terrainType();
-        if (StandardTerrainTypes.RIVER.equals(terrain)
-                || StandardTerrainTypes.LAKE.equals(terrain)) {
-            return Blocks.GRAVEL.getDefaultState();
-        }
-        if (StandardTerrainTypes.OCEAN.equals(terrain)
-                || StandardTerrainTypes.COAST.equals(terrain)) {
-            return Blocks.SAND.getDefaultState();
-        }
-        if (sample.climate().isAvailable()
-                && sample.climate().temperature() < 0.20
-                && sample.surfaceHeight() > seaLevel + 4) {
-            return Blocks.SNOW_BLOCK.getDefaultState();
-        }
-        return Blocks.GRASS_BLOCK.getDefaultState();
-    }
-
-    private BlockState fillerState(TerrainSample sample) {
-        TerrainType terrain = sample.terrainType();
-        if (StandardTerrainTypes.RIVER.equals(terrain)
-                || StandardTerrainTypes.LAKE.equals(terrain)) {
-            return Blocks.GRAVEL.getDefaultState();
-        }
-        if (StandardTerrainTypes.OCEAN.equals(terrain)
-                || StandardTerrainTypes.COAST.equals(terrain)) {
-            return Blocks.SAND.getDefaultState();
-        }
-        return Blocks.DIRT.getDefaultState();
-    }
-
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
     }
 }

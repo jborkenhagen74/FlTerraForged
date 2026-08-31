@@ -1,14 +1,16 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import java.util.Objects;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
 
-/** Repairs the engine-owned hydrologic envelope after vanilla cave carving. */
+/** Repairs the Engine-owned hydrologic envelope after vanilla cave carving. */
 final class HydrologyCarverGuard {
 
     private static final int SAMPLE_BORDER = 1;
@@ -16,43 +18,27 @@ final class HydrologyCarverGuard {
     private static final int BED_SEAL_DEPTH = 5;
     private static final int BANK_SEAL_DEPTH = 4;
 
-    private final int minY;
-    private final int maxYExclusive;
-    private final int seaLevel;
-    private final BlockState defaultBlock;
-    private final BlockState defaultFluid;
-    private final TerrainMaterializer materializer;
+    private final BlockMaterializer materializer;
+    private final MaterializerContext context;
 
     /**
-     * Creates a hydrology guard for the active generation shape.
+     * Creates a hydrology guard for the active replaceable materializer.
      *
-     * @param minY minimum world Y
-     * @param maxYExclusive exclusive maximum world Y
-     * @param seaLevel world sea level
-     * @param defaultBlock default solid substrate
-     * @param defaultFluid default water/fluid state
-     * @param materializer active vertical-resolution materializer
+     * @param materializer configured materializer
      */
-    HydrologyCarverGuard(
-            int minY,
-            int maxYExclusive,
-            int seaLevel,
-            BlockState defaultBlock,
-            BlockState defaultFluid,
-            TerrainMaterializer materializer) {
-        this.minY = minY;
-        this.maxYExclusive = maxYExclusive;
-        this.seaLevel = seaLevel;
-        this.defaultBlock = defaultBlock;
-        this.defaultFluid = defaultFluid;
-        this.materializer = materializer;
+    HydrologyCarverGuard(BlockMaterializer materializer) {
+        this.materializer = Objects.requireNonNull(materializer, "materializer");
+        this.context = materializer.context();
     }
 
     /**
-     * Restores river/lake beds, water columns and a one-block underground bank shell.
+     * Restores river/lake beds, water columns and the current underground bank shell.
      *
-     * <p>The vanilla carver still owns caves everywhere else. The guard only repairs columns with
-     * materialized Engine water plus the subsurface side wall immediately adjacent to them.</p>
+     * <p>The vanilla carver still owns caves everywhere else. Concrete seal, bed and fluid states
+     * are delegated to the configured materializer.</p>
+     *
+     * @param chunk carved chunk
+     * @param world bound Engine world
      */
     void repair(Chunk chunk, TerrainWorld world) {
         ChunkPos pos = chunk.getPos();
@@ -68,7 +54,14 @@ final class HydrologyCarverGuard {
                     restoreWetColumn(chunk, mutable, x, z, column);
                 } else {
                     sealAdjacentBank(
-                            chunk, mutable, x, z, column, columns, localX, localZ);
+                            chunk,
+                            mutable,
+                            x,
+                            z,
+                            column,
+                            columns,
+                            localX,
+                            localZ);
                 }
             }
         }
@@ -81,16 +74,16 @@ final class HydrologyCarverGuard {
             for (int sampleX = 0; sampleX < SAMPLE_SIZE; sampleX++) {
                 int x = pos.getStartX() + sampleX - SAMPLE_BORDER;
                 TerrainSample sample = world.sample(x, z);
-                int surfaceY = materializer.solidSurfaceY(
-                        sample, minY, maxYExclusive);
-                boolean wet = materializer.hasMaterializedWater(
-                        sample, minY, maxYExclusive);
+                int surfaceY = materializer.solidSurfaceY(sample);
+                boolean wet = materializer.hasMaterializedWater(sample);
                 int waterTopExclusive = wet
-                        ? materializer.waterTopExclusive(
-                                sample, seaLevel, minY, maxYExclusive)
+                        ? materializer.waterTopExclusive(sample)
                         : surfaceY + 1;
                 columns[sampleZ][sampleX] = new WaterColumn(
-                        surfaceY, waterTopExclusive, wet);
+                        sample,
+                        surfaceY,
+                        waterTopExclusive,
+                        wet);
             }
         }
         return columns;
@@ -102,13 +95,22 @@ final class HydrologyCarverGuard {
             int x,
             int z,
             WaterColumn column) {
-        int bedBottom = Math.max(minY + 1, column.surfaceY() - BED_SEAL_DEPTH + 1);
+        TerrainSample sample = column.sample();
+        int bedBottom = Math.max(
+                context.minY() + 1,
+                column.surfaceY() - BED_SEAL_DEPTH + 1);
         for (int y = bedBottom; y < column.surfaceY(); y++) {
-            set(chunk, mutable, x, y, z, defaultBlock);
+            set(chunk, mutable, x, y, z, materializer.hydrologySealState(sample));
         }
-        set(chunk, mutable, x, column.surfaceY(), z, Blocks.GRAVEL.getDefaultState());
+        set(
+                chunk,
+                mutable,
+                x,
+                column.surfaceY(),
+                z,
+                materializer.hydrologyBedState(sample));
         for (int y = column.surfaceY() + 1; y < column.waterTopExclusive(); y++) {
-            set(chunk, mutable, x, y, z, defaultFluid);
+            set(chunk, mutable, x, y, z, materializer.fluidState(sample));
         }
     }
 
@@ -124,21 +126,24 @@ final class HydrologyCarverGuard {
         int gridX = localX + SAMPLE_BORDER;
         int gridZ = localZ + SAMPLE_BORDER;
         int adjacentWaterTop = Math.max(
-                Math.max(columns[gridZ][gridX - 1].protectedWaterTop(),
+                Math.max(
+                        columns[gridZ][gridX - 1].protectedWaterTop(),
                         columns[gridZ][gridX + 1].protectedWaterTop()),
-                Math.max(columns[gridZ - 1][gridX].protectedWaterTop(),
+                Math.max(
+                        columns[gridZ - 1][gridX].protectedWaterTop(),
                         columns[gridZ + 1][gridX].protectedWaterTop()));
-        if (adjacentWaterTop <= minY) {
+        if (adjacentWaterTop <= context.minY()) {
             return;
         }
 
         int top = Math.min(column.surfaceY() - 1, adjacentWaterTop - 1);
-        int bottom = Math.max(minY + 1, adjacentWaterTop - BANK_SEAL_DEPTH);
+        int bottom = Math.max(context.minY() + 1, adjacentWaterTop - BANK_SEAL_DEPTH);
         if (top < bottom) {
             return;
         }
+        BlockState seal = materializer.hydrologySealState(column.sample());
         for (int y = bottom; y <= top; y++) {
-            set(chunk, mutable, x, y, z, defaultBlock);
+            set(chunk, mutable, x, y, z, seal);
         }
     }
 
@@ -155,11 +160,11 @@ final class HydrologyCarverGuard {
         }
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private record WaterColumn(int surfaceY, int waterTopExclusive, boolean wet) {
+    private record WaterColumn(
+            TerrainSample sample,
+            int surfaceY,
+            int waterTopExclusive,
+            boolean wet) {
 
         int protectedWaterTop() {
             return wet ? waterTopExclusive : Integer.MIN_VALUE;

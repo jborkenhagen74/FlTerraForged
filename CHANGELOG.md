@@ -1,3 +1,14 @@
+## 0.1.0-SNAPSHOT-r26
+
+- Refactors Minecraft block realization into a replaceable `BlockMaterializer` SPI owned entirely by FlTerraForged; the external Engine remains unaware of Minecraft blocks and provider selection.
+- Adds `BlockMaterializerProvider`, `MaterializerRegistry`, `MaterializerContext`, `MaterializerCapabilities` and `DelegatingBlockMaterializer` under the public mc1201 API package.
+- Ships `flterraforged:vanilla` as the standard provider and moves all hard-coded vanilla block choices out of the geometry pipeline into `VanillaBlockMaterializer`.
+- Fabric discovers third-party providers through the `flterraforged:materializer` entrypoint. Duplicate provider ids fail startup.
+- Adds `config/flterraforged/materializer.properties`; `materializer=flterraforged:vanilla` is created by default and any registered external id can be selected. Missing configured providers fail fast instead of silently changing world generation.
+- Density shaping, synchronous columns/height queries, surface correction and post-carver hydrology repair now delegate their concrete block/fluid choices to the selected materializer.
+- Adds `MATERIALIZER-SPI.md` and a separate-mod example under `examples/materializer-addon`.
+- Extends layout verification so concrete `Blocks.*` choices are forbidden in the mc1201 worldgen pipeline outside materializer implementations.
+
 ## 0.1.0-SNAPSHOT-r25
 
 - Integrates Engine r22 basin-level inland water: connected ponds/lakes now use one flat spill-derived water surface instead of per-column interpolated lake levels.

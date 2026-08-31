@@ -143,17 +143,44 @@ def main() -> None:
         fail("mc1201 EngineWorldSession must bridge NoiseConfigSeedAccess through Object")
 
     worldgen_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen"
+    materializer_api_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/api/mc1201/materializer"
+    materializer_runtime_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/materializer"
+    standard_materializer = materializer_runtime_root / "standard/VanillaBlockMaterializer.java"
+    standard_provider = materializer_runtime_root / "standard/VanillaBlockMaterializerProvider.java"
     functional_files = (
         worldgen_root / "EngineDensityBridge.java",
         worldgen_root / "VanillaWorldgenDelegate.java",
         worldgen_root / "EngineSurfaceGuard.java",
-        worldgen_root / "TerrainMaterializer.java",
-        worldgen_root / "VanillaTerrainMaterializer.java",
         worldgen_root / "RiparianZone.java",
+        worldgen_root / "ColumnComposer.java",
+        worldgen_root / "HydrologyCarverGuard.java",
+        standard_materializer,
+        standard_provider,
+        materializer_runtime_root / "MaterializerRuntime.java",
     )
     for functional_file in functional_files:
         if not functional_file.is_file():
             fail(f"missing functional mc1201 worldgen file: {functional_file.relative_to(ROOT)}")
+
+    materializer_api_files = (
+        materializer_api_root / "BlockMaterializer.java",
+        materializer_api_root / "BlockMaterializerProvider.java",
+        materializer_api_root / "DelegatingBlockMaterializer.java",
+        materializer_api_root / "MaterializerCapabilities.java",
+        materializer_api_root / "MaterializerContext.java",
+        materializer_api_root / "MaterializerRegistry.java",
+    )
+    for api_file in materializer_api_files:
+        if not api_file.is_file():
+            fail(f"missing public mc1201 materializer SPI file: {api_file.relative_to(ROOT)}")
+
+    obsolete_materializers = (
+        worldgen_root / "TerrainMaterializer.java",
+        worldgen_root / "VanillaTerrainMaterializer.java",
+    )
+    for obsolete in obsolete_materializers:
+        if obsolete.exists():
+            fail(f"obsolete fixed materializer contract still exists: {obsolete.relative_to(ROOT)}")
 
     generator_text = (worldgen_root / "FlTerraForgedChunkGenerator.java").read_text(encoding="utf-8")
     required_generator_fragments = (
@@ -163,53 +190,133 @@ def main() -> None:
         "surfaceGuard.apply",
         "vanilla.carve",
         "vanilla.populateEntities",
+        "MaterializerRuntime.create(materializerContext)",
+        "MaterializerRuntime.selectedId()",
     )
     for fragment in required_generator_fragments:
         if fragment not in generator_text:
-            fail(f"mc1201 generator is missing functional worldgen delegation: {fragment}")
+            fail(f"mc1201 generator is missing functional worldgen/materializer delegation: {fragment}")
     if "intentionally a follow-up integration step" in generator_text:
         fail("mc1201 generator still contains deferred carver integration")
     if "simple solid/water columns" in generator_text:
         fail("mc1201 generator still describes the obsolete column-only adapter")
 
-    density_text = functional_files[0].read_text(encoding="utf-8")
+    density_text = (worldgen_root / "EngineDensityBridge.java").read_text(encoding="utf-8")
     if "SURFACE_SEAL_DEPTH" not in density_text:
         fail("mc1201 density bridge must seal a stable surface skin before vanilla carvers")
     if "int delta" in density_text or "sourceY = y - delta" in density_text:
         fail("mc1201 density bridge must never vertically translate the vanilla substrate")
     if "if (y > sourceSurfaceY)" not in density_text:
         fail("mc1201 density bridge must extend raised engine terrain with new solid substrate")
-    if "return state == null ? defaultBlock : state;" not in density_text:
+    if "return state == null ? materializer.substrateState(sample) : state;" not in density_text:
         fail("mc1201 density bridge must preserve vanilla substrate at absolute Y")
     if "sample.river().depth() * 0.25" in density_text:
         fail("mc1201 density bridge must not recreate unstable per-column highland-river water levels")
     if "if (!state.equals(current))" not in density_text:
         fail("mc1201 density bridge must avoid rewriting unchanged block states")
+    for fragment in (
+        "materializer.waterTopExclusive(sample)",
+        "materializer.fluidState(sample)",
+        "materializer.surfaceSealState(sample)",
+        "materializer.substrateState(sample)",
+    ):
+        if fragment not in density_text:
+            fail(f"mc1201 density bridge bypasses the replaceable materializer: {fragment}")
 
     column_text = (worldgen_root / "ColumnComposer.java").read_text(encoding="utf-8")
     if "sample.river().depth() * 0.25" in column_text:
         fail("mc1201 synchronous column composer must not recreate per-column river-height guesses")
-    materializer_contract = functional_files[3].read_text(encoding="utf-8")
-    hydrology_text = functional_files[4].read_text(encoding="utf-8")
-    for fragment in ("verticalResolution()", "supportsPartialBlocks()", "supportsWaterlogging()"):
+    for fragment in (
+        "materializer.waterTopExclusive(sample)",
+        "materializer.composedTopState(sample)",
+        "materializer.fillerState(sample)",
+        "materializer.substrateState(sample)",
+        "materializer.fluidState(sample)",
+    ):
+        if fragment not in column_text:
+            fail(f"mc1201 column composer bypasses the replaceable materializer: {fragment}")
+
+    materializer_contract = (materializer_api_root / "BlockMaterializer.java").read_text(encoding="utf-8")
+    for fragment in (
+        "MaterializerCapabilities capabilities()",
+        "int solidSurfaceY(TerrainSample sample)",
+        "int waterTopExclusive(TerrainSample sample)",
+        "Optional<BlockState> forcedSurfaceState(TerrainSample sample)",
+        "BlockState hydrologyBedState(TerrainSample sample)",
+        "BlockState hydrologySealState(TerrainSample sample)",
+    ):
         if fragment not in materializer_contract:
-            fail(f"mc1201 terrain-materializer contract is incomplete: {fragment}")
-    for fragment in ("hydrology.hasWaterSurfaceHeight()", "hydrology.waterSurfaceHeight()", "hydrology.depth()"):
-        if fragment not in hydrology_text:
-            fail(f"mc1201 vanilla materializer is missing stable hydrology logic: {fragment}")
-    if "waterTopExclusive - 2" not in hydrology_text:
-        fail("mc1201 vanilla materializer must guarantee a full water block in shallow Engine lakes")
-    if "materializer.waterTopExclusive" not in density_text:
-        fail("mc1201 density bridge must materialize Engine hydrology through TerrainMaterializer")
-    if "materializer.waterTopExclusive" not in column_text:
-        fail("mc1201 synchronous column composer must share TerrainMaterializer hydrology realization")
+            fail(f"mc1201 public block-materializer contract is incomplete: {fragment}")
+
+    standard_text = standard_materializer.read_text(encoding="utf-8")
+    for fragment in (
+        "new MaterializerCapabilities(1.0D, false, false)",
+        "hydrology.hasWaterSurfaceHeight()",
+        "hydrology.waterSurfaceHeight()",
+        "hydrology.depth()",
+        "waterTopExclusive - 2",
+    ):
+        if fragment not in standard_text:
+            fail(f"mc1201 vanilla materializer is missing stable materialization logic: {fragment}")
+
     surface_text = (worldgen_root / "EngineSurfaceGuard.java").read_text(encoding="utf-8")
-    if "StandardTerrainTypes.LAKE" not in surface_text or "Blocks.GRAVEL" not in surface_text:
-        fail("mc1201 surface guard must realize lake/river beds without circular sand forcing")
-    if "StandardTerrainTypes.LAKE_SHORE" not in surface_text:
-        fail("mc1201 surface guard must recognize the dry lake-shore transition")
-    if "StandardTerrainTypes.RIVER.equals(sample.terrainType())) {\n            return Blocks.SAND" in surface_text:
-        fail("mc1201 surface guard must not force every river surface to sand")
+    for fragment in (
+        "materializer.forcedSurfaceState(sample)",
+        "materializer.fallbackSurfaceState(sample)",
+        "materializer.fillerState(sample)",
+    ):
+        if fragment not in surface_text:
+            fail(f"mc1201 surface guard bypasses the replaceable materializer: {fragment}")
+
+    carver_text = (worldgen_root / "HydrologyCarverGuard.java").read_text(encoding="utf-8")
+    for fragment in (
+        "materializer.hydrologySealState(sample)",
+        "materializer.hydrologyBedState(sample)",
+        "materializer.fluidState(sample)",
+    ):
+        if fragment not in carver_text:
+            fail(f"mc1201 hydrology guard bypasses the replaceable materializer: {fragment}")
+
+    # Concrete Minecraft block choices must live in materializer implementations, not in the
+    # geometry/delegation pipeline. This prevents later custom providers from being partially
+    # overwritten by hard-coded vanilla blocks.
+    for source in worldgen_root.glob("*.java"):
+        if "Blocks." in source.read_text(encoding="utf-8"):
+            fail(f"hard-coded block material bypasses materializer in {source.relative_to(ROOT)}")
+
+    fabric_materializer_root = ROOT / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201/materializer"
+    fabric_bootstrap = fabric_materializer_root / "FabricMaterializerBootstrap.java"
+    materializer_config = fabric_materializer_root / "MaterializerConfig.java"
+    for platform_file in (fabric_bootstrap, materializer_config):
+        if not platform_file.is_file():
+            fail(f"missing Fabric materializer bootstrap file: {platform_file.relative_to(ROOT)}")
+    bootstrap_text = fabric_bootstrap.read_text(encoding="utf-8")
+    for fragment in (
+        'ENTRYPOINT_KEY = "flterraforged:materializer"',
+        "getEntrypoints(ENTRYPOINT_KEY, BlockMaterializerProvider.class)",
+        "registry.register(new VanillaBlockMaterializerProvider())",
+        "MaterializerRuntime.install(registry, config.materializerId())",
+    ):
+        if fragment not in bootstrap_text:
+            fail(f"Fabric replaceable materializer bootstrap is incomplete: {fragment}")
+    config_text = materializer_config.read_text(encoding="utf-8")
+    if 'RELATIVE_PATH = "flterraforged/materializer.properties"' not in config_text:
+        fail("Fabric materializer selection must live under config/flterraforged/materializer.properties")
+    if 'KEY_MATERIALIZER = "materializer"' not in config_text:
+        fail("Fabric materializer config is missing the materializer selection key")
+    fabric_initializer = (ROOT / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201/FlTerraForgedFabric.java").read_text(encoding="utf-8")
+    if "FabricMaterializerBootstrap.bootstrap();" not in fabric_initializer:
+        fail("Fabric initializer must bootstrap materializer providers before world loading")
+
+    addon_example = ROOT / "examples/materializer-addon/src/main/resources/fabric.mod.json"
+    if not addon_example.is_file():
+        fail("missing external materializer add-on example")
+    addon_descriptor = json.loads(addon_example.read_text(encoding="utf-8"))
+    if "flterraforged:materializer" not in addon_descriptor.get("entrypoints", {}):
+        fail("materializer add-on example must use the public Fabric entrypoint")
+    if not (ROOT / "MATERIALIZER-SPI.md").is_file():
+        fail("missing public materializer SPI documentation")
+
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
     if "StandardTerrainTypes.LAKE" not in biome_router_text:
         fail("mc1201 biome router must recognize Engine lake semantics")
@@ -219,8 +326,8 @@ def main() -> None:
     for fragment in ("river.hasFlow()", "Math.sqrt(river.flow())", "sample.climate().moisture() < 0.46D"):
         if fragment not in riparian_text:
             fail(f"mc1201 riparian-zone logic is incomplete: {fragment}")
-    if "RiparianZone.isDryBank(sample)" not in surface_text or "Blocks.GRASS_BLOCK" not in surface_text:
-        fail("mc1201 surface guard must grass-over-dirt dry riverbanks")
+    if "RiparianZone.isDryBank(sample)" not in standard_text or "Blocks.GRASS_BLOCK" not in standard_text:
+        fail("standard materializer must grass-over-dirt dry riverbanks")
     if "columns.worldSurfaceTop(sample)" not in generator_text:
         fail("mc1201 height queries must include materialized river/ocean water")
 

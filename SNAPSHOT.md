@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r25**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r26**.
 
-Current package revision: **r13** 0.1.0-SNAPSHOT
+Current package revision: **r26** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -125,3 +125,8 @@ terrain through `TerrainMaterializer`; the vanilla implementation has 1.0-block 
 only shallow lake beds that would otherwise quantize to the same integer Y as their water surface.
 This guarantees a real water block without baking Conquest-specific slabs into the Engine. Future
 Conquest materializers can advertise finer vertical resolution and waterlogging support.
+
+
+### r26 replaceable block-materializer SPI
+
+r26 moves Minecraft block realization behind the public mc1201 `BlockMaterializer` SPI. Fabric discovers add-on providers through `flterraforged:materializer`; the selected namespaced provider id is read from `config/flterraforged/materializer.properties`. The built-in `flterraforged:vanilla` provider remains the default. Density, column, surface and carver-repair stages no longer own concrete vanilla block choices.

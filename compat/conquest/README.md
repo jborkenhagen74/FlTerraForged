@@ -1,11 +1,7 @@
-# conquest
+# Conquest Reforged compatibility
 
-Conquest Reforged wird später über Registry-/Tag-basierte Surface- und Decoration-Provider angebunden.
+Conquest Reforged should be integrated as a **separate materializer add-on mod**, not as an Engine dependency.
 
+Since r26 the mc1201 host exposes the public `BlockMaterializer` SPI. FlTerraForged ships `flterraforged:vanilla`; a Conquest add-on can register e.g. `flterraforged_conquest:conquest` through the `flterraforged:materializer` Fabric entrypoint and the user selects it in `config/flterraforged/materializer.properties`.
 
-## r25 materialization hook
-
-The mc1201 host now exposes `TerrainMaterializer` as the vertical-resolution boundary. Vanilla uses
-`VanillaTerrainMaterializer` with 1.0-block resolution. A future Conquest integration should provide a
-materializer that advertises 0.5/0.25-block support and waterlogging where the selected Conquest
-states permit it. Basin water levels remain Engine-owned and must not be recomputed by this layer.
+The Conquest provider may advertise 0.5/0.25-block vertical resolution, partial blocks and waterlogging and may replace surface/filler/riverbed/seal states. Basin and river water levels remain Engine-owned and must not be recomputed by the add-on. See `MATERIALIZER-SPI.md`.

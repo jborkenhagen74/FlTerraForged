@@ -1,63 +1,43 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import java.util.Objects;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
 
 /**
- * Adapts Minecraft's vanilla three-dimensional substrate to the surface height
- * produced by the external terrain engine without translating the substrate in
- * the vertical axis.
+ * Adapts Minecraft's vanilla three-dimensional substrate to the surface height produced by the
+ * external terrain engine without translating the substrate in the vertical axis.
  *
- * <p>Earlier revisions moved every vanilla column up or down by the difference
- * between the vanilla and engine surfaces. Adjacent columns normally have
- * different deltas, so caves, aquifers and stone layers were sheared apart and
- * appeared as floating plates, horizontal gaps and vertical walls. This bridge
- * keeps every vanilla substrate state at its original absolute Y coordinate.
- * It only truncates material above the engine surface or adds solid material
- * when the engine surface is higher.</p>
- *
- * <p>A small solid cap is enforced below the engine surface before vanilla
- * carvers run. This prevents a pre-existing vanilla cave from becoming an
- * accidental paper-thin roof solely because the engine surface intersects it.
- * Normal cave mouths may still be created later by Minecraft's carver stage.</p>
+ * <p>All newly emitted blocks and fluids are selected by the configured {@link BlockMaterializer}.
+ * The bridge therefore owns geometry reconciliation only; concrete block choices remain replaceable
+ * by an add-on materializer.</p>
  */
 public final class EngineDensityBridge {
 
     private static final int SURFACE_SEAL_DEPTH = 6;
 
-    private final int minY;
-    private final int maxYExclusive;
-    private final int seaLevel;
-    private final BlockState defaultBlock;
-    private final BlockState defaultFluid;
-    private final TerrainMaterializer materializer;
+    private final BlockMaterializer materializer;
+    private final MaterializerContext context;
 
     /**
-     * Creates a bridge for one Minecraft generation-shape configuration.
+     * Creates a bridge for the active materializer context.
      *
-     * @param settings active vanilla chunk-generator settings
-     * @param materializer active vertical-resolution materializer
+     * @param materializer active replaceable materializer
      */
-    public EngineDensityBridge(
-            ChunkGeneratorSettings settings,
-            TerrainMaterializer materializer) {
-        this.minY = settings.generationShapeConfig().minimumY();
-        this.maxYExclusive = minY + settings.generationShapeConfig().height();
-        this.seaLevel = settings.seaLevel();
-        this.defaultBlock = settings.defaultBlock();
-        this.defaultFluid = settings.defaultFluid();
-        this.materializer = materializer;
+    public EngineDensityBridge(BlockMaterializer materializer) {
+        this.materializer = Objects.requireNonNull(materializer, "materializer");
+        this.context = materializer.context();
     }
 
     /**
-     * Reconciles all vanilla noise-filled columns with the engine surface.
+     * Reconciles all vanilla noise-filled columns with the Engine surface.
      *
      * @param chunk vanilla noise-filled chunk
      * @param world bound external terrain world
@@ -65,7 +45,7 @@ public final class EngineDensityBridge {
     public void reshape(Chunk chunk, TerrainWorld world) {
         ChunkPos pos = chunk.getPos();
         BlockPos.Mutable mutable = new BlockPos.Mutable();
-        BlockState[] source = new BlockState[maxYExclusive - minY];
+        BlockState[] source = new BlockState[context.maxYExclusive() - context.minY()];
 
         for (int localZ = 0; localZ < 16; localZ++) {
             int blockZ = pos.getStartZ() + localZ;
@@ -75,21 +55,22 @@ public final class EngineDensityBridge {
 
                 snapshotColumn(chunk, blockX, blockZ, mutable, source);
                 int sourceSurfaceY = findSourceSurface(source);
-                int targetSurfaceY = materializer.solidSurfaceY(
-                        sample, minY, maxYExclusive);
-                int sealBottomY = Math.max(minY + 1, targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
-                int waterTopExclusive = materializer.waterTopExclusive(
-                        sample, seaLevel, minY, maxYExclusive);
+                int targetSurfaceY = materializer.solidSurfaceY(sample);
+                int sealBottomY = Math.max(
+                        context.minY() + 1,
+                        targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
+                int waterTopExclusive = materializer.waterTopExclusive(sample);
 
-                for (int y = minY; y < maxYExclusive; y++) {
+                for (int y = context.minY(); y < context.maxYExclusive(); y++) {
                     BlockState state = reconciledState(
+                            sample,
                             source,
                             y,
                             sourceSurfaceY,
                             targetSurfaceY,
                             sealBottomY,
                             waterTopExclusive);
-                    BlockState current = source[y - minY];
+                    BlockState current = source[y - context.minY()];
                     if (!state.equals(current)) {
                         mutable.set(blockX, y, blockZ);
                         chunk.setBlockState(mutable, state, false);
@@ -109,59 +90,52 @@ public final class EngineDensityBridge {
             int blockZ,
             BlockPos.Mutable mutable,
             BlockState[] target) {
-        for (int y = minY; y < maxYExclusive; y++) {
+        for (int y = context.minY(); y < context.maxYExclusive(); y++) {
             mutable.set(blockX, y, blockZ);
-            target[y - minY] = chunk.getBlockState(mutable);
+            target[y - context.minY()] = chunk.getBlockState(mutable);
         }
     }
 
     private int findSourceSurface(BlockState[] source) {
-        for (int y = maxYExclusive - 1; y >= minY; y--) {
-            BlockState state = source[y - minY];
+        for (int y = context.maxYExclusive() - 1; y >= context.minY(); y--) {
+            BlockState state = source[y - context.minY()];
             if (!state.isAir() && state.getFluidState().isEmpty()) {
                 return y;
             }
         }
-        return minY;
+        return context.minY();
     }
 
     private BlockState reconciledState(
+            TerrainSample sample,
             BlockState[] source,
             int y,
             int sourceSurfaceY,
             int targetSurfaceY,
             int sealBottomY,
             int waterTopExclusive) {
-        if (y == minY) {
+        if (y == context.minY()) {
             BlockState floor = source[0];
             return floor == null || floor.isAir()
-                    ? Blocks.BEDROCK.getDefaultState()
+                    ? materializer.bedrockState(sample)
                     : floor;
         }
 
         if (y > targetSurfaceY) {
-            return y < waterTopExclusive ? defaultFluid : Blocks.AIR.getDefaultState();
+            return y < waterTopExclusive
+                    ? materializer.fluidState(sample)
+                    : materializer.airState(sample);
         }
 
-        // Always provide a stable solid skin for the engine surface. Vanilla's
-        // later surface-rule and carver stages are responsible for turning this
-        // into biome material and natural cave entrances.
         if (y >= sealBottomY) {
-            return defaultBlock;
+            return materializer.surfaceSealState(sample);
         }
 
-        // Raised terrain receives new solid substrate only above the original
-        // vanilla surface. Nothing below is shifted: caves, deepslate, ore-vein
-        // substrate and aquifers retain their absolute world Y coordinates.
         if (y > sourceSurfaceY) {
-            return defaultBlock;
+            return materializer.substrateState(sample);
         }
 
-        BlockState state = source[y - minY];
-        return state == null ? defaultBlock : state;
-    }
-
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
+        BlockState state = source[y - context.minY()];
+        return state == null ? materializer.substrateState(sample) : state;
     }
 }

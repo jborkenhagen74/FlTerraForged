@@ -2,8 +2,11 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.MaterializerRuntime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,7 +67,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final Map<String, String> engineConfig;
     private final FlTerraForgedBiomeSource engineBiomeSource;
     private final EngineWorldSession session;
-    private final TerrainMaterializer materializer;
+    private final BlockMaterializer materializer;
     private final ColumnComposer columns;
     private final VanillaWorldgenDelegate vanilla;
     private final EngineDensityBridge densityBridge;
@@ -93,29 +96,18 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         int maxYExclusive = minY + shape.height();
         this.session = new EngineWorldSession(
                 engineId, this.engineConfig, minY, maxYExclusive, value.seaLevel());
-        this.materializer = new VanillaTerrainMaterializer();
-        this.columns = new ColumnComposer(
+        MaterializerContext materializerContext = new MaterializerContext(
                 minY,
                 maxYExclusive,
                 value.seaLevel(),
                 value.defaultBlock(),
-                value.defaultFluid(),
-                materializer);
+                value.defaultFluid());
+        this.materializer = MaterializerRuntime.create(materializerContext);
+        this.columns = new ColumnComposer(materializer);
         this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
-        this.densityBridge = new EngineDensityBridge(value, materializer);
-        this.surfaceGuard = new EngineSurfaceGuard(
-                minY,
-                maxYExclusive,
-                value.seaLevel(),
-                value.defaultBlock(),
-                materializer);
-        this.hydrologyCarverGuard = new HydrologyCarverGuard(
-                minY,
-                maxYExclusive,
-                value.seaLevel(),
-                value.defaultBlock(),
-                value.defaultFluid(),
-                materializer);
+        this.densityBridge = new EngineDensityBridge(materializer);
+        this.surfaceGuard = new EngineSurfaceGuard(materializer);
+        this.hydrologyCarverGuard = new HydrologyCarverGuard(materializer);
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -243,6 +235,13 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         text.add("FlTerraForged engine: " + session.providerId() + " @ " + session.providerVersion());
         text.add(String.format(
                 java.util.Locale.ROOT,
+                "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s",
+                MaterializerRuntime.selectedId(),
+                materializer.capabilities().verticalResolution(),
+                materializer.capabilities().partialBlocks(),
+                materializer.capabilities().waterlogging()));
+        text.add(String.format(
+                java.util.Locale.ROOT,
                 "FTF h=%.2f slope=%.3f erosion=%.3f continent=%.3f terrain=%s",
                 sample.surfaceHeight(),
                 sample.slope(),
@@ -257,7 +256,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                     sample.river().width(),
                     sample.river().waterSurfaceHeight(),
                     sample.river().flow(),
-                    materializer.hasMaterializedWater(sample, getMinimumY(), getMinimumY() + getWorldHeight())));
+                    materializer.hasMaterializedWater(sample)));
         }
     }
 

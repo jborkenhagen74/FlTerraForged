@@ -234,3 +234,17 @@ implementation uses a 1.0-block step. When an Engine `LAKE` sample contains wate
 and water heights would occupy the same integer cell, the vanilla materializer lowers only the
 materialized bed to guarantee one water block. `LAKE_SHORE` remains dry and is surfaced separately.
 A future Conquest implementation can provide 0.5/0.25-block shapes without changing basin solving.
+
+
+## Replaceable block-materializer boundary (r26)
+
+The Engine boundary ends at semantic `TerrainSample` data. Minecraft block selection is owned by the mc1201 host and routed through a public `BlockMaterializer` SPI. The Fabric platform bootstraps a `MaterializerRegistry`, registers the built-in `flterraforged:vanilla` provider, discovers external `flterraforged:materializer` entrypoints, freezes the registry and installs exactly the provider selected in `config/flterraforged/materializer.properties`.
+
+```text
+Engine -> TerrainSample -> BlockMaterializer -> Density/Columns/Surface/Carver
+                              ^
+                              |
+                 configured provider registry
+```
+
+No worldgen pipeline class outside the standard/custom materializer implementation may hard-code Minecraft `Blocks.*` material choices. This invariant is enforced by `tools/verify-layout.py`. Provider ids are namespaced; duplicate ids and missing configured providers are fatal to prevent silent world-generation changes.
