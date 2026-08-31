@@ -1,0 +1,100 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "dev.foucaultleon",
+    "module": "flterraforged-engine-api",
+    "version": "0.1.0-SNAPSHOT",
+    "attributes": {
+      "org.gradle.status": "integration"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.7.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "flterraforged-engine-api-0.1.0-SNAPSHOT.jar",
+          "url": "flterraforged-engine-api-0.1.0-SNAPSHOT.jar",
+          "size": 17314,
+          "sha512": "95ae4af86571fc4ffe359f300880af0b96e2f1734264536f0872d0bb155cda1d808a7860301ae59f793a752153dfc712a0d0402003a7c4bb5dd41c743602e92c",
+          "sha256": "194c5cfc2d26fbfd3cba497d3e6942f5b00c2a0186837d30b80ba537fc16c38b",
+          "sha1": "7b514322e3c2bf2709be61263b806a0be1266002",
+          "md5": "600707ad9c34061e7bd682820ed5c7a5"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flterraforged-engine-api-0.1.0-SNAPSHOT.jar",
+          "url": "flterraforged-engine-api-0.1.0-SNAPSHOT.jar",
+          "size": 17314,
+          "sha512": "95ae4af86571fc4ffe359f300880af0b96e2f1734264536f0872d0bb155cda1d808a7860301ae59f793a752153dfc712a0d0402003a7c4bb5dd41c743602e92c",
+          "sha256": "194c5cfc2d26fbfd3cba497d3e6942f5b00c2a0186837d30b80ba537fc16c38b",
+          "sha1": "7b514322e3c2bf2709be61263b806a0be1266002",
+          "md5": "600707ad9c34061e7bd682820ed5c7a5"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flterraforged-engine-api-0.1.0-SNAPSHOT-sources.jar",
+          "url": "flterraforged-engine-api-0.1.0-SNAPSHOT-sources.jar",
+          "size": 14110,
+          "sha512": "7201eea202a348307bd2f1c98386ef60b2039bb13d0c06fff57e054b3377b7a38e5b5eb0037852192594b8be9b5e88d6f6e93bdf187a373a60a2978731d58458",
+          "sha256": "8ab764f2a1e23733af7df800dc4932eb00b4b2c3fe403c9ffb5d2fd8695d5b6e",
+          "sha1": "b8d78768b6e974efffced50113f3ae7c2860ffc9",
+          "md5": "4a95a0d7d13f97c5994f8b9ff751680f"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "flterraforged-engine-api-0.1.0-SNAPSHOT-javadoc.jar",
+          "url": "flterraforged-engine-api-0.1.0-SNAPSHOT-javadoc.jar",
+          "size": 146799,
+          "sha512": "d506b5bbce5c497342ccac6e9bd2a1ff76b17f8de6b5e980ffedbf4c583d79f9dbc50dd86ff3bdf2970345634031b33c1fd126f8abeb666f3db2b56b8ffd787a",
+          "sha256": "c826837b2b4e7f537fe684887c526f761d40bfbc1997f51a5629a9766d7902a4",
+          "sha1": "f85c7d0528ac72704cfb1e74199874c1b79d9827",
+          "md5": "a6ead43c2ae7ed4a01ac6a016c46bd7e"
+        }
+      ]
+    }
+  ]
+}
