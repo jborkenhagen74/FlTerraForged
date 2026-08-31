@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r26 keeps the r20 absolute-Y substrate model and extends the stable
+Snapshot r27 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -196,3 +196,8 @@ repair paths call the same materializer, so the integer decision cannot diverge 
 ## Replaceable block materialization (r26)
 
 The single realization rule is now a public SPI rather than a fixed internal implementation. The generator creates its `BlockMaterializer` through `MaterializerRuntime` from the provider selected at Fabric bootstrap. Concrete substrate, fluid, surface, filler, hydrology-bed and seal states are delegated together with height/water quantization. External mods register a provider via `flterraforged:materializer`; selection is read from `config/flterraforged/materializer.properties`.
+
+
+## r27 hydrology finalization
+
+After surface generation and again after vanilla carving, `HydrologyFillPass` restores exact Engine water columns and may repair an isolated dry river/lake column only when cardinal wet neighbors prove continuity. The default standard materializer uses a four-block hydrology cave margin and six-block bank seal. The repair and sealing decisions remain materializer hooks, so future partial-block implementations can replace them.

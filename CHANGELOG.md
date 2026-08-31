@@ -1,3 +1,14 @@
+## 0.1.0-SNAPSHOT-r27
+
+- Add matrix-ready, version-neutral `BiomeRole`/`BiomeRoleResolver` routing; each Minecraft family maps semantic roles to the native biomes available in that version.
+- Replace the fixed mc1201 biome palette with a data-driven role -> candidate-list codec, allowing later Minecraft families to use additional biomes without changing Engine climate code.
+- Add `central_europe` (randomized) and `central_europe_north_south` world presets; north-south climate is optional and independent from the terrain preset.
+- Expand the 1.20.1 palette across cold/temperate oceans, taiga variants, birch/old-growth forests, flower forest, wetland, meadow and peak variants; remove windswept hills from the default mountain role.
+- Add deterministic configurable standard-materializer block sets for river/lake beds, coasts, shores, riparian zones, plains, valleys, hills, plateaus, mountains, ocean bed, substrate and seals. Missing block-set options retain built-in full-block defaults.
+- Add final hydrology connectivity repair for isolated one-column river/lake water gaps, while avoiding arbitrary flood fill.
+- Increase default hydrology cave margin to 4 blocks and bank seal depth to 6 blocks.
+- Pair with Engine `0.1.0-SNAPSHOT-r24`.
+
 ## 0.1.0-SNAPSHOT-r26
 
 - Refactors Minecraft block realization into a replaceable `BlockMaterializer` SPI owned entirely by FlTerraForged; the external Engine remains unaware of Minecraft blocks and provider selection.

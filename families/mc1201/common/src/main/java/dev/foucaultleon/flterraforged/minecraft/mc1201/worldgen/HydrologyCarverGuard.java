@@ -10,16 +10,14 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
 
-/** Repairs the Engine-owned hydrologic envelope after vanilla cave carving. */
+/** Repairs and protects the Engine-owned hydrologic envelope after vanilla cave carving. */
 final class HydrologyCarverGuard {
-
-    private static final int SAMPLE_BORDER = 1;
-    private static final int SAMPLE_SIZE = 16 + SAMPLE_BORDER * 2;
-    private static final int BED_SEAL_DEPTH = 5;
-    private static final int BANK_SEAL_DEPTH = 4;
 
     private final BlockMaterializer materializer;
     private final MaterializerContext context;
+    private final int caveMargin;
+    private final int sampleBorder;
+    private final int sampleSize;
 
     /**
      * Creates a hydrology guard for the active replaceable materializer.
@@ -29,13 +27,17 @@ final class HydrologyCarverGuard {
     HydrologyCarverGuard(BlockMaterializer materializer) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
         this.context = materializer.context();
+        this.caveMargin = Math.max(0, materializer.hydrologyCaveMargin());
+        this.sampleBorder = Math.max(1, caveMargin);
+        this.sampleSize = 16 + sampleBorder * 2;
     }
 
     /**
-     * Restores river/lake beds, water columns and the current underground bank shell.
+     * Restores river/lake beds, water columns and a configurable underground bank shell.
      *
-     * <p>The vanilla carver still owns caves everywhere else. Concrete seal, bed and fluid states
-     * are delegated to the configured materializer.</p>
+     * <p>The vanilla carver still owns caves outside the hydrology margin. Concrete seal, bed and
+     * fluid states as well as the protection dimensions are delegated to the configured
+     * materializer.</p>
      *
      * @param chunk carved chunk
      * @param world bound Engine world
@@ -49,11 +51,11 @@ final class HydrologyCarverGuard {
             int z = pos.getStartZ() + localZ;
             for (int localX = 0; localX < 16; localX++) {
                 int x = pos.getStartX() + localX;
-                WaterColumn column = columns[localZ + SAMPLE_BORDER][localX + SAMPLE_BORDER];
+                WaterColumn column = columns[localZ + sampleBorder][localX + sampleBorder];
                 if (column.wet()) {
                     restoreWetColumn(chunk, mutable, x, z, column);
-                } else {
-                    sealAdjacentBank(
+                } else if (caveMargin > 0) {
+                    sealProtectedBank(
                             chunk,
                             mutable,
                             x,
@@ -68,11 +70,11 @@ final class HydrologyCarverGuard {
     }
 
     private WaterColumn[][] sampleEnvelope(ChunkPos pos, TerrainWorld world) {
-        WaterColumn[][] columns = new WaterColumn[SAMPLE_SIZE][SAMPLE_SIZE];
-        for (int sampleZ = 0; sampleZ < SAMPLE_SIZE; sampleZ++) {
-            int z = pos.getStartZ() + sampleZ - SAMPLE_BORDER;
-            for (int sampleX = 0; sampleX < SAMPLE_SIZE; sampleX++) {
-                int x = pos.getStartX() + sampleX - SAMPLE_BORDER;
+        WaterColumn[][] columns = new WaterColumn[sampleSize][sampleSize];
+        for (int sampleZ = 0; sampleZ < sampleSize; sampleZ++) {
+            int z = pos.getStartZ() + sampleZ - sampleBorder;
+            for (int sampleX = 0; sampleX < sampleSize; sampleX++) {
+                int x = pos.getStartX() + sampleX - sampleBorder;
                 TerrainSample sample = world.sample(x, z);
                 int surfaceY = materializer.solidSurfaceY(sample);
                 boolean wet = materializer.hasMaterializedWater(sample);
@@ -98,7 +100,7 @@ final class HydrologyCarverGuard {
         TerrainSample sample = column.sample();
         int bedBottom = Math.max(
                 context.minY() + 1,
-                column.surfaceY() - BED_SEAL_DEPTH + 1);
+                column.surfaceY() - materializer.hydrologyBedSealDepth() + 1);
         for (int y = bedBottom; y < column.surfaceY(); y++) {
             set(chunk, mutable, x, y, z, materializer.hydrologySealState(sample));
         }
@@ -114,7 +116,7 @@ final class HydrologyCarverGuard {
         }
     }
 
-    private void sealAdjacentBank(
+    private void sealProtectedBank(
             Chunk chunk,
             BlockPos.Mutable mutable,
             int x,
@@ -123,21 +125,29 @@ final class HydrologyCarverGuard {
             WaterColumn[][] columns,
             int localX,
             int localZ) {
-        int gridX = localX + SAMPLE_BORDER;
-        int gridZ = localZ + SAMPLE_BORDER;
-        int adjacentWaterTop = Math.max(
-                Math.max(
-                        columns[gridZ][gridX - 1].protectedWaterTop(),
-                        columns[gridZ][gridX + 1].protectedWaterTop()),
-                Math.max(
-                        columns[gridZ - 1][gridX].protectedWaterTop(),
-                        columns[gridZ + 1][gridX].protectedWaterTop()));
-        if (adjacentWaterTop <= context.minY()) {
+        int gridX = localX + sampleBorder;
+        int gridZ = localZ + sampleBorder;
+        int protectedWaterTop = Integer.MIN_VALUE;
+        int radiusSq = caveMargin * caveMargin;
+        for (int dz = -caveMargin; dz <= caveMargin; dz++) {
+            for (int dx = -caveMargin; dx <= caveMargin; dx++) {
+                if (dx == 0 && dz == 0 || dx * dx + dz * dz > radiusSq) {
+                    continue;
+                }
+                WaterColumn neighbor = columns[gridZ + dz][gridX + dx];
+                if (neighbor.wet()) {
+                    protectedWaterTop = Math.max(protectedWaterTop, neighbor.waterTopExclusive());
+                }
+            }
+        }
+        if (protectedWaterTop == Integer.MIN_VALUE) {
             return;
         }
 
-        int top = Math.min(column.surfaceY() - 1, adjacentWaterTop - 1);
-        int bottom = Math.max(context.minY() + 1, adjacentWaterTop - BANK_SEAL_DEPTH);
+        int top = Math.min(column.surfaceY() - 1, protectedWaterTop);
+        int bottom = Math.max(
+                context.minY() + 1,
+                protectedWaterTop - materializer.hydrologyBankSealDepth());
         if (top < bottom) {
             return;
         }
@@ -147,7 +157,7 @@ final class HydrologyCarverGuard {
         }
     }
 
-    private void set(
+    private static void set(
             Chunk chunk,
             BlockPos.Mutable mutable,
             int x,
@@ -165,9 +175,5 @@ final class HydrologyCarverGuard {
             int surfaceY,
             int waterTopExclusive,
             boolean wet) {
-
-        int protectedWaterTop() {
-            return wet ? waterTopExclusive : Integer.MIN_VALUE;
-        }
     }
 }

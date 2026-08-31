@@ -151,4 +151,58 @@ public interface BlockMaterializer {
      * @return hydrology seal state
      */
     BlockState hydrologySealState(TerrainSample sample);
+
+
+    /**
+     * Returns whether a dry Engine hydrology column may be repaired as a one-column surface gap
+     * when surrounding columns form one continuous water body.
+     *
+     * <p>The host performs only the neighborhood/connectivity test. The selected materializer
+     * decides whether its block-resolution model permits the repair at all.</p>
+     *
+     * @param sample continuous Engine sample at the candidate gap
+     * @return {@code true} when a connectivity repair is allowed
+     */
+    default boolean mayRepairHydrologyGap(TerrainSample sample) {
+        return false;
+    }
+
+    /**
+     * Resolves the bed Y used when closing a one-column hydrology surface gap.
+     *
+     * @param sample continuous Engine sample at the candidate gap
+     * @param waterTopExclusive neighborhood water-top level chosen by the host
+     * @return topmost solid bed block Y for the repaired column
+     */
+    default int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
+        return solidSurfaceY(sample);
+    }
+
+    /**
+     * Returns the horizontal cave-protection margin around materialized hydrology.
+     *
+     * @return protection radius in blocks
+     */
+    default int hydrologyCaveMargin() {
+        return 3;
+    }
+
+    /**
+     * Returns the number of solid blocks maintained below a hydrology bed after carving.
+     *
+     * @return bed seal depth in blocks
+     */
+    default int hydrologyBedSealDepth() {
+        return 5;
+    }
+
+    /**
+     * Returns the vertical seal depth used on banks inside the cave-protection margin.
+     *
+     * @return bank seal depth in blocks
+     */
+    default int hydrologyBankSealDepth() {
+        return 5;
+    }
 }
+

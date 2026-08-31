@@ -13,6 +13,16 @@ public final class EngineRegistry {
 
     private final Map<EngineId, EngineProvider> providers = new LinkedHashMap<>();
 
+    /** Creates an empty provider registry. */
+    public EngineRegistry() {
+    }
+
+    /**
+     * Discovers providers through Java {@link ServiceLoader}.
+     *
+     * @param classLoader class loader used for provider discovery
+     * @return populated provider registry
+     */
     public static EngineRegistry discover(ClassLoader classLoader) {
         Objects.requireNonNull(classLoader, "classLoader");
         EngineRegistry registry = new EngineRegistry();
@@ -20,6 +30,11 @@ public final class EngineRegistry {
         return registry;
     }
 
+    /**
+     * Registers one provider and rejects duplicate stable identifiers.
+     *
+     * @param provider provider to register
+     */
     public void register(EngineProvider provider) {
         Objects.requireNonNull(provider, "provider");
         EngineProvider previous = providers.putIfAbsent(provider.id(), provider);
@@ -31,6 +46,13 @@ public final class EngineRegistry {
         }
     }
 
+    /**
+     * Resolves a required provider.
+     *
+     * @param id stable provider id
+     * @return registered provider
+     * @throws IllegalStateException when no provider is registered for {@code id}
+     */
     public EngineProvider require(EngineId id) {
         EngineProvider provider = providers.get(Objects.requireNonNull(id, "id"));
         if (provider == null) {
@@ -39,6 +61,11 @@ public final class EngineRegistry {
         return provider;
     }
 
+    /**
+     * Returns an immutable provider snapshot in registration order.
+     *
+     * @return registered providers
+     */
     public Collection<EngineProvider> providers() {
         return java.util.List.copyOf(providers.values());
     }

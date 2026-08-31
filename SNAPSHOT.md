@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r26**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r27**.
 
-Current package revision: **r26** 0.1.0-SNAPSHOT
+Current package revision: **r27** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -130,3 +130,8 @@ Conquest materializers can advertise finer vertical resolution and waterlogging 
 ### r26 replaceable block-materializer SPI
 
 r26 moves Minecraft block realization behind the public mc1201 `BlockMaterializer` SPI. Fabric discovers add-on providers through `flterraforged:materializer`; the selected namespaced provider id is read from `config/flterraforged/materializer.properties`. The built-in `flterraforged:vanilla` provider remains the default. Density, column, surface and carver-repair stages no longer own concrete vanilla block choices.
+
+
+### r27 climate, biome matrix and materialization finalization
+
+r27 makes biome realization data-driven per Minecraft family through shared semantic `BiomeRole` values and `BiomeRoleResolver`. It adds Central-Europe randomized and optional north-south presets, configurable standard-materializer block sets, isolated hydrology-gap repair and a wider cave-margin seal. Newer Minecraft families can map the same roles to richer biome candidate lists without changing the Engine.

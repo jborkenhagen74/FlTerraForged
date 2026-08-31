@@ -18,8 +18,7 @@
               "minecraft:ocean"
             ],
             "ocean_warm": [
-              "minecraft:lukewarm_ocean",
-              "minecraft:warm_ocean"
+              "minecraft:lukewarm_ocean"
             ],
             "coast_sandy": [
               "minecraft:beach"
@@ -85,24 +84,22 @@
               "minecraft:birch_forest"
             ],
             "hot_dry": [
-              "minecraft:desert",
-              "minecraft:badlands"
+              "minecraft:plains"
             ],
             "hot_seasonal": [
-              "minecraft:savanna",
-              "minecraft:savanna_plateau"
+              "minecraft:plains",
+              "minecraft:sunflower_plains"
             ],
             "hot_wet": [
-              "minecraft:jungle",
-              "minecraft:sparse_jungle",
-              "minecraft:bamboo_jungle"
+              "minecraft:forest",
+              "minecraft:dark_forest"
             ]
           }
         },
         "settings": "minecraft:overworld",
         "engine": "flterraforged:default",
         "engine_config": {
-          "preset": "balanced",
+          "preset": "central_europe",
           "climateLayout": "randomized"
         }
       }

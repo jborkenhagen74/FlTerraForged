@@ -35,6 +35,6 @@ public final class FabricMaterializerBootstrap {
                             + ". " + exception.getMessage(),
                     exception);
         }
-        MaterializerRuntime.install(registry, config.materializerId());
+        MaterializerRuntime.install(registry, config.materializerId(), config.options());
     }
 }

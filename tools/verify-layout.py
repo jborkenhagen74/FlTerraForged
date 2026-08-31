@@ -154,6 +154,7 @@ def main() -> None:
         worldgen_root / "RiparianZone.java",
         worldgen_root / "ColumnComposer.java",
         worldgen_root / "HydrologyCarverGuard.java",
+        worldgen_root / "HydrologyFillPass.java",
         standard_materializer,
         standard_provider,
         materializer_runtime_root / "MaterializerRuntime.java",
@@ -192,6 +193,7 @@ def main() -> None:
         "vanilla.populateEntities",
         "MaterializerRuntime.create(materializerContext)",
         "MaterializerRuntime.selectedId()",
+        "hydrologyFillPass.apply(chunk, world)",
     )
     for fragment in required_generator_fragments:
         if fragment not in generator_text:
@@ -244,6 +246,11 @@ def main() -> None:
         "Optional<BlockState> forcedSurfaceState(TerrainSample sample)",
         "BlockState hydrologyBedState(TerrainSample sample)",
         "BlockState hydrologySealState(TerrainSample sample)",
+        "default int hydrologyCaveMargin()",
+        "default int hydrologyBedSealDepth()",
+        "default int hydrologyBankSealDepth()",
+        "default boolean mayRepairHydrologyGap(TerrainSample sample)",
+        "default int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive)",
     ):
         if fragment not in materializer_contract:
             fail(f"mc1201 public block-materializer contract is incomplete: {fragment}")
@@ -295,7 +302,7 @@ def main() -> None:
         'ENTRYPOINT_KEY = "flterraforged:materializer"',
         "getEntrypoints(ENTRYPOINT_KEY, BlockMaterializerProvider.class)",
         "registry.register(new VanillaBlockMaterializerProvider())",
-        "MaterializerRuntime.install(registry, config.materializerId())",
+        "MaterializerRuntime.install(registry, config.materializerId(), config.options())",
     ):
         if fragment not in bootstrap_text:
             fail(f"Fabric replaceable materializer bootstrap is incomplete: {fragment}")
@@ -318,14 +325,26 @@ def main() -> None:
         fail("missing public materializer SPI documentation")
 
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
-    if "StandardTerrainTypes.LAKE" not in biome_router_text:
-        fail("mc1201 biome router must recognize Engine lake semantics")
-    if "RiparianZone.isDryBank(sample)" not in biome_router_text or "return palette.plains()" not in biome_router_text:
-        fail("mc1201 biome router must provide a vegetated dry-climate riparian fringe")
-    riparian_text = (worldgen_root / "RiparianZone.java").read_text(encoding="utf-8")
-    for fragment in ("river.hasFlow()", "Math.sqrt(river.flow())", "sample.climate().moisture() < 0.46D"):
-        if fragment not in riparian_text:
-            fail(f"mc1201 riparian-zone logic is incomplete: {fragment}")
+    if "BiomeClimateRouter.route(sample)" not in biome_router_text or "palette.resolve(role, sample)" not in biome_router_text:
+        fail("mc1201 biome router must delegate climate selection to the shared version-neutral router")
+    biome_role = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeRole.java"
+    biome_climate_router = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeClimateRouter.java"
+    biome_role_resolver = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeRoleResolver.java"
+    for shared_biome_file in (biome_role, biome_climate_router, biome_role_resolver):
+        if not shared_biome_file.is_file():
+            fail(f"missing matrix-ready shared biome abstraction: {shared_biome_file.relative_to(ROOT)}")
+    role_text = biome_role.read_text(encoding="utf-8")
+    for role in ("TEMPERATE_FOREST", "MEDITERRANEAN_WOODLAND", "HOT_DRY", "WETLAND", "ALPINE_ROCK"):
+        if role not in role_text:
+            fail(f"shared biome role set is incomplete: {role}")
+    climate_router_text = biome_climate_router.read_text(encoding="utf-8")
+    for fragment in ("HOT_DRY", "HOT_SEASONAL", "MEDITERRANEAN_GRASSLAND", "TEMPERATE_OPEN_WOODLAND", "WETLAND"):
+        if fragment not in climate_router_text:
+            fail(f"shared biome climate transition routing is incomplete: {fragment}")
+    palette_text = (worldgen_root / "BiomePalette.java").read_text(encoding="utf-8")
+    for fragment in ("implements BiomeRoleResolver<RegistryEntry<Biome>>", "resolve(BiomeRole role, TerrainSample sample)", ".unboundedMap(Codec.STRING", "Biome.REGISTRY_CODEC.listOf()"):
+        if fragment not in palette_text:
+            fail(f"mc1201 biome palette is not matrix-ready/data-driven: {fragment}")
     if "RiparianZone.isDryBank(sample)" not in standard_text or "Blocks.GRASS_BLOCK" not in standard_text:
         fail("standard materializer must grass-over-dirt dry riverbanks")
     if "columns.worldSurfaceTop(sample)" not in generator_text:
@@ -343,26 +362,32 @@ def main() -> None:
     if "RIVER_WATER_LEVEL" not in capability_api:
         fail("engine-api must advertise the additive RIVER_WATER_LEVEL capability")
 
-    delegate_text = functional_files[1].read_text(encoding="utf-8")
+    delegate_text = (worldgen_root / "VanillaWorldgenDelegate.java").read_text(encoding="utf-8")
     for fragment in ("new NoiseChunkGenerator", ".populateNoise(", ".buildSurface(", ".carve(", ".populateEntities("):
         if fragment not in delegate_text:
             fail(f"vanilla worldgen delegate is incomplete: {fragment}")
 
-    router_text = (ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/NativeBiomeRouter.java").read_text(encoding="utf-8")
-    if "DESERT_MIN_TEMPERATURE = 0.80D" not in router_text or "DESERT_MAX_MOISTURE = 0.28D" not in router_text:
-        fail("mc1201 desert routing must retain the narrowed hot/arid envelope")
-
-    carver_guard = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/HydrologyCarverGuard.java"
-    if not carver_guard.is_file():
-        fail("mc1201 hydrology carver guard is missing")
+    carver_guard = worldgen_root / "HydrologyCarverGuard.java"
     carver_guard_text = carver_guard.read_text(encoding="utf-8")
-    for fragment in ("BED_SEAL_DEPTH", "BANK_SEAL_DEPTH", "restoreWetColumn", "sealAdjacentBank"):
+    for fragment in ("hydrologyCaveMargin()", "hydrologyBedSealDepth()", "hydrologyBankSealDepth()", "sealProtectedBank"):
         if fragment not in carver_guard_text:
-            fail(f"mc1201 hydrology carver guard is incomplete: {fragment}")
-    if "hydrologyCarverGuard.repair(chunk, world);" not in generator_text:
-        fail("mc1201 carver stage must repair Engine-owned hydrology after vanilla carving")
+            fail(f"mc1201 hydrology cave-margin protection is incomplete: {fragment}")
+    fill_pass = worldgen_root / "HydrologyFillPass.java"
+    fill_text = fill_pass.read_text(encoding="utf-8")
+    for fragment in ("hasMaterializedWater(sample)", "hydrologyBedState(sample)", "fluidState(sample)", "repairWaterTop", "mayRepairHydrologyGap(sample)", "hydrologyGapBedY(sample, waterTopExclusive)"):
+        if fragment not in fill_text:
+            fail(f"mc1201 final hydrology fill pass is incomplete: {fragment}")
+    if generator_text.count("hydrologyFillPass.apply(chunk, world);") < 2:
+        fail("mc1201 must refill hydrology after both surface generation and cave repair")
     if generator_text.count("Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);") < 2:
         fail("mc1201 must refresh generated heightmaps after surface and hydrology carver repair")
+
+    blockset_source = materializer_runtime_root / "standard/ConfiguredBlockSet.java"
+    if not blockset_source.is_file():
+        fail("standard materializer is missing configurable block-set support")
+    for key in ("blockset.river_bed", "blockset.lake_bed", "blockset.coast", "blockset.lake_shore_dry", "blockset.lake_shore_wet", "blockset.riparian", "blockset.land_surface", "blockset.land_filler", "blockset.plains", "blockset.valley", "blockset.hills", "blockset.plateau", "blockset.mountains", "blockset.ocean_bed", "blockset.substrate", "blockset.seal"):
+        if key not in standard_text:
+            fail(f"standard materializer is missing configurable terrain block set: {key}")
 
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
@@ -379,6 +404,32 @@ def main() -> None:
         fail("FlTerraForged must merge with, not replace, minecraft:normal world presets")
     if "flterraforged:flterraforged" not in preset_tag.get("values", []):
         fail("FlTerraForged world preset is not exposed through minecraft:normal")
+    for preset_id in ("flterraforged:central_europe", "flterraforged:central_europe_north_south"):
+        if preset_id not in preset_tag.get("values", []):
+            fail(f"missing built-in climate/terrain preset from minecraft:normal: {preset_id}")
+    central_preset = ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset/central_europe.json"
+    north_south_preset = ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset/central_europe_north_south.json"
+    for extra_preset in (central_preset, north_south_preset):
+        if not extra_preset.is_file():
+            fail(f"missing Central Europe preset: {extra_preset.relative_to(ROOT)}")
+    central_cfg = json.loads(central_preset.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["engine_config"]
+    ns_cfg = json.loads(north_south_preset.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["engine_config"]
+    if central_cfg.get("preset") != "central_europe" or central_cfg.get("climateLayout") != "randomized":
+        fail("Central Europe preset must use randomized climate layout by default")
+    if ns_cfg.get("preset") != "central_europe" or ns_cfg.get("climateLayout") != "north_south":
+        fail("Central Europe north-south preset must explicitly select north_south climate layout")
+    for palette_file in (binding_files[3], central_preset, north_south_preset):
+        palette = json.loads(palette_file.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["biome_source"].get("palette")
+        if not isinstance(palette, dict) or not isinstance(palette.get("default"), list):
+            fail(f"biome palette must be a role -> candidate-list map: {palette_file.relative_to(ROOT)}")
+        for role in ("ocean_cold", "ocean_temperate", "coast_sandy", "river_temperate", "temperate_grassland", "temperate_forest", "wetland", "alpine_meadow", "alpine_rock"):
+            if not isinstance(palette.get(role), list) or not palette[role]:
+                fail(f"biome palette missing role candidates {role}: {palette_file.relative_to(ROOT)}")
+    central_palette = json.loads(central_preset.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["biome_source"]["palette"]
+    forbidden_central = {"minecraft:desert", "minecraft:savanna", "minecraft:jungle", "minecraft:windswept_hills"}
+    used_central = {biome for candidates in central_palette.values() for biome in candidates}
+    if used_central & forbidden_central:
+        fail(f"Central Europe palette contains unsuitable fallback biomes: {sorted(used_central & forbidden_central)}")
 
     for locale in ("en_us", "de_de"):
         language_file = ROOT / f"families/mc1201/common/src/main/resources/assets/flterraforged/lang/{locale}.json"
@@ -387,6 +438,9 @@ def main() -> None:
         language = json.loads(language_file.read_text(encoding="utf-8"))
         if language.get("generator.flterraforged.flterraforged") != "FlTerraForged":
             fail(f"invalid {locale} FlTerraForged world-preset translation")
+        for key in ("generator.flterraforged.central_europe", "generator.flterraforged.central_europe_north_south"):
+            if key not in language:
+                fail(f"missing {locale} translation for {key}")
 
 
     # The Loom-backed multi-project must run Gradle on Java 21 while retaining a

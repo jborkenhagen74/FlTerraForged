@@ -59,7 +59,7 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
         if (world == null) {
             // Registry/bootstrap code can query a biome source before NoiseConfig
             // exists. Use a deterministic safe fallback until the generator binds it.
-            return palette.plains();
+            return palette.fallback();
         }
         int blockX = BiomeCoords.toBlock(biomeX);
         int blockZ = BiomeCoords.toBlock(biomeZ);

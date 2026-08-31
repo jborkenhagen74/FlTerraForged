@@ -1,6 +1,6 @@
 # Austauschbare Block-Materializer – Minecraft 1.20.1 / Fabric
 
-Stand: **0.1.0-SNAPSHOT-r26**
+Stand: **0.1.0-SNAPSHOT-r27**
 
 ## Ziel
 
@@ -194,3 +194,23 @@ Minecraft-Blockauflösung abbilden.
 Unter `examples/materializer-addon` liegt ein bewusst nicht in den Root-Build eingebundenes
 Referenz-Add-on. Es zeigt Provider-Entrypoint, Konfigurations-ID und einen Decorator, der nur das
 Hydrologie-Bett ersetzt.
+
+
+## Standardmaterializer: Blocksets
+
+The built-in materializer accepts optional comma-separated block-id sets. Examples:
+
+```properties
+blockset.river_bed=minecraft:gravel,minecraft:cobblestone
+blockset.lake_bed=minecraft:gravel,minecraft:clay
+blockset.plains=minecraft:grass_block
+blockset.valley=minecraft:grass_block
+blockset.hills=minecraft:grass_block,minecraft:stone
+blockset.plateau=minecraft:grass_block,minecraft:stone
+blockset.mountains=minecraft:stone,minecraft:gravel
+blockset.ocean_bed=minecraft:gravel,minecraft:sand
+```
+
+If an option is absent, the built-in full-block behavior remains unchanged. Selection inside a configured set is deterministic from the Engine sample, so chunk regeneration does not reshuffle materials. An external materializer may reuse these keys or ignore them entirely.
+
+`mayRepairHydrologyGap(...)` and `hydrologyGapBedY(...)` are also materializer hooks. This keeps final water-gap repair compatible with future partial-block/waterlogging materializers.

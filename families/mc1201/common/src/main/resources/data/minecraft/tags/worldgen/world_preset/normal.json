@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "flterraforged:flterraforged"
+    "flterraforged:flterraforged",
+    "flterraforged:central_europe",
+    "flterraforged:central_europe_north_south"
   ]
 }

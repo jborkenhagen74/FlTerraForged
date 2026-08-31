@@ -1,0 +1,185 @@
+package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
+
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
+import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
+import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import java.util.Objects;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.chunk.Chunk;
+
+/**
+ * Final idempotent pass that restores Engine water columns and closes isolated surface gaps.
+ *
+ * <p>The pass never performs a free flood fill across arbitrary terrain. Exact Engine-owned wet
+ * columns are always restored. A dry column is additionally repaired only when the active
+ * materializer permits it and cardinal wet neighbors prove that the column is an isolated hole in
+ * one continuous river/lake surface.</p>
+ */
+final class HydrologyFillPass {
+
+    private static final int BORDER = 1;
+    private static final int SAMPLE_SIZE = 16 + BORDER * 2;
+
+    private final BlockMaterializer materializer;
+
+    /**
+     * Creates the fill pass for the active materializer.
+     *
+     * @param materializer configured replaceable materializer
+     */
+    HydrologyFillPass(BlockMaterializer materializer) {
+        this.materializer = Objects.requireNonNull(materializer, "materializer");
+    }
+
+    /**
+     * Restores materialized water and repairs isolated one-column gaps in continuous hydrology.
+     *
+     * @param chunk generated chunk
+     * @param world bound Engine world
+     */
+    void apply(Chunk chunk, TerrainWorld world) {
+        ChunkPos pos = chunk.getPos();
+        WaterColumn[][] columns = sampleEnvelope(pos, world);
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int z = pos.getStartZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int x = pos.getStartX() + localX;
+                int gridX = localX + BORDER;
+                int gridZ = localZ + BORDER;
+                WaterColumn column = columns[gridZ][gridX];
+
+                if (column.hydrologyWet() || column.oceanWet()) {
+                    restoreExact(chunk, mutable, x, z, column);
+                    continue;
+                }
+
+                int repairedTop = repairWaterTop(columns, gridX, gridZ, column.sample());
+                if (repairedTop != Integer.MIN_VALUE) {
+                    restoreGap(chunk, mutable, x, z, column.sample(), repairedTop);
+                }
+            }
+        }
+    }
+
+    private WaterColumn[][] sampleEnvelope(ChunkPos pos, TerrainWorld world) {
+        WaterColumn[][] columns = new WaterColumn[SAMPLE_SIZE][SAMPLE_SIZE];
+        for (int sampleZ = 0; sampleZ < SAMPLE_SIZE; sampleZ++) {
+            int z = pos.getStartZ() + sampleZ - BORDER;
+            for (int sampleX = 0; sampleX < SAMPLE_SIZE; sampleX++) {
+                int x = pos.getStartX() + sampleX - BORDER;
+                TerrainSample sample = world.sample(x, z);
+                int bedY = materializer.solidSurfaceY(sample);
+                int waterTop = materializer.waterTopExclusive(sample);
+                boolean hydrologyWet = materializer.hasMaterializedWater(sample);
+                boolean oceanWet = StandardTerrainTypes.OCEAN.equals(sample.terrainType())
+                        && waterTop > bedY + 1;
+                columns[sampleZ][sampleX] = new WaterColumn(
+                        sample,
+                        bedY,
+                        waterTop,
+                        hydrologyWet,
+                        oceanWet);
+            }
+        }
+        return columns;
+    }
+
+    private void restoreExact(
+            Chunk chunk,
+            BlockPos.Mutable mutable,
+            int x,
+            int z,
+            WaterColumn column) {
+        TerrainSample sample = column.sample();
+        if (column.hydrologyWet()) {
+            set(chunk, mutable, x, column.bedY(), z, materializer.hydrologyBedState(sample));
+        }
+        BlockState fluid = materializer.fluidState(sample);
+        for (int y = column.bedY() + 1; y < column.waterTopExclusive(); y++) {
+            set(chunk, mutable, x, y, z, fluid);
+        }
+    }
+
+    private int repairWaterTop(
+            WaterColumn[][] columns,
+            int gridX,
+            int gridZ,
+            TerrainSample sample) {
+        if (!materializer.mayRepairHydrologyGap(sample)) {
+            return Integer.MIN_VALUE;
+        }
+
+        WaterColumn north = columns[gridZ - 1][gridX];
+        WaterColumn south = columns[gridZ + 1][gridX];
+        WaterColumn west = columns[gridZ][gridX - 1];
+        WaterColumn east = columns[gridZ][gridX + 1];
+        WaterColumn[] cardinal = {north, south, west, east};
+
+        int wetCount = 0;
+        int minimumTop = Integer.MAX_VALUE;
+        int maximumTop = Integer.MIN_VALUE;
+        for (WaterColumn neighbor : cardinal) {
+            if (!neighbor.hydrologyWet()) {
+                continue;
+            }
+            wetCount++;
+            minimumTop = Math.min(minimumTop, neighbor.waterTopExclusive());
+            maximumTop = Math.max(maximumTop, neighbor.waterTopExclusive());
+        }
+        boolean oppositePair = north.hydrologyWet() && south.hydrologyWet()
+                || west.hydrologyWet() && east.hydrologyWet();
+        if (wetCount < 3 && !oppositePair) {
+            return Integer.MIN_VALUE;
+        }
+        if (maximumTop - minimumTop > 1) {
+            return Integer.MIN_VALUE;
+        }
+        // Prefer the lower neighboring level so a connectivity repair cannot create an isolated
+        // one-block water pillar on a descending river.
+        return minimumTop;
+    }
+
+    private void restoreGap(
+            Chunk chunk,
+            BlockPos.Mutable mutable,
+            int x,
+            int z,
+            TerrainSample sample,
+            int waterTopExclusive) {
+        int bedY = materializer.hydrologyGapBedY(sample, waterTopExclusive);
+        if (waterTopExclusive <= bedY + 1) {
+            return;
+        }
+        set(chunk, mutable, x, bedY, z, materializer.hydrologyBedState(sample));
+        BlockState fluid = materializer.fluidState(sample);
+        for (int y = bedY + 1; y < waterTopExclusive; y++) {
+            set(chunk, mutable, x, y, z, fluid);
+        }
+    }
+
+    private static void set(
+            Chunk chunk,
+            BlockPos.Mutable mutable,
+            int x,
+            int y,
+            int z,
+            BlockState state) {
+        mutable.set(x, y, z);
+        if (!chunk.getBlockState(mutable).equals(state)) {
+            chunk.setBlockState(mutable, state, false);
+        }
+    }
+
+    private record WaterColumn(
+            TerrainSample sample,
+            int bedY,
+            int waterTopExclusive,
+            boolean hydrologyWet,
+            boolean oceanWet) {
+    }
+}

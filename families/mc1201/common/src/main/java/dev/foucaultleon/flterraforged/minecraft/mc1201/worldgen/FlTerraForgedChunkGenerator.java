@@ -73,6 +73,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final EngineDensityBridge densityBridge;
     private final EngineSurfaceGuard surfaceGuard;
     private final HydrologyCarverGuard hydrologyCarverGuard;
+    private final HydrologyFillPass hydrologyFillPass;
 
     /** Creates a data-driven generator from the registered codec. */
     public FlTerraForgedChunkGenerator(
@@ -101,13 +102,15 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                 maxYExclusive,
                 value.seaLevel(),
                 value.defaultBlock(),
-                value.defaultFluid());
+                value.defaultFluid(),
+                MaterializerRuntime.options());
         this.materializer = MaterializerRuntime.create(materializerContext);
         this.columns = new ColumnComposer(materializer);
         this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
         this.densityBridge = new EngineDensityBridge(materializer);
         this.surfaceGuard = new EngineSurfaceGuard(materializer);
         this.hydrologyCarverGuard = new HydrologyCarverGuard(materializer);
+        this.hydrologyFillPass = new HydrologyFillPass(materializer);
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -205,6 +208,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         TerrainWorld world = bind(noiseConfig);
         vanilla.buildSurface(region, structures, noiseConfig, chunk);
         surfaceGuard.apply(chunk, world);
+        hydrologyFillPass.apply(chunk, world);
         Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
@@ -221,6 +225,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         vanilla.carve(
                 chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
         hydrologyCarverGuard.repair(chunk, world);
+        hydrologyFillPass.apply(chunk, world);
         Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 

@@ -5,6 +5,7 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializerP
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerRegistry;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Loader-neutral runtime holder for the materializer registry and configured provider selection. */
@@ -22,13 +23,28 @@ public final class MaterializerRuntime {
      * @param selectedId configured provider identifier
      */
     public static synchronized void install(MaterializerRegistry registry, String selectedId) {
+        install(registry, selectedId, Map.of());
+    }
+
+    /**
+     * Installs the frozen registry, configured provider and immutable provider options.
+     *
+     * @param registry completed materializer registry
+     * @param selectedId configured provider identifier
+     * @param options provider-specific options
+     */
+    public static synchronized void install(
+            MaterializerRegistry registry,
+            String selectedId,
+            Map<String, String> options) {
         Objects.requireNonNull(registry, "registry");
+        Objects.requireNonNull(options, "options");
         if (!registry.isFrozen()) {
             throw new IllegalStateException("Materializer registry must be frozen before installation");
         }
         String normalizedId = MaterializerRegistry.normalizeId(selectedId);
         BlockMaterializerProvider provider = registry.require(normalizedId);
-        State replacement = new State(registry, normalizedId, provider);
+        State replacement = new State(registry, normalizedId, provider, Map.copyOf(options));
         if (state != null) {
             if (!state.selectedId().equals(normalizedId)) {
                 throw new IllegalStateException(
@@ -68,6 +84,16 @@ public final class MaterializerRuntime {
         return requireState().selectedId();
     }
 
+
+    /**
+     * Returns immutable options supplied to the selected materializer provider.
+     *
+     * @return provider options
+     */
+    public static Map<String, String> options() {
+        return requireState().options();
+    }
+
     /**
      * Returns all materializer ids that were available at bootstrap.
      *
@@ -89,6 +115,7 @@ public final class MaterializerRuntime {
     private record State(
             MaterializerRegistry registry,
             String selectedId,
-            BlockMaterializerProvider provider) {
+            BlockMaterializerProvider provider,
+            Map<String, String> options) {
     }
 }
