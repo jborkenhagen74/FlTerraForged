@@ -7,7 +7,7 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r20**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r24**.
 
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
@@ -100,10 +100,18 @@ ponds/lakes are materialized through the same rule; explicit waterfall/rapid sha
 
 ### r23 climate-aware hydrology integration
 
-Use Engine r18 with this host snapshot. r23 keeps depression-aware ponds/lakes and terrain-refined
+r23 was paired with Engine r18. It keeps depression-aware ponds/lakes and terrain-refined
 river centerlines, removes the old forced river-sand surface behavior and keeps water placement routed
 through `HydrologyColumn`. Engine r18 weights local runoff by pre-river moisture/temperature, raises
 the effective source threshold and uses a wider drainage grid, so dry catchments produce far fewer
 small rivers while large rivers can still cross arid terrain. The 1.20.1 adapter adds a narrow riparian
 fringe: dry banks route to plains vegetation and are forced to grass over dirt instead of remaining
 desert sand immediately beside persistent water.
+### r24 desert balance and hydrology carver protection
+
+r24 narrows the vanilla desert decision to the hottest/driest climate tail and adds a post-carver
+hydrology repair pass for the Minecraft 1.20.1 reference binding. Rivers, ponds and lakes keep a
+five-block solid bed seal, restored Engine water and a one-block subsurface side-wall seal while
+vanilla caves remain enabled elsewhere. Use Engine r21 or newer so mountain river water levels are
+already bank-contained before this host materializes them.
+

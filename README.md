@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r23 materializes Engine r18 climate-weighted, depression-aware hydrology: terrain-guided rivers/streams, guaranteed wet-channel depth and ponds/lakes through the shared hydrology column rule. Dry catchments contribute less runoff, and persistent desert rivers receive a narrow plains/grass riparian fringe so vanilla vegetation can follow the banks. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r24 materializes climate-weighted, depression-aware Engine hydrology: terrain-guided rivers/streams, guaranteed wet-channel depth and ponds/lakes through the shared hydrology column rule. Dry catchments contribute less runoff, and persistent desert rivers receive a narrow plains/grass riparian fringe so vanilla vegetation can follow the banks. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -115,3 +115,12 @@ For a client or server installation use:
 ## Minecraft 1.20.1 world preset
 
 The Fabric 1.20.1 artifact ships `flterraforged:flterraforged` as a data-driven world preset and contributes it to `minecraft:normal`. It should appear as **FlTerraForged** in the Create World → World → World Type selector.
+### r24 desert balance and cave-safe hydrology
+
+The 1.20.1 native biome router now reserves desert for `temperature > 0.80` and
+`moisture < 0.28`; hot but merely semi-dry terrain routes to plains instead. After each delegated
+vanilla carver step, `HydrologyCarverGuard` restores only Engine-owned river/lake/pond water, a
+five-block bed seal and the immediately adjacent subsurface bank wall. This preserves normal caves
+away from surface water while preventing carvers from draining or shredding hydrologic features.
+Engine r21+ is recommended for the matching bank-contained mountain-river profile.
+

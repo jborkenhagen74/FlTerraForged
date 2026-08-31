@@ -68,6 +68,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final VanillaWorldgenDelegate vanilla;
     private final EngineDensityBridge densityBridge;
     private final EngineSurfaceGuard surfaceGuard;
+    private final HydrologyCarverGuard hydrologyCarverGuard;
 
     /** Creates a data-driven generator from the registered codec. */
     public FlTerraForgedChunkGenerator(
@@ -101,6 +102,12 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         this.densityBridge = new EngineDensityBridge(value);
         this.surfaceGuard = new EngineSurfaceGuard(
                 minY, maxYExclusive, value.seaLevel(), value.defaultBlock());
+        this.hydrologyCarverGuard = new HydrologyCarverGuard(
+                minY,
+                maxYExclusive,
+                value.seaLevel(),
+                value.defaultBlock(),
+                value.defaultFluid());
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -210,9 +217,11 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             GenerationStep.Carver carverStep) {
-        bind(noiseConfig);
+        TerrainWorld world = bind(noiseConfig);
         vanilla.carve(
                 chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
+        hydrologyCarverGuard.repair(chunk, world);
+        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override

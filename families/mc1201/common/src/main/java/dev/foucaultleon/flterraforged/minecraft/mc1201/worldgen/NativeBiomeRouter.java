@@ -10,6 +10,9 @@ import net.minecraft.world.biome.Biome;
 /** Maps engine semantics to a small native Minecraft biome palette. */
 public final class NativeBiomeRouter {
 
+    private static final double DESERT_MIN_TEMPERATURE = 0.80D;
+    private static final double DESERT_MAX_MOISTURE = 0.28D;
+
     private NativeBiomeRouter() {
     }
 
@@ -43,7 +46,8 @@ public final class NativeBiomeRouter {
         if (RiparianZone.isDryBank(sample)) {
             return palette.plains();
         }
-        if (temperature > 0.72 && moisture < 0.38) {
+        if (temperature > DESERT_MIN_TEMPERATURE
+                && moisture < DESERT_MAX_MOISTURE) {
             return palette.desert();
         }
         if (temperature > 0.68 && moisture > 0.64) {

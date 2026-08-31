@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r23 keeps the r20 absolute-Y substrate model and extends the stable
+Snapshot r24 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -169,3 +169,15 @@ This trade-off is intentional for the 1.20.1 reference adapter: it produces a
 continuous natural terrain mass without shearing 3D structures. A later
 family-level density integration can inject the Engine surface directly into
 Minecraft's density graph while keeping the external Engine API unchanged.
+## Carver-safe hydrology and desert balance (r24)
+
+Vanilla AIR/LIQUID carvers continue to run. Immediately after each carver stage, the host samples
+the already cached Engine terrain for an 18x18 envelope around the chunk. Materialized river, lake
+and pond columns receive a five-block solid bed seal and their Engine water is restored. A
+one-block neighboring bank shell is sealed below the surface to stop lateral cave punctures. No
+other cave columns are modified.
+
+The native desert route is also narrowed to temperature above 0.80 and moisture below 0.28. This
+reduces desert coverage without altering the Engine climate fields or the runoff model that controls
+river density.
+

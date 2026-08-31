@@ -217,3 +217,10 @@ The Minecraft 1.20.1 adapter owns the visual/ecological bank realization. `Ripar
 river width, flow and centerline distance into a narrow dry-climate bank fringe. The biome router uses
 plains in that fringe and the surface guard enforces grass over dirt; wet channel/lake beds remain
 gravel and the wider surrounding area remains desert.
+## Hydrology post-carver ownership (r24)
+
+Minecraft remains the owner of cave-carver execution. The mc1201 host owns a narrow post-carver
+repair boundary for Engine hydrology: materialized river/lake/pond beds, their water columns and a
+one-block subsurface bank shell. This is deliberately not a general terrain repair pass and does
+not disable vanilla caves.
+

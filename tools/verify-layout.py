@@ -228,6 +228,22 @@ def main() -> None:
         if fragment not in delegate_text:
             fail(f"vanilla worldgen delegate is incomplete: {fragment}")
 
+    router_text = (ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/NativeBiomeRouter.java").read_text(encoding="utf-8")
+    if "DESERT_MIN_TEMPERATURE = 0.80D" not in router_text or "DESERT_MAX_MOISTURE = 0.28D" not in router_text:
+        fail("mc1201 desert routing must retain the narrowed hot/arid envelope")
+
+    carver_guard = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen/HydrologyCarverGuard.java"
+    if not carver_guard.is_file():
+        fail("mc1201 hydrology carver guard is missing")
+    carver_guard_text = carver_guard.read_text(encoding="utf-8")
+    for fragment in ("BED_SEAL_DEPTH", "BANK_SEAL_DEPTH", "restoreWetColumn", "sealAdjacentBank"):
+        if fragment not in carver_guard_text:
+            fail(f"mc1201 hydrology carver guard is incomplete: {fragment}")
+    if "hydrologyCarverGuard.repair(chunk, world);" not in generator_text:
+        fail("mc1201 carver stage must repair Engine-owned hydrology after vanilla carving")
+    if generator_text.count("Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);") < 2:
+        fail("mc1201 must refresh generated heightmaps after surface and hydrology carver repair")
+
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]
     if overworld.get("type") != "flterraforged:chunk_generator":

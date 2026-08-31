@@ -21,7 +21,8 @@ import net.minecraft.world.gen.noise.NoiseConfig;
  * <p>The external engine owns continental shape, terrain, erosion, rivers and
  * climate. Minecraft's {@link NoiseChunkGenerator} remains responsible for its
  * native three-dimensional noise substrate, aquifers, surface rules, carvers
- * and mob population.</p>
+ * and mob population. The host may apply narrow semantic repairs after a delegated stage when
+ * vanilla cannot know about Engine-owned hydrology.</p>
  */
 public final class VanillaWorldgenDelegate {
 

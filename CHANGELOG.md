@@ -1,3 +1,11 @@
+## 0.1.0-SNAPSHOT-r24
+
+- Narrows native desert routing to the hottest and driest climate envelope (`temperature > 0.80`, `moisture < 0.28`) so marginal hot/dry regions fall back to plains instead of becoming large deserts.
+- Adds `HydrologyCarverGuard` to the Minecraft 1.20.1 reference binding. Vanilla carvers still run, but Engine-owned river/lake/pond beds and water columns are restored immediately afterwards.
+- Adds a one-block subsurface bank shell beside materialized Engine water to prevent caves from puncturing a river or lake laterally.
+- Wet hydrology bottoms are restored as gravel while the deeper seal uses the generator default block.
+- Intended companion engine is r21 or newer, whose bank-contained local water profile prevents mountain-slope overflow before Minecraft materializes the water.
+
 # Changelog
 
 ## 0.1.0-SNAPSHOT-r23
