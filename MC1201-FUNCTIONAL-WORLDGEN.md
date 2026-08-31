@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r24 keeps the r20 absolute-Y substrate model and extends the stable
+Snapshot r25 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -106,8 +106,8 @@ D8 axis/diagonal segments.
 
 The water surface remains Engine-owned and downstream-monotonic. Channel incision reserves a wet core
 and the Engine deepens the actual eroded local bed when a small terrain hump would otherwise interrupt
-water. `HydrologyColumn` is still the single Minecraft 1.20.1 realization rule used by both
-`EngineDensityBridge` and `ColumnComposer`; it materializes both channel and lake water only below the
+water. `TerrainMaterializer` is the single Minecraft 1.20.1 realization rule shared by
+`EngineDensityBridge`, `ColumnComposer`, `EngineSurfaceGuard` and `HydrologyCarverGuard`; it materializes both channel and lake water only below the
 Engine-provided water surface. Explicit waterfall/rapid shaping and a later 3D density-native
 river/aquifer integration remain follow-up work.
 
@@ -181,3 +181,13 @@ The native desert route is also narrowed to temperature above 0.80 and moisture 
 reduces desert coverage without altering the Engine climate fields or the runoff model that controls
 river density.
 
+
+
+## Basin-level lake realization (r25)
+
+Engine r22 supplies one constant water surface per connected depression basin plus explicit dry
+`LAKE_SHORE` semantics. `VanillaTerrainMaterializer` converts that continuous result to the 1-block
+Minecraft lattice. For `LAKE` samples only, if `floor(surfaceHeight)` and the water top would leave no
+full fluid cell, the materialized bed is lowered to `waterTopExclusive - 2`. This guarantees at least
+one real water block while keeping dry shores untouched. All height, density, surface and carver
+repair paths call the same materializer, so the integer decision cannot diverge between stages.

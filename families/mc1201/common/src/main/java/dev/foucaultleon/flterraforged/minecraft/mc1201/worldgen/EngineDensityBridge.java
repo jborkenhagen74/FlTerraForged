@@ -37,14 +37,23 @@ public final class EngineDensityBridge {
     private final int seaLevel;
     private final BlockState defaultBlock;
     private final BlockState defaultFluid;
+    private final TerrainMaterializer materializer;
 
-    /** Creates a bridge for one Minecraft generation-shape configuration. */
-    public EngineDensityBridge(ChunkGeneratorSettings settings) {
+    /**
+     * Creates a bridge for one Minecraft generation-shape configuration.
+     *
+     * @param settings active vanilla chunk-generator settings
+     * @param materializer active vertical-resolution materializer
+     */
+    public EngineDensityBridge(
+            ChunkGeneratorSettings settings,
+            TerrainMaterializer materializer) {
         this.minY = settings.generationShapeConfig().minimumY();
         this.maxYExclusive = minY + settings.generationShapeConfig().height();
         this.seaLevel = settings.seaLevel();
         this.defaultBlock = settings.defaultBlock();
         this.defaultFluid = settings.defaultFluid();
+        this.materializer = materializer;
     }
 
     /**
@@ -66,17 +75,11 @@ public final class EngineDensityBridge {
 
                 snapshotColumn(chunk, blockX, blockZ, mutable, source);
                 int sourceSurfaceY = findSourceSurface(source);
-                int targetSurfaceY = clamp(
-                        (int) Math.floor(sample.surfaceHeight()),
-                        minY + 1,
-                        maxYExclusive - 2);
+                int targetSurfaceY = materializer.solidSurfaceY(
+                        sample, minY, maxYExclusive);
                 int sealBottomY = Math.max(minY + 1, targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
-                int waterTopExclusive = HydrologyColumn.waterTopExclusive(
-                        sample,
-                        targetSurfaceY + 1,
-                        seaLevel,
-                        minY,
-                        maxYExclusive);
+                int waterTopExclusive = materializer.waterTopExclusive(
+                        sample, seaLevel, minY, maxYExclusive);
 
                 for (int y = minY; y < maxYExclusive; y++) {
                     BlockState state = reconciledState(

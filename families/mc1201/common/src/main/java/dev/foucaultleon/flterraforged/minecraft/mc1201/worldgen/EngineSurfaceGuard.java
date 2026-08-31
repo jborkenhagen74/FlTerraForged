@@ -25,20 +25,36 @@ public final class EngineSurfaceGuard {
     private final int maxYExclusive;
     private final int seaLevel;
     private final BlockState defaultBlock;
+    private final TerrainMaterializer materializer;
 
-    /** Creates the surface guard for the active generation shape. */
+    /**
+     * Creates the surface guard for the active generation shape.
+     *
+     * @param minY minimum world Y
+     * @param maxYExclusive exclusive maximum world Y
+     * @param seaLevel world sea level
+     * @param defaultBlock default solid substrate
+     * @param materializer active vertical-resolution materializer
+     */
     public EngineSurfaceGuard(
             int minY,
             int maxYExclusive,
             int seaLevel,
-            BlockState defaultBlock) {
+            BlockState defaultBlock,
+            TerrainMaterializer materializer) {
         this.minY = minY;
         this.maxYExclusive = maxYExclusive;
         this.seaLevel = seaLevel;
         this.defaultBlock = defaultBlock;
+        this.materializer = materializer;
     }
 
-    /** Applies semantic corrections and a safe top/filler fallback. */
+    /**
+     * Applies semantic corrections and a safe top/filler fallback.
+     *
+     * @param chunk chunk whose surface is being corrected
+     * @param world bound external terrain world
+     */
     public void apply(Chunk chunk, TerrainWorld world) {
         ChunkPos pos = chunk.getPos();
         BlockPos.Mutable mutable = new BlockPos.Mutable();
@@ -47,10 +63,8 @@ public final class EngineSurfaceGuard {
             for (int localX = 0; localX < 16; localX++) {
                 int x = pos.getStartX() + localX;
                 TerrainSample sample = world.sample(x, z);
-                int surfaceY = clamp(
-                        (int) Math.floor(sample.surfaceHeight()),
-                        minY + 1,
-                        maxYExclusive - 2);
+                int surfaceY = materializer.solidSurfaceY(
+                        sample, minY, maxYExclusive);
                 mutable.set(x, surfaceY, z);
                 BlockState current = chunk.getBlockState(mutable);
                 if (current.isAir() || !current.getFluidState().isEmpty()) {
@@ -99,9 +113,13 @@ public final class EngineSurfaceGuard {
         }
         if ((StandardTerrainTypes.RIVER.equals(sample.terrainType())
                 || StandardTerrainTypes.LAKE.equals(sample.terrainType()))
-                && sample.river().hasWaterSurfaceHeight()
-                && sample.river().waterSurfaceHeight() > sample.surfaceHeight() + 0.10D) {
+                && materializer.hasMaterializedWater(sample, minY, maxYExclusive)) {
             return Blocks.GRAVEL.getDefaultState();
+        }
+        if (StandardTerrainTypes.LAKE_SHORE.equals(sample.terrainType())) {
+            return dryShore(sample)
+                    ? Blocks.SAND.getDefaultState()
+                    : Blocks.GRASS_BLOCK.getDefaultState();
         }
         if (RiparianZone.isDryBank(sample)) {
             return Blocks.GRASS_BLOCK.getDefaultState();
@@ -125,11 +143,23 @@ public final class EngineSurfaceGuard {
         if (RiparianZone.isDryBank(sample)) {
             return Blocks.DIRT.getDefaultState();
         }
+        if (StandardTerrainTypes.LAKE_SHORE.equals(sample.terrainType())) {
+            return dryShore(sample)
+                    ? Blocks.SAND.getDefaultState()
+                    : Blocks.DIRT.getDefaultState();
+        }
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
                 || StandardTerrainTypes.COAST.equals(sample.terrainType())) {
             return Blocks.SAND.getDefaultState();
         }
         return Blocks.DIRT.getDefaultState();
+    }
+
+
+    private static boolean dryShore(TerrainSample sample) {
+        return sample.climate().isAvailable()
+                && (sample.climate().temperature() > 0.72D
+                        || sample.climate().moisture() < 0.30D);
     }
 
     private static int clamp(int value, int min, int max) {

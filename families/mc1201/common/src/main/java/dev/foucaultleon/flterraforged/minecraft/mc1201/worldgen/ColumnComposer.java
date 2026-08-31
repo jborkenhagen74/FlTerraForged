@@ -16,40 +16,65 @@ public final class ColumnComposer {
     private final int seaLevel;
     private final BlockState baseState;
     private final BlockState defaultFluid;
+    private final TerrainMaterializer materializer;
 
-    /** Creates a column composer for the generator's vertical settings. */
+    /**
+     * Creates a column composer for the generator's vertical settings.
+     *
+     * @param minY minimum world Y
+     * @param maxYExclusive exclusive maximum world Y
+     * @param seaLevel world sea level
+     * @param baseState default solid substrate
+     * @param defaultFluid default water/fluid state
+     * @param materializer active vertical-resolution materializer
+     */
     public ColumnComposer(
             int minY,
             int maxYExclusive,
             int seaLevel,
             BlockState baseState,
-            BlockState defaultFluid) {
+            BlockState defaultFluid,
+            TerrainMaterializer materializer) {
         this.minY = minY;
         this.maxYExclusive = maxYExclusive;
         this.seaLevel = seaLevel;
         this.baseState = baseState;
         this.defaultFluid = defaultFluid;
+        this.materializer = materializer;
     }
 
-    /** Returns the first air block above the solid surface. */
+    /**
+     * Returns the first air block above the materialized solid surface.
+     *
+     * @param sample continuous Engine terrain sample
+     * @return first block above the solid surface
+     */
     public int surfaceTop(TerrainSample sample) {
-        return clamp((int) Math.floor(sample.surfaceHeight()) + 1, minY + 1, maxYExclusive);
+        return materializer.solidSurfaceTop(sample, minY, maxYExclusive);
     }
 
-    /** Returns the first block above solid terrain plus ocean or river water. */
+    /**
+     * Returns the first block above solid terrain plus ocean or Engine hydrology water.
+     *
+     * @param sample continuous Engine terrain sample
+     * @return first block above the complete world surface
+     */
     public int worldSurfaceTop(TerrainSample sample) {
-        int solidTop = surfaceTop(sample);
-        return HydrologyColumn.waterTopExclusive(
-                sample, solidTop, seaLevel, minY, maxYExclusive);
+        return materializer.waterTopExclusive(sample, seaLevel, minY, maxYExclusive);
     }
 
-    /** Builds a full vertical column suitable for chunk fill and structure sampling. */
+    /**
+     * Builds a full vertical column suitable for chunk fill and structure sampling.
+     *
+     * @param sample continuous Engine terrain sample
+     * @return block states from {@code minY} through the exclusive maximum Y
+     */
     public BlockState[] compose(TerrainSample sample) {
         BlockState[] states = new BlockState[maxYExclusive - minY];
         int surfaceTop = surfaceTop(sample);
         int surfaceY = surfaceTop - 1;
-        int waterTopExclusive = HydrologyColumn.waterTopExclusive(
-                sample, surfaceTop, seaLevel, minY, maxYExclusive);
+        int waterTopExclusive = materializer.waterTopExclusive(
+                sample, seaLevel, minY, maxYExclusive);
         BlockState top = topState(sample);
         BlockState filler = fillerState(sample);
 
@@ -75,9 +100,12 @@ public final class ColumnComposer {
 
     private BlockState topState(TerrainSample sample) {
         TerrainType terrain = sample.terrainType();
+        if (StandardTerrainTypes.RIVER.equals(terrain)
+                || StandardTerrainTypes.LAKE.equals(terrain)) {
+            return Blocks.GRAVEL.getDefaultState();
+        }
         if (StandardTerrainTypes.OCEAN.equals(terrain)
-                || StandardTerrainTypes.COAST.equals(terrain)
-                || StandardTerrainTypes.RIVER.equals(terrain)) {
+                || StandardTerrainTypes.COAST.equals(terrain)) {
             return Blocks.SAND.getDefaultState();
         }
         if (sample.climate().isAvailable()
@@ -90,9 +118,12 @@ public final class ColumnComposer {
 
     private BlockState fillerState(TerrainSample sample) {
         TerrainType terrain = sample.terrainType();
+        if (StandardTerrainTypes.RIVER.equals(terrain)
+                || StandardTerrainTypes.LAKE.equals(terrain)) {
+            return Blocks.GRAVEL.getDefaultState();
+        }
         if (StandardTerrainTypes.OCEAN.equals(terrain)
-                || StandardTerrainTypes.COAST.equals(terrain)
-                || StandardTerrainTypes.RIVER.equals(terrain)) {
+                || StandardTerrainTypes.COAST.equals(terrain)) {
             return Blocks.SAND.getDefaultState();
         }
         return Blocks.DIRT.getDefaultState();

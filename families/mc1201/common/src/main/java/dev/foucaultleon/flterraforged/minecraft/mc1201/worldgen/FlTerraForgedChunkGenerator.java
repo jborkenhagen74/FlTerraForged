@@ -64,6 +64,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final Map<String, String> engineConfig;
     private final FlTerraForgedBiomeSource engineBiomeSource;
     private final EngineWorldSession session;
+    private final TerrainMaterializer materializer;
     private final ColumnComposer columns;
     private final VanillaWorldgenDelegate vanilla;
     private final EngineDensityBridge densityBridge;
@@ -92,22 +93,29 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         int maxYExclusive = minY + shape.height();
         this.session = new EngineWorldSession(
                 engineId, this.engineConfig, minY, maxYExclusive, value.seaLevel());
+        this.materializer = new VanillaTerrainMaterializer();
         this.columns = new ColumnComposer(
                 minY,
                 maxYExclusive,
                 value.seaLevel(),
                 value.defaultBlock(),
-                value.defaultFluid());
+                value.defaultFluid(),
+                materializer);
         this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
-        this.densityBridge = new EngineDensityBridge(value);
+        this.densityBridge = new EngineDensityBridge(value, materializer);
         this.surfaceGuard = new EngineSurfaceGuard(
-                minY, maxYExclusive, value.seaLevel(), value.defaultBlock());
+                minY,
+                maxYExclusive,
+                value.seaLevel(),
+                value.defaultBlock(),
+                materializer);
         this.hydrologyCarverGuard = new HydrologyCarverGuard(
                 minY,
                 maxYExclusive,
                 value.seaLevel(),
                 value.defaultBlock(),
-                value.defaultFluid());
+                value.defaultFluid(),
+                materializer);
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -249,7 +257,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                     sample.river().width(),
                     sample.river().waterSurfaceHeight(),
                     sample.river().flow(),
-                    HydrologyColumn.hasMaterializedRiverWater(sample)));
+                    materializer.hasMaterializedWater(sample, getMinimumY(), getMinimumY() + getWorldHeight())));
         }
     }
 

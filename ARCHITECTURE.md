@@ -200,8 +200,8 @@ Minecraft adapters must materialize water only when `hasWaterSurfaceHeight()` is
 ## Climate-aware hydrology and riparian realization (r23)
 
 The host does not reconstruct hydrology from Minecraft columns. Engine r18 supplies the curved
-channel/lake geometry and continuous water level; `HydrologyColumn` only converts that semantic
-height into Minecraft water blocks. `NativeBiomeRouter` treats `LAKE` as aquatic terrain and
+channel/lake geometry and continuous water level; `TerrainMaterializer` converts that semantic
+geometry into the vertical resolution supported by the active Minecraft integration. `NativeBiomeRouter` treats `LAKE` as aquatic terrain and
 `EngineSurfaceGuard` no longer stamps every river sample with sand: coasts remain sandy while wet
 river/lake beds receive restrained gravel correction. This keeps D8 topology, lake spill logic and
 minimum-depth decisions entirely on the replaceable Java-only Engine side.
@@ -224,3 +224,13 @@ repair boundary for Engine hydrology: materialized river/lake/pond beds, their w
 one-block subsurface bank shell. This is deliberately not a general terrain repair pass and does
 not disable vanilla caves.
 
+
+
+## Vertical-resolution materialization (r25)
+
+Continuous Engine geometry is host-independent. The mc1201 host owns a `TerrainMaterializer`
+contract that reports vertical resolution plus partial-block and waterlogging capability. The vanilla
+implementation uses a 1.0-block step. When an Engine `LAKE` sample contains water but continuous bed
+and water heights would occupy the same integer cell, the vanilla materializer lowers only the
+materialized bed to guarantee one water block. `LAKE_SHORE` remains dry and is surfaced separately.
+A future Conquest implementation can provide 0.5/0.25-block shapes without changing basin solving.

@@ -1,3 +1,13 @@
+## 0.1.0-SNAPSHOT-r25
+
+- Integrates Engine r22 basin-level inland water: connected ponds/lakes now use one flat spill-derived water surface instead of per-column interpolated lake levels.
+- Adds additive `StandardTerrainTypes.LAKE_SHORE` semantics so dry shoreline transitions are no longer treated as wet gravel lake beds.
+- Replaces the fixed `HydrologyColumn` realization with a `TerrainMaterializer` contract. The vanilla implementation reports 1.0-block vertical resolution and explicitly exposes partial-block/waterlogging capabilities for future Conquest Reforged adapters.
+- `VanillaTerrainMaterializer` lowers only shallow lake/pond beds when necessary to guarantee at least one full Minecraft water block between the continuous Engine bed and water surface.
+- Density shaping, synchronous column sampling, surface correction and post-carver hydrology repair all share the same materializer, eliminating mismatched integer quantization between generation phases.
+- Dry `LAKE_SHORE` surfaces use climate-sensitive sand or grass/dirt instead of broad gravel fields.
+- Extends layout verification for the materializer contract, guaranteed shallow-lake water and additive lake-shore semantics.
+
 ## 0.1.0-SNAPSHOT-r24
 
 - Narrows native desert routing to the hottest and driest climate envelope (`temperature > 0.80`, `moisture < 0.28`) so marginal hot/dry regions fall back to plains instead of becoming large deserts.

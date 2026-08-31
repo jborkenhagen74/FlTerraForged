@@ -21,19 +21,31 @@ final class HydrologyCarverGuard {
     private final int seaLevel;
     private final BlockState defaultBlock;
     private final BlockState defaultFluid;
+    private final TerrainMaterializer materializer;
 
-    /** Creates a hydrology guard for the active generation shape. */
+    /**
+     * Creates a hydrology guard for the active generation shape.
+     *
+     * @param minY minimum world Y
+     * @param maxYExclusive exclusive maximum world Y
+     * @param seaLevel world sea level
+     * @param defaultBlock default solid substrate
+     * @param defaultFluid default water/fluid state
+     * @param materializer active vertical-resolution materializer
+     */
     HydrologyCarverGuard(
             int minY,
             int maxYExclusive,
             int seaLevel,
             BlockState defaultBlock,
-            BlockState defaultFluid) {
+            BlockState defaultFluid,
+            TerrainMaterializer materializer) {
         this.minY = minY;
         this.maxYExclusive = maxYExclusive;
         this.seaLevel = seaLevel;
         this.defaultBlock = defaultBlock;
         this.defaultFluid = defaultFluid;
+        this.materializer = materializer;
     }
 
     /**
@@ -69,18 +81,13 @@ final class HydrologyCarverGuard {
             for (int sampleX = 0; sampleX < SAMPLE_SIZE; sampleX++) {
                 int x = pos.getStartX() + sampleX - SAMPLE_BORDER;
                 TerrainSample sample = world.sample(x, z);
-                int surfaceY = clamp(
-                        (int) Math.floor(sample.surfaceHeight()),
-                        minY + 1,
-                        maxYExclusive - 2);
-                boolean wet = HydrologyColumn.hasMaterializedRiverWater(sample);
+                int surfaceY = materializer.solidSurfaceY(
+                        sample, minY, maxYExclusive);
+                boolean wet = materializer.hasMaterializedWater(
+                        sample, minY, maxYExclusive);
                 int waterTopExclusive = wet
-                        ? HydrologyColumn.waterTopExclusive(
-                                sample,
-                                surfaceY + 1,
-                                seaLevel,
-                                minY,
-                                maxYExclusive)
+                        ? materializer.waterTopExclusive(
+                                sample, seaLevel, minY, maxYExclusive)
                         : surfaceY + 1;
                 columns[sampleZ][sampleX] = new WaterColumn(
                         surfaceY, waterTopExclusive, wet);

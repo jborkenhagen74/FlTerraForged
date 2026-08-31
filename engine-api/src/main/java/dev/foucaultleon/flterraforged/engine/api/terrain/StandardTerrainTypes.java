@@ -24,8 +24,10 @@ public final class StandardTerrainTypes {
     public static final TerrainType VALLEY = type("valley");
     /** River terrain. */
     public static final TerrainType RIVER = type("river");
-    /** Lake terrain. */
+    /** Lake or pond water terrain. */
     public static final TerrainType LAKE = type("lake");
+    /** Dry shoreline transition around an inland lake or pond. */
+    public static final TerrainType LAKE_SHORE = type("lake_shore");
 
     private StandardTerrainTypes() {
     }

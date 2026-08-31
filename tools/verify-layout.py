@@ -147,7 +147,8 @@ def main() -> None:
         worldgen_root / "EngineDensityBridge.java",
         worldgen_root / "VanillaWorldgenDelegate.java",
         worldgen_root / "EngineSurfaceGuard.java",
-        worldgen_root / "HydrologyColumn.java",
+        worldgen_root / "TerrainMaterializer.java",
+        worldgen_root / "VanillaTerrainMaterializer.java",
         worldgen_root / "RiparianZone.java",
     )
     for functional_file in functional_files:
@@ -188,17 +189,25 @@ def main() -> None:
     column_text = (worldgen_root / "ColumnComposer.java").read_text(encoding="utf-8")
     if "sample.river().depth() * 0.25" in column_text:
         fail("mc1201 synchronous column composer must not recreate per-column river-height guesses")
-    hydrology_text = functional_files[3].read_text(encoding="utf-8")
-    for fragment in ("river.hasWaterSurfaceHeight()", "river.waterSurfaceHeight()", "river.depth()"):
+    materializer_contract = functional_files[3].read_text(encoding="utf-8")
+    hydrology_text = functional_files[4].read_text(encoding="utf-8")
+    for fragment in ("verticalResolution()", "supportsPartialBlocks()", "supportsWaterlogging()"):
+        if fragment not in materializer_contract:
+            fail(f"mc1201 terrain-materializer contract is incomplete: {fragment}")
+    for fragment in ("hydrology.hasWaterSurfaceHeight()", "hydrology.waterSurfaceHeight()", "hydrology.depth()"):
         if fragment not in hydrology_text:
-            fail(f"mc1201 hydrology realization is missing stable river-water logic: {fragment}")
-    if "HydrologyColumn.waterTopExclusive" not in density_text:
-        fail("mc1201 density bridge must materialize Engine hydrology through HydrologyColumn")
-    if "HydrologyColumn.waterTopExclusive" not in column_text:
-        fail("mc1201 synchronous column composer must match Engine hydrology realization")
+            fail(f"mc1201 vanilla materializer is missing stable hydrology logic: {fragment}")
+    if "waterTopExclusive - 2" not in hydrology_text:
+        fail("mc1201 vanilla materializer must guarantee a full water block in shallow Engine lakes")
+    if "materializer.waterTopExclusive" not in density_text:
+        fail("mc1201 density bridge must materialize Engine hydrology through TerrainMaterializer")
+    if "materializer.waterTopExclusive" not in column_text:
+        fail("mc1201 synchronous column composer must share TerrainMaterializer hydrology realization")
     surface_text = (worldgen_root / "EngineSurfaceGuard.java").read_text(encoding="utf-8")
     if "StandardTerrainTypes.LAKE" not in surface_text or "Blocks.GRAVEL" not in surface_text:
         fail("mc1201 surface guard must realize lake/river beds without circular sand forcing")
+    if "StandardTerrainTypes.LAKE_SHORE" not in surface_text:
+        fail("mc1201 surface guard must recognize the dry lake-shore transition")
     if "StandardTerrainTypes.RIVER.equals(sample.terrainType())) {\n            return Blocks.SAND" in surface_text:
         fail("mc1201 surface guard must not force every river surface to sand")
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
@@ -219,6 +228,10 @@ def main() -> None:
     for fragment in ("waterSurfaceHeight", "flow", "public RiverSample(double distance, double width, double depth)"):
         if fragment not in river_api:
             fail(f"engine-api RiverSample is missing additive hydrology compatibility: {fragment}")
+    terrain_types_api = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/terrain/StandardTerrainTypes.java").read_text(encoding="utf-8")
+    if "LAKE_SHORE" not in terrain_types_api or 'type("lake_shore")' not in terrain_types_api:
+        fail("engine-api must expose additive LAKE_SHORE terrain semantics")
+
     capability_api = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/EngineCapability.java").read_text(encoding="utf-8")
     if "RIVER_WATER_LEVEL" not in capability_api:
         fail("engine-api must advertise the additive RIVER_WATER_LEVEL capability")

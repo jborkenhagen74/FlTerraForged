@@ -7,7 +7,7 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r24**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r25**.
 
 Current package revision: **r13** 0.1.0-SNAPSHOT
 
@@ -92,7 +92,7 @@ in r19 while retaining vanilla carvers, surface rules and features.
 
 `RiverSample` now carries optional `waterSurfaceHeight` and `flow` values while preserving its legacy
 three-argument constructor. The Minecraft 1.20.1 adapter consumes those values through a single
-`HydrologyColumn` rule shared by density shaping and synchronous column/height sampling. River water
+`TerrainMaterializer` rule shared by density shaping and synchronous column/height sampling. River water
 is therefore based on the directed drainage segment rather than a per-column depth guess. Ocean-floor
 height queries still report the bed; world-surface queries include materialized water. Depression-filled
 ponds/lakes are materialized through the same rule; explicit waterfall/rapid shaping remains a follow-up.
@@ -102,7 +102,7 @@ ponds/lakes are materialized through the same rule; explicit waterfall/rapid sha
 
 r23 was paired with Engine r18. It keeps depression-aware ponds/lakes and terrain-refined
 river centerlines, removes the old forced river-sand surface behavior and keeps water placement routed
-through `HydrologyColumn`. Engine r18 weights local runoff by pre-river moisture/temperature, raises
+through `TerrainMaterializer`. Engine r18 weights local runoff by pre-river moisture/temperature, raises
 the effective source threshold and uses a wider drainage grid, so dry catchments produce far fewer
 small rivers while large rivers can still cross arid terrain. The 1.20.1 adapter adds a narrow riparian
 fringe: dry banks route to plains vegetation and are forced to grass over dirt instead of remaining
@@ -115,3 +115,13 @@ five-block solid bed seal, restored Engine water and a one-block subsurface side
 vanilla caves remain enabled elsewhere. Use Engine r21 or newer so mountain river water levels are
 already bank-contained before this host materializes them.
 
+
+
+### r25 basin lakes and vertical-resolution materialization
+
+r25 pairs with Engine r22. Connected inland-water basins use one flat Engine-owned water level and
+export dry shores separately as `LAKE_SHORE`. The Minecraft 1.20.1 host now realizes continuous
+terrain through `TerrainMaterializer`; the vanilla implementation has 1.0-block resolution and lowers
+only shallow lake beds that would otherwise quantize to the same integer Y as their water surface.
+This guarantees a real water block without baking Conquest-specific slabs into the Engine. Future
+Conquest materializers can advertise finer vertical resolution and waterlogging support.
