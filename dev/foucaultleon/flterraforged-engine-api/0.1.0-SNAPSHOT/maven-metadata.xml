@@ -3,38 +3,38 @@
   <groupId>dev.foucaultleon</groupId>
   <artifactId>flterraforged-engine-api</artifactId>
   <versioning>
-    <lastUpdated>20260831064215</lastUpdated>
+    <lastUpdated>20260831082643</lastUpdated>
     <snapshot>
-      <timestamp>20260831.064215</timestamp>
+      <timestamp>20260831.082643</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
+        <extension>jar</extension>
+        <value>0.1.0-20260831.082643-1</value>
+        <updated>20260831082643</updated>
+      </snapshotVersion>
+      <snapshotVersion>
         <classifier>sources</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260831.064215-1</value>
-        <updated>20260831064215</updated>
+        <value>0.1.0-20260831.082643-1</value>
+        <updated>20260831082643</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>0.1.0-20260831.064215-1</value>
-        <updated>20260831064215</updated>
+        <value>0.1.0-20260831.082643-1</value>
+        <updated>20260831082643</updated>
       </snapshotVersion>
       <snapshotVersion>
         <classifier>javadoc</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260831.064215-1</value>
-        <updated>20260831064215</updated>
+        <value>0.1.0-20260831.082643-1</value>
+        <updated>20260831082643</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>module</extension>
-        <value>0.1.0-20260831.064215-1</value>
-        <updated>20260831064215</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>jar</extension>
-        <value>0.1.0-20260831.064215-1</value>
-        <updated>20260831064215</updated>
+        <value>0.1.0-20260831.082643-1</value>
+        <updated>20260831082643</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
