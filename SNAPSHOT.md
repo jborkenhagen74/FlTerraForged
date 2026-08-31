@@ -94,13 +94,16 @@ in r19 while retaining vanilla carvers, surface rules and features.
 three-argument constructor. The Minecraft 1.20.1 adapter consumes those values through a single
 `HydrologyColumn` rule shared by density shaping and synchronous column/height sampling. River water
 is therefore based on the directed drainage segment rather than a per-column depth guess. Ocean-floor
-height queries still report the bed; world-surface queries include materialized water. Lakes, basin
-filling and explicit waterfall shaping remain follow-up hydrology stages.
+height queries still report the bed; world-surface queries include materialized water. Depression-filled
+ponds/lakes are materialized through the same rule; explicit waterfall/rapid shaping remains a follow-up.
 
 
-### r22 hydrology integration
+### r23 climate-aware hydrology integration
 
-Use Engine r16 with this host snapshot. r22 realizes depression-aware ponds/lakes and terrain-refined
+Use Engine r18 with this host snapshot. r23 keeps depression-aware ponds/lakes and terrain-refined
 river centerlines, removes the old forced river-sand surface behavior and keeps water placement routed
-through `HydrologyColumn`. Climate defaults are also broadened in Engine r16 to reduce small, abrupt
-biome patches.
+through `HydrologyColumn`. Engine r18 weights local runoff by pre-river moisture/temperature, raises
+the effective source threshold and uses a wider drainage grid, so dry catchments produce far fewer
+small rivers while large rivers can still cross arid terrain. The 1.20.1 adapter adds a narrow riparian
+fringe: dry banks route to plains vegetation and are forced to grass over dirt instead of remaining
+desert sand immediately beside persistent water.

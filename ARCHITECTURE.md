@@ -197,11 +197,23 @@ Engine binary can still link against the newer API; its water/flow values are si
 Minecraft adapters must materialize water only when `hasWaterSurfaceHeight()` is true.
 
 
-## Depression-aware hydrology realization (r22)
+## Climate-aware hydrology and riparian realization (r23)
 
-The host does not reconstruct hydrology from Minecraft columns. Engine r16 supplies the curved
+The host does not reconstruct hydrology from Minecraft columns. Engine r18 supplies the curved
 channel/lake geometry and continuous water level; `HydrologyColumn` only converts that semantic
 height into Minecraft water blocks. `NativeBiomeRouter` treats `LAKE` as aquatic terrain and
 `EngineSurfaceGuard` no longer stamps every river sample with sand: coasts remain sandy while wet
 river/lake beds receive restrained gravel correction. This keeps D8 topology, lake spill logic and
 minimum-depth decisions entirely on the replaceable Java-only Engine side.
+
+
+Engine r18 feeds a pre-river climate view into Rivermap generation. This view has no river-moisture
+feedback, so runoff weighting is acyclic: wet cells contribute strongly to accumulated flow while
+hot/dry cells contribute weakly. Visibility thresholds therefore suppress most local arid headwaters
+without blocking major rivers that accumulated flow in wetter upstream basins. Expanded 16-cell
+padding provides more shared catchment context at map boundaries.
+
+The Minecraft 1.20.1 adapter owns the visual/ecological bank realization. `RiparianZone` converts
+river width, flow and centerline distance into a narrow dry-climate bank fringe. The biome router uses
+plains in that fringe and the surface guard enforces grass over dirt; wet channel/lake beds remain
+gravel and the wider surrounding area remains desert.

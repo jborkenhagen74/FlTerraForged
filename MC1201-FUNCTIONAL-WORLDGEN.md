@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r22 keeps the r20 absolute-Y substrate model and extends the stable
+Snapshot r23 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -92,14 +92,14 @@ Engine terrain instead of inheriting accidental thin roofs from an unrelated
 vanilla surface height.
 
 
-## River and lake realization (r22)
+## River, lake and riparian realization (r23)
 
 The Engine now exposes two additive hydrology values through `RiverSample`:
 
 - `waterSurfaceHeight`: continuous world-space Y of the nearest active channel water surface;
 - `flow`: accumulated drainage weight of that channel segment.
 
-Engine r16 keeps D8 only as the hidden drainage skeleton. A depression-fill/spill pass prevents local
+Engine r18 keeps D8 only as the hidden drainage skeleton. A depression-fill/spill pass prevents local
 minima from terminating watercourses, and meaningful basins become ponds/lakes with a shared spill
 elevation. Visible stream and river centerlines are multi-point, terrain-guided paths rather than raw
 D8 axis/diagonal segments.
@@ -111,6 +111,19 @@ water. `HydrologyColumn` is still the single Minecraft 1.20.1 realization rule u
 Engine-provided water surface. Explicit waterfall/rapid shaping and a later 3D density-native
 river/aquifer integration remain follow-up work.
 
+Engine r18 also changes runoff accumulation: each drainage node contributes according to a pre-river
+climate sample rather than a constant value. Hot/dry cells contribute only a small runoff weight, so
+local desert streams are uncommon. Accumulated upstream flow is preserved, which means a sufficiently
+large river sourced in wetter terrain may still continue through a desert instead of being cut off at
+the biome boundary. Hydrology map padding increases to 16 drainage cells to reduce region-edge flow
+resets and visible cutoffs.
+
+The host adds a dry-climate riparian fringe outside the wet channel. `RiparianZone` derives its width
+from channel width and accumulated flow. Inside that fringe `NativeBiomeRouter` selects the native
+plains biome so vanilla grass/flower/tree feature generation has a vegetated biome context, and
+`EngineSurfaceGuard` guarantees a grass-over-dirt bank surface even when the surrounding dry biome
+would otherwise leave sand up to the water. The wet river/lake bed itself remains gravel.
+
 ## Surface rules
 
 The normal `minecraft:overworld` `ChunkGeneratorSettings.surfaceRule()` remains
@@ -120,6 +133,7 @@ vanilla density height, `EngineSurfaceGuard` runs afterward.
 The guard is intentionally narrow:
 
 - coasts remain sand while wet river/lake beds use gravel instead of a radial sand override,
+- dry-climate riverbanks inside the flow-scaled riparian fringe are grass over dirt and route to plains vegetation,
 - cold elevated surfaces can be snow,
 - if vanilla left the exact engine surface as the default stone block, a
   grass/dirt or sand fallback is applied.

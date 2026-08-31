@@ -40,6 +40,9 @@ public final class NativeBiomeRouter {
         if (temperature < 0.22) {
             return palette.snowy();
         }
+        if (RiparianZone.isDryBank(sample)) {
+            return palette.plains();
+        }
         if (temperature > 0.72 && moisture < 0.38) {
             return palette.desert();
         }

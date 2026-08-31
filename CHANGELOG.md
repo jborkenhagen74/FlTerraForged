@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-SNAPSHOT-r23
+
+- Pair the 1.20.1 host with Engine r18 climate-weighted hydrology: fewer small rivers overall and strongly reduced local river formation in hot/dry catchments while still allowing major rivers to cross deserts.
+- Add a shared dry-climate riparian-zone predicate based on river width, accumulated flow and centerline distance.
+- Route dry riverbanks to the native plains biome instead of desert so vanilla vegetation generation can form a green fringe around persistent watercourses.
+- Force grass-over-dirt on those dry riparian banks after vanilla surface rules, preventing desert sand from running directly to every river edge; the wet channel/lake bed keeps the existing gravel rule.
+- Ignore `gradlew`, `gradlew.bat` and `gradle/wrapper/` while retaining the tracked Gradle project configuration under `gradle/`.
+
 ## 0.1.0-SNAPSHOT-r22
 
 - Integrate Engine r16 depression-aware hydrology: terrain-guided curved streams/rivers, guaranteed wet-channel depth and pond/lake water surfaces.

@@ -103,6 +103,9 @@ public final class EngineSurfaceGuard {
                 && sample.river().waterSurfaceHeight() > sample.surfaceHeight() + 0.10D) {
             return Blocks.GRAVEL.getDefaultState();
         }
+        if (RiparianZone.isDryBank(sample)) {
+            return Blocks.GRASS_BLOCK.getDefaultState();
+        }
         if (sample.climate().isAvailable()
                 && sample.climate().temperature() < 0.20
                 && sample.surfaceHeight() > seaLevel + 4) {
@@ -119,6 +122,9 @@ public final class EngineSurfaceGuard {
     }
 
     private BlockState fillerFor(TerrainSample sample) {
+        if (RiparianZone.isDryBank(sample)) {
+            return Blocks.DIRT.getDefaultState();
+        }
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
                 || StandardTerrainTypes.COAST.equals(sample.terrainType())) {
             return Blocks.SAND.getDefaultState();

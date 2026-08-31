@@ -54,6 +54,10 @@ def main() -> None:
 
     api_build = (ROOT / "engine-api" / "build.gradle").read_text(encoding="utf-8")
     workflow = (ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+    gitignore_lines = set((ROOT / ".gitignore").read_text(encoding="utf-8").splitlines())
+    for ignored in ("gradlew", "gradlew.bat", "gradle/wrapper/"):
+        if ignored not in gitignore_lines:
+            fail(f".gitignore missing required wrapper rule: {ignored}")
     if "maven.pkg.github.com" in api_build:
         fail("engine-api must not publish through GitHub Packages")
     if "build/maven-repository" not in api_build and "maven-repository" not in api_build:
@@ -144,6 +148,7 @@ def main() -> None:
         worldgen_root / "VanillaWorldgenDelegate.java",
         worldgen_root / "EngineSurfaceGuard.java",
         worldgen_root / "HydrologyColumn.java",
+        worldgen_root / "RiparianZone.java",
     )
     for functional_file in functional_files:
         if not functional_file.is_file():
@@ -199,6 +204,14 @@ def main() -> None:
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
     if "StandardTerrainTypes.LAKE" not in biome_router_text:
         fail("mc1201 biome router must recognize Engine lake semantics")
+    if "RiparianZone.isDryBank(sample)" not in biome_router_text or "return palette.plains()" not in biome_router_text:
+        fail("mc1201 biome router must provide a vegetated dry-climate riparian fringe")
+    riparian_text = (worldgen_root / "RiparianZone.java").read_text(encoding="utf-8")
+    for fragment in ("river.hasFlow()", "Math.sqrt(river.flow())", "sample.climate().moisture() < 0.46D"):
+        if fragment not in riparian_text:
+            fail(f"mc1201 riparian-zone logic is incomplete: {fragment}")
+    if "RiparianZone.isDryBank(sample)" not in surface_text or "Blocks.GRASS_BLOCK" not in surface_text:
+        fail("mc1201 surface guard must grass-over-dirt dry riverbanks")
     if "columns.worldSurfaceTop(sample)" not in generator_text:
         fail("mc1201 height queries must include materialized river/ocean water")
 
