@@ -38,9 +38,11 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     private final ConfiguredBlockSet oceanBed;
     private final ConfiguredBlockSet substrate;
     private final ConfiguredBlockSet seal;
+    private final WatercourseMaterialPalette watercourses;
     private final int hydrologyCaveMargin;
     private final int hydrologyBedSealDepth;
     private final int hydrologyBankSealDepth;
+    private final int hydrologyGapRepairRadius;
 
     /**
      * Creates the vanilla-compatible full-block implementation.
@@ -65,9 +67,11 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         this.oceanBed = set("blockset.ocean_bed", Blocks.SAND.getDefaultState());
         this.substrate = set("blockset.substrate", context.defaultBlock());
         this.seal = set("blockset.seal", context.defaultBlock());
+        this.watercourses = new WatercourseMaterialPalette(context.options());
         this.hydrologyCaveMargin = integerOption("hydrology.cave_margin", 6, 0, 16);
         this.hydrologyBedSealDepth = integerOption("hydrology.bed_seal_depth", 5, 1, 16);
         this.hydrologyBankSealDepth = integerOption("hydrology.bank_seal_depth", 8, 1, 24);
+        this.hydrologyGapRepairRadius = integerOption("hydrology.gap_repair_radius", 2, 0, 4);
     }
 
     @Override
@@ -158,69 +162,108 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     @Override
     public BlockState composedTopState(TerrainSample sample) {
-        return forcedSurfaceState(sample).orElseGet(() -> fallbackSurfaceState(sample));
+        return composedTopState(sample, 0, 0);
+    }
+
+    @Override
+    public BlockState composedTopState(TerrainSample sample, int x, int z) {
+        return forcedSurfaceState(sample, x, z)
+                .orElseGet(() -> fallbackSurfaceState(sample, x, z));
     }
 
     @Override
     public BlockState fillerState(TerrainSample sample) {
+        return fillerState(sample, 0, (int) Math.floor(sample.surfaceHeight()) - 1, 0);
+    }
+
+    @Override
+    public BlockState fillerState(TerrainSample sample, int x, int y, int z) {
         TerrainType terrain = sample.terrainType();
         if (StandardTerrainTypes.RIVER.equals(terrain)) {
-            return riverBed.choose(sample);
+            if (hasMaterializedWater(sample)) {
+                return riverBed.isConfigured()
+                        ? riverBed.choose(sample, x, y, z)
+                        : watercourses.bed(sample, x, y, z);
+            }
+            return watercourses.bankFiller(sample, x, y, z);
         }
         if (StandardTerrainTypes.LAKE.equals(terrain)) {
-            return lakeBed.choose(sample);
+            if (hasMaterializedWater(sample)) {
+                return lakeBed.isConfigured()
+                        ? lakeBed.choose(sample, x, y, z)
+                        : watercourses.bed(sample, x, y, z);
+            }
+            return watercourses.bankFiller(sample, x, y, z);
         }
-        if (RiparianZone.isDryBank(sample)) {
-            return landFiller.choose(sample);
+        if (RiparianZone.isDryBank(sample) || RiparianZone.isRiverBank(sample)) {
+            return watercourses.bankFiller(sample, x, y, z);
         }
         if (StandardTerrainTypes.LAKE_SHORE.equals(terrain)) {
-            return dryShore(sample)
-                    ? lakeShoreDry.choose(sample)
-                    : landFiller.choose(sample);
+            return watercourses.bankFiller(sample, x, y, z);
         }
         if (StandardTerrainTypes.OCEAN.equals(terrain)) {
-            return oceanBed.choose(sample);
+            return oceanBed.choose(sample, x, y, z);
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return coast.choose(sample);
+            return coast.choose(sample, x, y, z);
         }
-        return landFiller.choose(sample);
+        return landFiller.choose(sample, x, y, z);
     }
 
     @Override
     public Optional<BlockState> forcedSurfaceState(TerrainSample sample) {
+        return forcedSurfaceState(sample, 0, 0);
+    }
+
+    @Override
+    public Optional<BlockState> forcedSurfaceState(TerrainSample sample, int x, int z) {
         TerrainType terrain = sample.terrainType();
-        if (RiparianZone.isDryBank(sample)) {
-            return Optional.of(riparian.choose(sample));
-        }
-        if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return Optional.of(coast.choose(sample));
-        }
+        int y = solidSurfaceY(sample);
         if (StandardTerrainTypes.RIVER.equals(terrain) && hasMaterializedWater(sample)) {
-            return Optional.of(riverBed.choose(sample));
+            return Optional.of(riverBed.isConfigured()
+                    ? riverBed.choose(sample, x, y, z)
+                    : watercourses.bed(sample, x, y, z));
         }
         if (StandardTerrainTypes.LAKE.equals(terrain) && hasMaterializedWater(sample)) {
-            return Optional.of(lakeBed.choose(sample));
+            return Optional.of(lakeBed.isConfigured()
+                    ? lakeBed.choose(sample, x, y, z)
+                    : watercourses.bed(sample, x, y, z));
         }
         if (StandardTerrainTypes.LAKE_SHORE.equals(terrain)) {
-            return Optional.of(dryShore(sample)
-                    ? lakeShoreDry.choose(sample)
-                    : lakeShoreWet.choose(sample));
+            if (dryShore(sample)) {
+                return Optional.of(lakeShoreDry.isConfigured()
+                        ? lakeShoreDry.choose(sample, x, y, z)
+                        : watercourses.dryBank(sample, x, y, z));
+            }
+            return Optional.of(lakeShoreWet.isConfigured()
+                    ? lakeShoreWet.choose(sample, x, y, z)
+                    : watercourses.wetBank(sample, x, y, z));
+        }
+        if (RiparianZone.isDryBank(sample) || RiparianZone.isRiverBank(sample)) {
+            if (riparian.isConfigured()) {
+                return Optional.of(riparian.choose(sample, x, y, z));
+            }
+            return Optional.of(RiparianZone.isWetBank(sample)
+                    ? watercourses.wetBank(sample, x, y, z)
+                    : watercourses.dryBank(sample, x, y, z));
+        }
+        if (StandardTerrainTypes.COAST.equals(terrain)) {
+            return Optional.of(coast.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain) && mountains.isConfigured()) {
-            return Optional.of(mountains.choose(sample));
+            return Optional.of(mountains.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.PLATEAU.equals(terrain) && plateau.isConfigured()) {
-            return Optional.of(plateau.choose(sample));
+            return Optional.of(plateau.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.HILLS.equals(terrain) && hills.isConfigured()) {
-            return Optional.of(hills.choose(sample));
+            return Optional.of(hills.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.PLAINS.equals(terrain) && plains.isConfigured()) {
-            return Optional.of(plains.choose(sample));
+            return Optional.of(plains.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.VALLEY.equals(terrain) && valley.isConfigured()) {
-            return Optional.of(valley.choose(sample));
+            return Optional.of(valley.choose(sample, x, y, z));
         }
         if (sample.climate().isAvailable()
                 && sample.climate().temperature() < 0.20D
@@ -228,29 +271,49 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
             return Optional.of(Blocks.SNOW_BLOCK.getDefaultState());
         }
         if (landSurface.isConfigured()) {
-            return Optional.of(landSurface.choose(sample));
+            return Optional.of(landSurface.choose(sample, x, y, z));
         }
         return Optional.empty();
     }
 
     @Override
     public BlockState fallbackSurfaceState(TerrainSample sample) {
+        return fallbackSurfaceState(sample, 0, 0);
+    }
+
+    @Override
+    public BlockState fallbackSurfaceState(TerrainSample sample, int x, int z) {
+        int y = solidSurfaceY(sample);
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())) {
-            return oceanBed.choose(sample);
+            return oceanBed.choose(sample, x, y, z);
         }
-        return landSurface.choose(sample);
+        return landSurface.choose(sample, x, y, z);
     }
 
     @Override
     public BlockState hydrologyBedState(TerrainSample sample) {
-        return StandardTerrainTypes.LAKE.equals(sample.terrainType())
-                ? lakeBed.choose(sample)
-                : riverBed.choose(sample);
+        return hydrologyBedState(sample, 0, solidSurfaceY(sample), 0);
+    }
+
+    @Override
+    public BlockState hydrologyBedState(TerrainSample sample, int x, int y, int z) {
+        if (StandardTerrainTypes.LAKE.equals(sample.terrainType()) && lakeBed.isConfigured()) {
+            return lakeBed.choose(sample, x, y, z);
+        }
+        if (StandardTerrainTypes.RIVER.equals(sample.terrainType()) && riverBed.isConfigured()) {
+            return riverBed.choose(sample, x, y, z);
+        }
+        return watercourses.bed(sample, x, y, z);
     }
 
     @Override
     public BlockState hydrologySealState(TerrainSample sample) {
         return seal.choose(sample);
+    }
+
+    @Override
+    public BlockState hydrologySealState(TerrainSample sample, int x, int y, int z) {
+        return seal.choose(sample, x, y, z);
     }
 
     @Override
@@ -262,11 +325,17 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     @Override
     public int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
-        int lowestWetBed = waterTopExclusive - 2;
+        int waterBlocks = waterTopExclusive <= context.seaLevel() + 2 ? 3 : 2;
+        int lowestWetBed = waterTopExclusive - waterBlocks - 1;
         return clamp(
                 Math.min(solidSurfaceY(sample), lowestWetBed),
                 context.minY() + 1,
                 context.maxYExclusive() - 2);
+    }
+
+    @Override
+    public int hydrologyGapRepairRadius() {
+        return hydrologyGapRepairRadius;
     }
 
     @Override

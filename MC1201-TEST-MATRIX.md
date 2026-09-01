@@ -162,6 +162,10 @@ Use `/locate biome <id>` where useful, then verify the surrounding terrain manua
 | D13 | P0 | Minimum wet depth | Follow a wet channel through shallow-looking terrain and inspect cross-sections. | Small bed humps are incised through; the wet core does not repeatedly stop and restart because the water surface falls below local bed noise. | |
 | D14 | P0 | Ponds and lakes | Explore >= 5 km or locate naturally occurring inland water bodies. | Depression basins create irregular ponds/lakes above sea level where appropriate; shores are not perfect circles and water uses one coherent spill elevation. | |
 | D15 | P0 | Lake outlet / sink escape | Find a pond/lake with an outlet or a river entering a local depression. | The watercourse does not terminate solely at a local minimum; overflow continues downstream from the basin spill point where terrain permits. | |
+| D16 | P0 | Lowland lake depth | Inspect cross-sections through at least three multi-cell lakes at or near sea level. | The connected basin is not a uniform one-block sheet; broad lakes retain at least roughly 3–4 blocks in their interior and form deeper cores. | |
+| D17 | P0 | Enclosed gap repair | Follow wide rivers/lakes and inspect former one- or two-column grass/sand islands. | Narrow enclosed holes are water-filled with a stable bed; open banks and peninsula edges remain dry. | |
+| D18 | P0 | Dryland riparian zones | Follow a river through desert, badlands or another sandy dry region. | Bed, damp waterline and outer dry bank remain visibly distinct; generic sand does not overwrite the entire hydrological bank. | |
+| D19 | P1 | Altitude material profile | Compare watercourses below Y64, at Y64–89, Y90–120 and above Y120 where available. | Low watercourses accumulate sediment; high watercourses become progressively stonier and use no sand/earth above Y120. | |
 
 ---
 
@@ -193,6 +197,7 @@ survives the Engine surface reconciliation without vertical translation.
 | F04 | P0 | River/lake bed override | Inspect river and lake beds plus nearby banks. | Wet channel/body beds use restrained gravel/vanilla material; no circular sand halos are stamped around hydrology samples. | |
 | F05 | P1 | Steep terrain | Inspect cliffs/mountains. | Vanilla/guard interaction does not smear grass vertically down cliff faces in a repeating pattern. | |
 | F06 | P1 | Large height-difference fallback | Search highest mountains for exposed default stone at otherwise soil-covered tops. | Surface guard fills missed surface columns but does not overwrite valid special surfaces globally. | |
+| F07 | P0 | Watercourse palette coherence | Inspect at least 100 blocks of one riverbank from above. | Weighted blocks form restrained multi-block patches across bed/wet/dry zones rather than single-block salt-and-pepper noise. | |
 
 ---
 

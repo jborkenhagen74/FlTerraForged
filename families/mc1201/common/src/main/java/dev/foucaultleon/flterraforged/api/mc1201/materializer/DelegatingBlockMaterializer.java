@@ -86,8 +86,18 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
+    public BlockState composedTopState(TerrainSample sample, int x, int z) {
+        return composedTopState(sample);
+    }
+
+    @Override
     public BlockState fillerState(TerrainSample sample) {
         return delegate.fillerState(sample);
+    }
+
+    @Override
+    public BlockState fillerState(TerrainSample sample, int x, int y, int z) {
+        return fillerState(sample);
     }
 
     @Override
@@ -96,8 +106,18 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
+    public Optional<BlockState> forcedSurfaceState(TerrainSample sample, int x, int z) {
+        return forcedSurfaceState(sample);
+    }
+
+    @Override
     public BlockState fallbackSurfaceState(TerrainSample sample) {
         return delegate.fallbackSurfaceState(sample);
+    }
+
+    @Override
+    public BlockState fallbackSurfaceState(TerrainSample sample, int x, int z) {
+        return fallbackSurfaceState(sample);
     }
 
     @Override
@@ -106,8 +126,18 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
+    public BlockState hydrologyBedState(TerrainSample sample, int x, int y, int z) {
+        return hydrologyBedState(sample);
+    }
+
+    @Override
     public BlockState hydrologySealState(TerrainSample sample) {
         return delegate.hydrologySealState(sample);
+    }
+
+    @Override
+    public BlockState hydrologySealState(TerrainSample sample, int x, int y, int z) {
+        return hydrologySealState(sample);
     }
 
     @Override
@@ -118,6 +148,11 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     @Override
     public int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
         return delegate.hydrologyGapBedY(sample, waterTopExclusive);
+    }
+
+    @Override
+    public int hydrologyGapRepairRadius() {
+        return delegate.hydrologyGapRepairRadius();
     }
 
     @Override
@@ -135,4 +170,3 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
         return delegate.hydrologyBankSealDepth();
     }
 }
-

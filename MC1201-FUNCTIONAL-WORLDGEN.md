@@ -4,7 +4,7 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r28 keeps the r20 absolute-Y substrate model and extends the stable
+Snapshot r29 keeps the r20 absolute-Y substrate model and extends the stable
 Minecraft realization of Engine-owned river water levels.
 
 ## Ownership boundary
@@ -200,9 +200,18 @@ The single realization rule is now a public SPI rather than a fixed internal imp
 
 ## r27 hydrology finalization
 
-After surface generation and again after vanilla carving, `HydrologyFillPass` restores exact Engine water columns and may repair an isolated dry river/lake column only when cardinal wet neighbors prove continuity. The default standard materializer uses a four-block hydrology cave margin and six-block bank seal. The repair and sealing decisions remain materializer hooks, so future partial-block implementations can replace them.
+After surface generation and again after vanilla carving, `HydrologyFillPass` restores exact Engine water columns and may repair a one- or two-block enclosed dry river/lake gap only when consistent wet neighbors on opposing sides prove continuity. Open banks are not inferred as water. The default standard materializer uses a six-block hydrology cave margin, an eight-block bank seal and a configurable two-block gap-repair radius. The repair and sealing decisions remain materializer hooks, so future partial-block implementations can replace them.
 
 
 ## r28 marine and riparian correction
 
 Engine r26 provides deeper continental-shelf/ocean-basin geometry and prevents ocean semantics above sea level. The 1.20.1 host uses `OCEAN_DEEP_*` roles at 12+ blocks of water depth, restores submerged coast cells in the final fill pass and gives dry riparian banks priority over sandy/coastal materialization. Default river/lake carver protection is 6 blocks horizontally with an 8-block bank seal; external materializers may override both values.
+
+## r29 watercourse material zones and depth
+
+Engine r27 makes river-core depth altitude-aware and lake depth dependent on connected basin size.
+The mc1201 standard materializer divides each surface watercourse into submerged bed, damp bank and
+dry outer transition, then chooses stable full-block palettes from height and climate. Position-aware
+selection forms deterministic small patches. Existing global blocksets override every profile;
+profile-specific weighted keys can replace only one height/climate/zone combination. Decorative
+plants, partial blocks and waterfall spray remain outside this structural pass.

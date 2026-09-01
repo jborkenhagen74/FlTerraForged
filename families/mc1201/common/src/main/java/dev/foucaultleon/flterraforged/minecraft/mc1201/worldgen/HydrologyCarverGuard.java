@@ -102,7 +102,7 @@ final class HydrologyCarverGuard {
                 context.minY() + 1,
                 column.surfaceY() - materializer.hydrologyBedSealDepth() + 1);
         for (int y = bedBottom; y < column.surfaceY(); y++) {
-            set(chunk, mutable, x, y, z, materializer.hydrologySealState(sample));
+            set(chunk, mutable, x, y, z, materializer.hydrologySealState(sample, x, y, z));
         }
         set(
                 chunk,
@@ -110,7 +110,7 @@ final class HydrologyCarverGuard {
                 x,
                 column.surfaceY(),
                 z,
-                materializer.hydrologyBedState(sample));
+                materializer.hydrologyBedState(sample, x, column.surfaceY(), z));
         for (int y = column.surfaceY() + 1; y < column.waterTopExclusive(); y++) {
             set(chunk, mutable, x, y, z, materializer.fluidState(sample));
         }
@@ -151,8 +151,8 @@ final class HydrologyCarverGuard {
         if (top < bottom) {
             return;
         }
-        BlockState seal = materializer.hydrologySealState(column.sample());
         for (int y = bottom; y <= top; y++) {
+            BlockState seal = materializer.hydrologySealState(column.sample(), x, y, z);
             set(chunk, mutable, x, y, z, seal);
         }
     }

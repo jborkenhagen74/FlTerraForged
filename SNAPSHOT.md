@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r28**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r29**.
 
-Current package revision: **r28** 0.1.0-SNAPSHOT
+Current package revision: **r29** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -140,3 +140,12 @@ r27 makes biome realization data-driven per Minecraft family through shared sema
 ### r28 marine depth, shoreline and riparian correction
 
 r28 pairs with Engine r26. The mc1201 family distinguishes shallow and deep ocean roles from the Engine bathymetry so native deep-ocean biomes can control underwater decoration more naturally. Dry riverbanks now outrank generic coast/sand routing, restoring vegetated corridors through desert terrain. Submerged coast columns participate in the final marine fill repair. The standard materializer increases its default river/lake cave margin to six blocks and bank-seal depth to eight blocks while keeping both options provider-configurable.
+
+
+### r29 height-/climate-aware watercourse materialization
+
+r29 pairs with Engine r27. Rivers and lakes use a standard three-zone full-block material system
+selected from height and climate profiles, while global and profile-specific blocksets remain
+configurable. Position-aware materializer hooks keep block patches spatially coherent. Engine r27
+deepens broad lowland rivers and connected lake basins without turning every small pond into a deep
+lake. Decorative plants, partial blocks and waterfall spray remain a separate follow-up pass.

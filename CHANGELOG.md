@@ -1,3 +1,14 @@
+## 0.1.0-SNAPSHOT-r29
+
+- Add a standard three-zone watercourse material system: submerged bed, damp waterline and dry outer transition, plus a stable bank filler below both shore zones.
+- Select built-in full-block palettes from continuous height and climate/biome-role signals for high alpine, snowy highland, alpine, forest, dark forest, jungle, midland, plains, dryland, wetland, lush underground, rocky underground and deepslate profiles.
+- Add position-aware materializer overloads without removing the original SPI methods. The standard provider uses deterministic three-block patches and quantized terrain signals instead of equal, positionless block selection.
+- Extend configured block sets with optional `*weight` syntax and profile-specific `blockset.watercourse.<profile>.<zone>` overrides. Existing global river/lake/riparian keys retain priority.
+- Expand every active riverbank, including river-classified dry edge columns, into an inner wet and outer dry transition before generic coast/desert surface handling.
+- Expand the materializer-owned enclosed-gap repair from one to two blocks by default. Opposing wet evidence, a minimum neighborhood count and a consistent water level prevent the pass from flooding open banks; repaired lowland gaps receive three full water blocks.
+- Pair with Engine `0.1.0-SNAPSHOT-r27`, whose altitude-aware river depth and basin-size-aware lake depth remove one-block-looking lowland water bodies while preserving shallow ponds.
+- Document safe full-block substitutions and defer plants, partial blocks, waterfall spray and structure-like beaver dams to a later materializer-controlled decoration pass.
+
 ## 0.1.0-SNAPSHOT-r28
 
 - Added depth-aware shallow/deep ocean biome routing for the 1.20.1 family, including deep-ocean palette roles that later Minecraft families can map to their expanded biome sets.

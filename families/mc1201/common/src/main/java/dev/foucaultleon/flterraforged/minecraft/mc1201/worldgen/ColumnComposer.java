@@ -51,12 +51,24 @@ public final class ColumnComposer {
      * @return block states from minimum Y through the exclusive maximum Y
      */
     public BlockState[] compose(TerrainSample sample) {
+        return compose(sample, 0, 0);
+    }
+
+    /**
+     * Builds a position-aware vertical column suitable for chunk fill and structure sampling.
+     *
+     * @param sample continuous Engine terrain sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return block states from minimum Y through the exclusive maximum Y
+     */
+    public BlockState[] compose(TerrainSample sample, int x, int z) {
         BlockState[] states = new BlockState[context.maxYExclusive() - context.minY()];
         int surfaceTop = surfaceTop(sample);
         int surfaceY = surfaceTop - 1;
         int waterTopExclusive = materializer.waterTopExclusive(sample);
-        BlockState top = materializer.composedTopState(sample);
-        BlockState filler = materializer.fillerState(sample);
+        BlockState top = materializer.composedTopState(sample, x, z);
+        BlockState filler = materializer.fillerState(sample, x, surfaceY - 1, z);
         BlockState substrate = materializer.substrateState(sample);
         BlockState fluid = materializer.fluidState(sample);
         BlockState air = materializer.airState(sample);

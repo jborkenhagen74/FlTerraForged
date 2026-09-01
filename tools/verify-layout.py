@@ -146,6 +146,7 @@ def main() -> None:
     materializer_api_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/api/mc1201/materializer"
     materializer_runtime_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/materializer"
     standard_materializer = materializer_runtime_root / "standard/VanillaBlockMaterializer.java"
+    watercourse_palette = materializer_runtime_root / "standard/WatercourseMaterialPalette.java"
     standard_provider = materializer_runtime_root / "standard/VanillaBlockMaterializerProvider.java"
     functional_files = (
         worldgen_root / "EngineDensityBridge.java",
@@ -156,6 +157,7 @@ def main() -> None:
         worldgen_root / "HydrologyCarverGuard.java",
         worldgen_root / "HydrologyFillPass.java",
         standard_materializer,
+        watercourse_palette,
         standard_provider,
         materializer_runtime_root / "MaterializerRuntime.java",
     )
@@ -230,8 +232,8 @@ def main() -> None:
         fail("mc1201 synchronous column composer must not recreate per-column river-height guesses")
     for fragment in (
         "materializer.waterTopExclusive(sample)",
-        "materializer.composedTopState(sample)",
-        "materializer.fillerState(sample)",
+        "materializer.composedTopState(sample, x, z)",
+        "materializer.fillerState(sample, x, surfaceY - 1, z)",
         "materializer.substrateState(sample)",
         "materializer.fluidState(sample)",
     ):
@@ -249,6 +251,10 @@ def main() -> None:
         "default int hydrologyCaveMargin()",
         "default int hydrologyBedSealDepth()",
         "default int hydrologyBankSealDepth()",
+        "default BlockState composedTopState(TerrainSample sample, int x, int z)",
+        "default BlockState fillerState(TerrainSample sample, int x, int y, int z)",
+        "default Optional<BlockState> forcedSurfaceState(TerrainSample sample, int x, int z)",
+        "default BlockState hydrologyBedState(TerrainSample sample, int x, int y, int z)",
         "default boolean mayRepairHydrologyGap(TerrainSample sample)",
         "default int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive)",
     ):
@@ -268,17 +274,17 @@ def main() -> None:
 
     surface_text = (worldgen_root / "EngineSurfaceGuard.java").read_text(encoding="utf-8")
     for fragment in (
-        "materializer.forcedSurfaceState(sample)",
-        "materializer.fallbackSurfaceState(sample)",
-        "materializer.fillerState(sample)",
+        "materializer.forcedSurfaceState(sample, x, z)",
+        "materializer.fallbackSurfaceState(sample, x, z)",
+        "materializer.fillerState(sample, x, surfaceY - 1, z)",
     ):
         if fragment not in surface_text:
             fail(f"mc1201 surface guard bypasses the replaceable materializer: {fragment}")
 
     carver_text = (worldgen_root / "HydrologyCarverGuard.java").read_text(encoding="utf-8")
     for fragment in (
-        "materializer.hydrologySealState(sample)",
-        "materializer.hydrologyBedState(sample)",
+        "materializer.hydrologySealState(sample, x, y, z)",
+        "materializer.hydrologyBedState(sample, x, column.surfaceY(), z)",
         "materializer.fluidState(sample)",
     ):
         if fragment not in carver_text:
@@ -323,6 +329,8 @@ def main() -> None:
         fail("materializer add-on example must use the public Fabric entrypoint")
     if not (ROOT / "MATERIALIZER-SPI.md").is_file():
         fail("missing public materializer SPI documentation")
+    if not (ROOT / "WATERCOURSE-MATERIALS.md").is_file():
+        fail("missing standard watercourse material documentation")
 
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
     if "BiomeClimateRouter.route(sample)" not in biome_router_text or "palette.resolve(role, sample)" not in biome_router_text:
@@ -393,9 +401,14 @@ def main() -> None:
             fail(f"mc1201 hydrology cave-margin protection is incomplete: {fragment}")
     fill_pass = worldgen_root / "HydrologyFillPass.java"
     fill_text = fill_pass.read_text(encoding="utf-8")
-    for fragment in ("hasMaterializedWater(sample)", "hydrologyBedState(sample)", "fluidState(sample)", "repairWaterTop", "mayRepairHydrologyGap(sample)", "hydrologyGapBedY(sample, waterTopExclusive)"):
+    for fragment in ("hasMaterializedWater(sample)", "hydrologyBedState(sample, x, column.bedY(), z)", "fluidState(sample)", "repairWaterTop", "mayRepairHydrologyGap(sample)", "hydrologyGapBedY(sample, waterTopExclusive)", "hydrologyGapRepairRadius()", "oppositePair", "requiredWetEvidence"):
         if fragment not in fill_text:
             fail(f"mc1201 final hydrology fill pass is incomplete: {fragment}")
+    if 'integerOption("hydrology.gap_repair_radius", 2, 0, 4)' not in standard_text:
+        fail("standard materializer must expose the bounded two-block gap-repair default")
+    materializer_api_text = (materializer_api_root / "BlockMaterializer.java").read_text(encoding="utf-8")
+    if "default int hydrologyGapRepairRadius()" not in materializer_api_text:
+        fail("materializer API must own the hydrology gap-repair radius")
     if generator_text.count("hydrologyFillPass.apply(chunk, world);") < 2:
         fail("mc1201 must refill hydrology after both surface generation and cave repair")
     if generator_text.count("Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);") < 2:
@@ -407,6 +420,27 @@ def main() -> None:
     for key in ("blockset.river_bed", "blockset.lake_bed", "blockset.coast", "blockset.lake_shore_dry", "blockset.lake_shore_wet", "blockset.riparian", "blockset.land_surface", "blockset.land_filler", "blockset.plains", "blockset.valley", "blockset.hills", "blockset.plateau", "blockset.mountains", "blockset.ocean_bed", "blockset.substrate", "blockset.seal"):
         if key not in standard_text:
             fail(f"standard materializer is missing configurable terrain block set: {key}")
+
+    blockset_text = blockset_source.read_text(encoding="utf-8")
+    for fragment in ("MAX_WEIGHT", "MAX_TOTAL_WEIGHT", "PATCH_SIZE", "weightedId(", "Math.floorDiv(x, PATCH_SIZE)"):
+        if fragment not in blockset_text:
+            fail(f"configured block sets are missing weighted spatial selection: {fragment}")
+
+    watercourse_text = watercourse_palette.read_text(encoding="utf-8")
+    for fragment in (
+        "Profile.HIGH_ALPINE",
+        "Profile.SNOWY_HIGHLAND",
+        "Profile.FOREST",
+        "Profile.DRYLAND",
+        "Profile.WETLAND",
+        "Profile.DEEPSLATE",
+        '".bed"',
+        '".wet_bank"',
+        '".dry_bank"',
+        '".bank_filler"',
+    ):
+        if fragment not in watercourse_text:
+            fail(f"standard watercourse palette is incomplete: {fragment}")
 
     preset = json.loads(binding_files[3].read_text(encoding="utf-8"))
     overworld = preset["dimensions"]["minecraft:overworld"]["generator"]

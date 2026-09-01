@@ -1,6 +1,6 @@
 # Austauschbare Block-Materializer – Minecraft 1.20.1 / Fabric
 
-Stand: **0.1.0-SNAPSHOT-r28**
+Stand: **0.1.0-SNAPSHOT-r29**
 
 ## Ziel
 
@@ -165,6 +165,7 @@ konsistent für alle relevanten Worldgen-Stufen:
 - Surface-Seal vor Carvern,
 - Luft und Fluid,
 - deterministischen Top-/Filler-State für synchrone Column-Samples,
+- positionsabhängige Top-/Filler-/Ufer-/Gewässerbett-Auswahl für räumlich kohärente Paletten,
 - erzwungene Surface-Overrides,
 - Surface-Fallback,
 - Hydrologie-Bett,
@@ -198,11 +199,12 @@ Hydrologie-Bett ersetzt.
 
 ## Standardmaterializer: Blocksets
 
-The built-in materializer accepts optional comma-separated block-id sets. Examples:
+The built-in materializer accepts optional comma-separated block-id sets. Entries may carry a
+weight suffix (`*1` through `*64`). Examples:
 
 ```properties
-blockset.river_bed=minecraft:gravel,minecraft:cobblestone
-blockset.lake_bed=minecraft:gravel,minecraft:clay
+blockset.river_bed=minecraft:gravel*5,minecraft:cobblestone*2
+blockset.lake_bed=minecraft:gravel*2,minecraft:clay*4
 blockset.plains=minecraft:grass_block
 blockset.valley=minecraft:grass_block
 blockset.hills=minecraft:grass_block,minecraft:stone
@@ -211,6 +213,20 @@ blockset.mountains=minecraft:stone,minecraft:gravel
 blockset.ocean_bed=minecraft:gravel,minecraft:sand
 ```
 
-If an option is absent, the built-in full-block behavior remains unchanged. Selection inside a configured set is deterministic from the Engine sample, so chunk regeneration does not reshuffle materials. An external materializer may reuse these keys or ignore them entirely.
+If a global option is absent, r29 uses the complete height- and climate-aware three-zone
+watercourse palette. Profile-specific keys use the form
+`blockset.watercourse.<profile>.<bed|wet_bank|dry_bank|bank_filler>`. See
+`WATERCOURSE-MATERIALS.md` for the complete mapping. Selection is deterministic from quantized
+Engine signals and three-block spatial patches, so chunk regeneration does not reshuffle materials
+and adjacent surfaces do not devolve into per-block salt-and-pepper noise. An external materializer
+may reuse these keys or ignore them entirely.
 
-`mayRepairHydrologyGap(...)` and `hydrologyGapBedY(...)` are also materializer hooks. This keeps final water-gap repair compatible with future partial-block/waterlogging materializers.
+The original sample-only SPI methods remain available. Position-aware overloads are additive and
+default to their original counterpart, so an existing provider still compiles and behaves as
+before. A provider that wants spatially varying decisions can override the new overloads.
+
+`mayRepairHydrologyGap(...)`, `hydrologyGapBedY(...)` and
+`hydrologyGapRepairRadius()` are also materializer hooks. The standard provider uses radius 2 and
+requires consistent wet evidence on opposing sides; external providers may reduce the radius to
+zero or replace the bed quantization. This keeps final water-gap repair compatible with future
+partial-block/waterlogging materializers.

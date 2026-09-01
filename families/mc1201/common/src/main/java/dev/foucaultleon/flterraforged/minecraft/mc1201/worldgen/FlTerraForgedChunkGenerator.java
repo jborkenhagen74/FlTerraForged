@@ -181,7 +181,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             HeightLimitView world,
             NoiseConfig noiseConfig) {
         TerrainSample sample = bind(noiseConfig).sample(x, z);
-        return new VerticalBlockSample(getMinimumY(), columns.compose(sample));
+        return new VerticalBlockSample(getMinimumY(), columns.compose(sample, x, z));
     }
 
     @Override

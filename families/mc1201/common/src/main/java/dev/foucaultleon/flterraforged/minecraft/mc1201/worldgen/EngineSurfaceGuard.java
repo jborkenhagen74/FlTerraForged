@@ -55,7 +55,7 @@ public final class EngineSurfaceGuard {
                     continue;
                 }
 
-                Optional<BlockState> forced = materializer.forcedSurfaceState(sample);
+                Optional<BlockState> forced = materializer.forcedSurfaceState(sample, x, z);
                 if (forced.isPresent()) {
                     chunk.setBlockState(mutable, forced.get(), false);
                     applyFallbackFiller(
@@ -64,7 +64,7 @@ public final class EngineSurfaceGuard {
                             x,
                             z,
                             surfaceY,
-                            materializer.fillerState(sample),
+                            materializer.fillerState(sample, x, surfaceY - 1, z),
                             materializer.substrateState(sample));
                     continue;
                 }
@@ -73,7 +73,7 @@ public final class EngineSurfaceGuard {
                 if (current.equals(substrate)) {
                     chunk.setBlockState(
                             mutable,
-                            materializer.fallbackSurfaceState(sample),
+                            materializer.fallbackSurfaceState(sample, x, z),
                             false);
                     applyFallbackFiller(
                             chunk,
@@ -81,7 +81,7 @@ public final class EngineSurfaceGuard {
                             x,
                             z,
                             surfaceY,
-                            materializer.fillerState(sample),
+                            materializer.fillerState(sample, x, surfaceY - 1, z),
                             substrate);
                 }
             }

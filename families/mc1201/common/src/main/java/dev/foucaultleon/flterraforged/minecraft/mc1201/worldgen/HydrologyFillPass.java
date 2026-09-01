@@ -15,15 +15,15 @@ import net.minecraft.world.chunk.Chunk;
  *
  * <p>The pass never performs a free flood fill across arbitrary terrain. Exact Engine-owned wet
  * columns are always restored. A dry column is additionally repaired only when the active
- * materializer permits it and cardinal wet neighbors prove that the column is an isolated hole in
- * one continuous river/lake surface.</p>
+ * materializer permits it and opposing wet neighbors prove that the column is part of a narrow,
+ * enclosed hole in one continuous river/lake surface.</p>
  */
 final class HydrologyFillPass {
 
-    private static final int BORDER = 1;
-    private static final int SAMPLE_SIZE = 16 + BORDER * 2;
-
     private final BlockMaterializer materializer;
+    private final int repairRadius;
+    private final int sampleBorder;
+    private final int sampleSize;
 
     /**
      * Creates the fill pass for the active materializer.
@@ -32,6 +32,9 @@ final class HydrologyFillPass {
      */
     HydrologyFillPass(BlockMaterializer materializer) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
+        this.repairRadius = Math.max(0, materializer.hydrologyGapRepairRadius());
+        this.sampleBorder = Math.max(1, repairRadius);
+        this.sampleSize = 16 + sampleBorder * 2;
     }
 
     /**
@@ -49,8 +52,8 @@ final class HydrologyFillPass {
             int z = pos.getStartZ() + localZ;
             for (int localX = 0; localX < 16; localX++) {
                 int x = pos.getStartX() + localX;
-                int gridX = localX + BORDER;
-                int gridZ = localZ + BORDER;
+                int gridX = localX + sampleBorder;
+                int gridZ = localZ + sampleBorder;
                 WaterColumn column = columns[gridZ][gridX];
 
                 if (column.hydrologyWet() || column.marineWet()) {
@@ -67,11 +70,11 @@ final class HydrologyFillPass {
     }
 
     private WaterColumn[][] sampleEnvelope(ChunkPos pos, TerrainWorld world) {
-        WaterColumn[][] columns = new WaterColumn[SAMPLE_SIZE][SAMPLE_SIZE];
-        for (int sampleZ = 0; sampleZ < SAMPLE_SIZE; sampleZ++) {
-            int z = pos.getStartZ() + sampleZ - BORDER;
-            for (int sampleX = 0; sampleX < SAMPLE_SIZE; sampleX++) {
-                int x = pos.getStartX() + sampleX - BORDER;
+        WaterColumn[][] columns = new WaterColumn[sampleSize][sampleSize];
+        for (int sampleZ = 0; sampleZ < sampleSize; sampleZ++) {
+            int z = pos.getStartZ() + sampleZ - sampleBorder;
+            for (int sampleX = 0; sampleX < sampleSize; sampleX++) {
+                int x = pos.getStartX() + sampleX - sampleBorder;
                 TerrainSample sample = world.sample(x, z);
                 int bedY = materializer.solidSurfaceY(sample);
                 int waterTop = materializer.waterTopExclusive(sample);
@@ -98,7 +101,13 @@ final class HydrologyFillPass {
             WaterColumn column) {
         TerrainSample sample = column.sample();
         if (column.hydrologyWet()) {
-            set(chunk, mutable, x, column.bedY(), z, materializer.hydrologyBedState(sample));
+            set(
+                    chunk,
+                    mutable,
+                    x,
+                    column.bedY(),
+                    z,
+                    materializer.hydrologyBedState(sample, x, column.bedY(), z));
         }
         BlockState fluid = materializer.fluidState(sample);
         for (int y = column.bedY() + 1; y < column.waterTopExclusive(); y++) {
@@ -111,30 +120,40 @@ final class HydrologyFillPass {
             int gridX,
             int gridZ,
             TerrainSample sample) {
-        if (!materializer.mayRepairHydrologyGap(sample)) {
+        if (repairRadius == 0 || !materializer.mayRepairHydrologyGap(sample)) {
             return Integer.MIN_VALUE;
         }
-
-        WaterColumn north = columns[gridZ - 1][gridX];
-        WaterColumn south = columns[gridZ + 1][gridX];
-        WaterColumn west = columns[gridZ][gridX - 1];
-        WaterColumn east = columns[gridZ][gridX + 1];
-        WaterColumn[] cardinal = {north, south, west, east};
 
         int wetCount = 0;
         int minimumTop = Integer.MAX_VALUE;
         int maximumTop = Integer.MIN_VALUE;
-        for (WaterColumn neighbor : cardinal) {
-            if (!neighbor.hydrologyWet()) {
-                continue;
+        boolean north = false;
+        boolean south = false;
+        boolean west = false;
+        boolean east = false;
+        int radiusSquared = repairRadius * repairRadius;
+        for (int offsetZ = -repairRadius; offsetZ <= repairRadius; offsetZ++) {
+            for (int offsetX = -repairRadius; offsetX <= repairRadius; offsetX++) {
+                if ((offsetX == 0 && offsetZ == 0)
+                        || offsetX * offsetX + offsetZ * offsetZ > radiusSquared) {
+                    continue;
+                }
+                WaterColumn neighbor = columns[gridZ + offsetZ][gridX + offsetX];
+                if (!neighbor.hydrologyWet()) {
+                    continue;
+                }
+                wetCount++;
+                minimumTop = Math.min(minimumTop, neighbor.waterTopExclusive());
+                maximumTop = Math.max(maximumTop, neighbor.waterTopExclusive());
+                north |= offsetX == 0 && offsetZ < 0;
+                south |= offsetX == 0 && offsetZ > 0;
+                west |= offsetZ == 0 && offsetX < 0;
+                east |= offsetZ == 0 && offsetX > 0;
             }
-            wetCount++;
-            minimumTop = Math.min(minimumTop, neighbor.waterTopExclusive());
-            maximumTop = Math.max(maximumTop, neighbor.waterTopExclusive());
         }
-        boolean oppositePair = north.hydrologyWet() && south.hydrologyWet()
-                || west.hydrologyWet() && east.hydrologyWet();
-        if (wetCount < 3 && !oppositePair) {
+        boolean oppositePair = north && south || west && east;
+        int requiredWetEvidence = repairRadius == 1 ? 2 : 4;
+        if (!oppositePair || wetCount < requiredWetEvidence) {
             return Integer.MIN_VALUE;
         }
         if (maximumTop - minimumTop > 1) {
@@ -156,7 +175,7 @@ final class HydrologyFillPass {
         if (waterTopExclusive <= bedY + 1) {
             return;
         }
-        set(chunk, mutable, x, bedY, z, materializer.hydrologyBedState(sample));
+        set(chunk, mutable, x, bedY, z, materializer.hydrologyBedState(sample, x, bedY, z));
         BlockState fluid = materializer.fluidState(sample);
         for (int y = bedY + 1; y < waterTopExclusive; y++) {
             set(chunk, mutable, x, y, z, fluid);

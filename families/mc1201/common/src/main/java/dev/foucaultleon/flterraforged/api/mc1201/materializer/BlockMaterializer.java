@@ -111,12 +111,41 @@ public interface BlockMaterializer {
     BlockState composedTopState(TerrainSample sample);
 
     /**
+     * Returns the deterministic top state for a known world column.
+     *
+     * <p>The position-aware overload lets palettes vary naturally between neighboring columns.
+     * Existing materializers remain source-compatible because the default implementation forwards
+     * to the original sample-only method.</p>
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return composed surface block state
+     */
+    default BlockState composedTopState(TerrainSample sample, int x, int z) {
+        return composedTopState(sample);
+    }
+
+    /**
      * Returns the deterministic filler state below a materialized surface.
      *
      * @param sample continuous Engine sample
      * @return filler block state
      */
     BlockState fillerState(TerrainSample sample);
+
+    /**
+     * Returns a deterministic filler state for a known block position.
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param y world Y coordinate
+     * @param z world Z coordinate
+     * @return filler block state
+     */
+    default BlockState fillerState(TerrainSample sample, int x, int y, int z) {
+        return fillerState(sample);
+    }
 
     /**
      * Returns a surface block that must override vanilla surface rules for the supplied semantics.
@@ -129,12 +158,36 @@ public interface BlockMaterializer {
     Optional<BlockState> forcedSurfaceState(TerrainSample sample);
 
     /**
+     * Returns a forced surface state for a known world column.
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return forced surface state, or empty when vanilla owns the surface
+     */
+    default Optional<BlockState> forcedSurfaceState(TerrainSample sample, int x, int z) {
+        return forcedSurfaceState(sample);
+    }
+
+    /**
      * Returns a deterministic surface fallback when vanilla left raw substrate at the Engine top.
      *
      * @param sample continuous Engine sample
      * @return fallback surface state
      */
     BlockState fallbackSurfaceState(TerrainSample sample);
+
+    /**
+     * Returns the deterministic fallback surface for a known world column.
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return fallback surface state
+     */
+    default BlockState fallbackSurfaceState(TerrainSample sample, int x, int z) {
+        return fallbackSurfaceState(sample);
+    }
 
     /**
      * Returns the visible bed state restored below Engine-owned river/lake water after carving.
@@ -145,12 +198,38 @@ public interface BlockMaterializer {
     BlockState hydrologyBedState(TerrainSample sample);
 
     /**
+     * Returns the visible hydrology-bed state for a known block position.
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param y world Y coordinate
+     * @param z world Z coordinate
+     * @return hydrology bed state
+     */
+    default BlockState hydrologyBedState(TerrainSample sample, int x, int y, int z) {
+        return hydrologyBedState(sample);
+    }
+
+    /**
      * Returns the solid state used to seal hydrology beds and adjacent banks after carving.
      *
      * @param sample continuous Engine sample
      * @return hydrology seal state
      */
     BlockState hydrologySealState(TerrainSample sample);
+
+    /**
+     * Returns the hydrology seal state for a known block position.
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param y world Y coordinate
+     * @param z world Z coordinate
+     * @return hydrology seal state
+     */
+    default BlockState hydrologySealState(TerrainSample sample, int x, int y, int z) {
+        return hydrologySealState(sample);
+    }
 
 
     /**
@@ -176,6 +255,18 @@ public interface BlockMaterializer {
      */
     default int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
         return solidSurfaceY(sample);
+    }
+
+    /**
+     * Returns the maximum radius used to prove and close a narrow enclosed hydrology gap.
+     *
+     * <p>A value of zero disables inferred gap repair. Exact Engine-owned wet columns are restored
+     * independently of this setting.</p>
+     *
+     * @return maximum horizontal gap-repair radius in blocks
+     */
+    default int hydrologyGapRepairRadius() {
+        return 1;
     }
 
     /**
@@ -205,4 +296,3 @@ public interface BlockMaterializer {
         return 5;
     }
 }
-
