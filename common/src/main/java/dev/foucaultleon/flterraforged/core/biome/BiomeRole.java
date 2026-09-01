@@ -14,8 +14,14 @@ public enum BiomeRole {
     OCEAN_COLD,
     /** Temperate ocean water. */
     OCEAN_TEMPERATE,
-    /** Warm ocean water. */
+    /** Warm shallow ocean water. */
     OCEAN_WARM,
+    /** Cold deep-ocean water. */
+    OCEAN_DEEP_COLD,
+    /** Temperate deep-ocean water. */
+    OCEAN_DEEP_TEMPERATE,
+    /** Warm deep-ocean water. */
+    OCEAN_DEEP_WARM,
     /** Sandy or otherwise soft coast. */
     COAST_SANDY,
     /** Exposed rocky coast. */

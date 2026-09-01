@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r27 keeps the r25 basin hydrology and materializes climate-weighted, basin-aware Engine hydrology: terrain-guided rivers/streams, guaranteed wet-channel depth and ponds/lakes through the shared hydrology column rule. Dry catchments contribute less runoff, and persistent desert rivers receive a narrow plains/grass riparian fringe so vanilla vegetation can follow the banks. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r28 keeps the r25 basin hydrology and materializes climate-weighted, basin-aware Engine hydrology: terrain-guided rivers/streams, guaranteed wet-channel depth and ponds/lakes through the shared hydrology column rule. Dry catchments contribute less runoff, and persistent desert rivers receive a narrow plains/grass riparian fringe so vanilla vegetation can follow the banks. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md` and `MC1201-FUNCTIONAL-WORLDGEN.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -138,6 +138,11 @@ resolution, partial-block support and waterlogging support so a Conquest adapter
 half/quarter blocks without changing Engine geometry.
 
 
+
+
+### r28 marine / riparian correction
+
+r28 pairs with Engine r26. Engine ocean floors now form a real continental shelf and deep basin, while mc1201 maps sufficiently deep water to native deep-ocean biome roles. Ocean/coast semantics no longer leak onto above-sea or unrelated inland lowlands, reducing misplaced beach/ocean structures. Dry riverbanks have priority over sand/coast surfaces again, submerged shore columns are included in the final fill repair, and the standard hydrology cave margin is six blocks by default.
 
 ### r27 Central-Europe / biome-matrix finalization
 

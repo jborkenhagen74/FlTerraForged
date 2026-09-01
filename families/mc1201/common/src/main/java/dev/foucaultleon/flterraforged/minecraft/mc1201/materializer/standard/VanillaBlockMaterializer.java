@@ -65,9 +65,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         this.oceanBed = set("blockset.ocean_bed", Blocks.SAND.getDefaultState());
         this.substrate = set("blockset.substrate", context.defaultBlock());
         this.seal = set("blockset.seal", context.defaultBlock());
-        this.hydrologyCaveMargin = integerOption("hydrology.cave_margin", 4, 0, 12);
+        this.hydrologyCaveMargin = integerOption("hydrology.cave_margin", 6, 0, 16);
         this.hydrologyBedSealDepth = integerOption("hydrology.bed_seal_depth", 5, 1, 16);
-        this.hydrologyBankSealDepth = integerOption("hydrology.bank_seal_depth", 6, 1, 20);
+        this.hydrologyBankSealDepth = integerOption("hydrology.bank_seal_depth", 8, 1, 24);
     }
 
     @Override
@@ -102,7 +102,11 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public int waterTopExclusive(TerrainSample sample) {
         int solidTop = solidSurfaceTop(sample);
-        int waterTop = Math.max(solidTop, context.seaLevel() + 1);
+        TerrainType terrain = sample.terrainType();
+        int waterTop = StandardTerrainTypes.OCEAN.equals(terrain)
+                        || StandardTerrainTypes.COAST.equals(terrain)
+                ? Math.max(solidTop, context.seaLevel() + 1)
+                : solidTop;
         RiverSample hydrology = sample.river();
         if (hydrology.hasWaterSurfaceHeight()
                 && hydrology.depth() > MIN_WET_DEPTH
@@ -186,6 +190,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public Optional<BlockState> forcedSurfaceState(TerrainSample sample) {
         TerrainType terrain = sample.terrainType();
+        if (RiparianZone.isDryBank(sample)) {
+            return Optional.of(riparian.choose(sample));
+        }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
             return Optional.of(coast.choose(sample));
         }
@@ -199,9 +206,6 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
             return Optional.of(dryShore(sample)
                     ? lakeShoreDry.choose(sample)
                     : lakeShoreWet.choose(sample));
-        }
-        if (RiparianZone.isDryBank(sample)) {
-            return Optional.of(riparian.choose(sample));
         }
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain) && mountains.isConfigured()) {
             return Optional.of(mountains.choose(sample));

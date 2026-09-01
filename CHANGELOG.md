@@ -1,4 +1,13 @@
+## 0.1.0-SNAPSHOT-r28
+
+- Added depth-aware shallow/deep ocean biome routing for the 1.20.1 family, including deep-ocean palette roles that later Minecraft families can map to their expanded biome sets.
+- Restored dry-climate riverbank priority over generic coast/desert surfaces so rivers crossing sand regions receive a vegetated riparian corridor again.
+- Expanded the standard materializer river/lake cave-protection margin from 4 to 6 blocks and the bank seal depth from 6 to 8 blocks; both remain configurable and replaceable by third-party materializers.
+- Marine fill repair now also restores submerged coast columns, reducing isolated holes along ocean and shoreline water surfaces. Sea-level filling is restricted to semantic ocean/coast columns instead of flooding arbitrary inland terrain below sea level.
+- Updated the host to Engine r26, whose bathymetry and ocean/coast classification prevent ocean biomes and ocean structures from leaking onto dry land.
+
 ## 0.1.0-SNAPSHOT-r27
+
 
 - Add matrix-ready, version-neutral `BiomeRole`/`BiomeRoleResolver` routing; each Minecraft family maps semantic roles to the native biomes available in that version.
 - Replace the fixed mc1201 biome palette with a data-driven role -> candidate-list codec, allowing later Minecraft families to use additional biomes without changing Engine climate code.

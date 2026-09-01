@@ -267,7 +267,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
     private TerrainWorld bind(NoiseConfig noiseConfig) {
         TerrainWorld world = session.bind(noiseConfig);
-        engineBiomeSource.bind(world);
+        engineBiomeSource.bind(world, getSeaLevel());
         return world;
     }
 

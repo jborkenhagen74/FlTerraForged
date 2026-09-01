@@ -23,15 +23,31 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
 
     private final BiomePalette palette;
     private volatile TerrainWorld terrainWorld;
+    private volatile int seaLevel = 63;
 
     /** Creates an unbound biome source from a native biome palette. */
     public FlTerraForgedBiomeSource(BiomePalette palette) {
         this.palette = Objects.requireNonNull(palette, "palette");
     }
 
-    /** Binds this biome source to the same engine world used by the chunk generator. */
-    public void bind(TerrainWorld terrainWorld) {
+    /**
+     * Binds this biome source to the same engine world used by the chunk generator.
+     *
+     * @param terrainWorld active engine world
+     * @param seaLevel active Minecraft sea level used for shallow/deep ocean roles
+     */
+    public void bind(TerrainWorld terrainWorld, int seaLevel) {
         this.terrainWorld = Objects.requireNonNull(terrainWorld, "terrainWorld");
+        this.seaLevel = seaLevel;
+    }
+
+    /**
+     * Compatibility overload using the vanilla Overworld sea level.
+     *
+     * @param terrainWorld active engine world
+     */
+    public void bind(TerrainWorld terrainWorld) {
+        bind(terrainWorld, 63);
     }
 
     /** Returns the serialized palette. */
@@ -64,6 +80,6 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
         int blockX = BiomeCoords.toBlock(biomeX);
         int blockZ = BiomeCoords.toBlock(biomeZ);
         TerrainSample sample = world.sample(blockX, blockZ);
-        return NativeBiomeRouter.route(sample, palette);
+        return NativeBiomeRouter.route(sample, palette, seaLevel);
     }
 }

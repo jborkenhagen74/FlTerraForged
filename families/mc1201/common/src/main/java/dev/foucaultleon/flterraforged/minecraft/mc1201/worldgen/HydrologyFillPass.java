@@ -53,7 +53,7 @@ final class HydrologyFillPass {
                 int gridZ = localZ + BORDER;
                 WaterColumn column = columns[gridZ][gridX];
 
-                if (column.hydrologyWet() || column.oceanWet()) {
+                if (column.hydrologyWet() || column.marineWet()) {
                     restoreExact(chunk, mutable, x, z, column);
                     continue;
                 }
@@ -76,14 +76,15 @@ final class HydrologyFillPass {
                 int bedY = materializer.solidSurfaceY(sample);
                 int waterTop = materializer.waterTopExclusive(sample);
                 boolean hydrologyWet = materializer.hasMaterializedWater(sample);
-                boolean oceanWet = StandardTerrainTypes.OCEAN.equals(sample.terrainType())
+                boolean marineWet = (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
+                                || StandardTerrainTypes.COAST.equals(sample.terrainType()))
                         && waterTop > bedY + 1;
                 columns[sampleZ][sampleX] = new WaterColumn(
                         sample,
                         bedY,
                         waterTop,
                         hydrologyWet,
-                        oceanWet);
+                        marineWet);
             }
         }
         return columns;
@@ -180,6 +181,6 @@ final class HydrologyFillPass {
             int bedY,
             int waterTopExclusive,
             boolean hydrologyWet,
-            boolean oceanWet) {
+            boolean marineWet) {
     }
 }

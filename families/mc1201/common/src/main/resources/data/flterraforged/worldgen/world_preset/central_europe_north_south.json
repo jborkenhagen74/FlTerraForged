@@ -93,6 +93,17 @@
             "hot_wet": [
               "minecraft:forest",
               "minecraft:dark_forest"
+            ],
+            "ocean_deep_cold": [
+              "minecraft:deep_cold_ocean",
+              "minecraft:deep_frozen_ocean"
+            ],
+            "ocean_deep_temperate": [
+              "minecraft:deep_ocean",
+              "minecraft:deep_lukewarm_ocean"
+            ],
+            "ocean_deep_warm": [
+              "minecraft:deep_lukewarm_ocean"
             ]
           }
         },

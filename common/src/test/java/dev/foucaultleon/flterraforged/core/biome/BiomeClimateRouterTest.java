@@ -26,6 +26,20 @@ final class BiomeClimateRouterTest {
         assertEquals(BiomeRole.HOT_DRY, role(0.88D, 0.10D));
     }
 
+
+    @Test
+    void dryRiverbankOverridesGenericCoastRole() {
+        TerrainSample sample = new TerrainSample(
+                70.0D,
+                0.1D,
+                0.0D,
+                -0.45D,
+                StandardTerrainTypes.COAST,
+                new ClimateSample(0.82D, 0.18D),
+                new RiverSample(8.0D, 6.0D, 0.0D, 69.0D, 16.0D));
+        assertEquals(BiomeRole.MEDITERRANEAN_GRASSLAND, BiomeClimateRouter.route(sample));
+    }
+
     private static BiomeRole role(double temperature, double moisture) {
         TerrainSample sample = new TerrainSample(
                 80.0D,

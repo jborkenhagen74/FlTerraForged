@@ -69,9 +69,9 @@ public final class MaterializerConfig {
                         "# blockset.seal=minecraft:stone",
                         "",
                         "# Hydrology protection used by the standard materializer.",
-                        "# hydrology.cave_margin=4",
+                        "# hydrology.cave_margin=6",
                         "# hydrology.bed_seal_depth=5",
-                        "# hydrology.bank_seal_depth=6",
+                        "# hydrology.bank_seal_depth=8",
                         "");
                 Files.writeString(path, template);
             }

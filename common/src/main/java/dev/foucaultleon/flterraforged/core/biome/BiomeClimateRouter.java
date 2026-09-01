@@ -39,18 +39,22 @@ public final class BiomeClimateRouter {
             }
             return temperature > 0.72D ? BiomeRole.OCEAN_WARM : BiomeRole.OCEAN_TEMPERATE;
         }
-        if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return slope > 0.85D ? BiomeRole.COAST_ROCKY : BiomeRole.COAST_SANDY;
-        }
         if (StandardTerrainTypes.RIVER.equals(terrain)
                 || StandardTerrainTypes.LAKE.equals(terrain)) {
             return temperature < 0.25D ? BiomeRole.RIVER_COLD : BiomeRole.RIVER_TEMPERATE;
         }
 
+        // Hydrologic riparian context has priority over a generic sandy/coast surface. This is
+        // especially important where a through-flowing river crosses a desert or another dry
+        // lowland: the bank should become a narrow vegetated corridor instead of remaining beach
+        // or desert all the way to the water.
         if (isDryRiparianBank(sample)) {
             return temperature > 0.68D
                     ? BiomeRole.MEDITERRANEAN_GRASSLAND
                     : BiomeRole.TEMPERATE_GRASSLAND;
+        }
+        if (StandardTerrainTypes.COAST.equals(terrain)) {
+            return slope > 0.85D ? BiomeRole.COAST_ROCKY : BiomeRole.COAST_SANDY;
         }
 
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain)) {
@@ -128,12 +132,16 @@ public final class BiomeClimateRouter {
         if (!river.isAvailable() || !river.hasFlow() || !(river.flow() > 0.0D)) {
             return false;
         }
+        if (river.hasWaterSurfaceHeight()
+                && river.waterSurfaceHeight() > sample.surfaceHeight() + 0.05D) {
+            return false;
+        }
         double halfWidth = Math.max(1.0D, river.width() * 0.5D);
-        double fringe = 4.0D + Math.min(10.0D, Math.sqrt(river.flow()) * 1.65D);
+        double fringe = 5.0D + Math.min(12.0D, Math.sqrt(river.flow()) * 1.80D);
         if (river.distance() > halfWidth + fringe || !sample.climate().isAvailable()) {
             return false;
         }
-        return sample.climate().temperature() > 0.62D
-                && sample.climate().moisture() < 0.46D;
+        return sample.climate().temperature() > 0.58D
+                && sample.climate().moisture() < 0.52D;
     }
 }

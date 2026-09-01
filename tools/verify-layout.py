@@ -334,7 +334,7 @@ def main() -> None:
         if not shared_biome_file.is_file():
             fail(f"missing matrix-ready shared biome abstraction: {shared_biome_file.relative_to(ROOT)}")
     role_text = biome_role.read_text(encoding="utf-8")
-    for role in ("TEMPERATE_FOREST", "MEDITERRANEAN_WOODLAND", "HOT_DRY", "WETLAND", "ALPINE_ROCK"):
+    for role in ("TEMPERATE_FOREST", "MEDITERRANEAN_WOODLAND", "HOT_DRY", "WETLAND", "ALPINE_ROCK", "OCEAN_DEEP_COLD", "OCEAN_DEEP_TEMPERATE", "OCEAN_DEEP_WARM"):
         if role not in role_text:
             fail(f"shared biome role set is incomplete: {role}")
     climate_router_text = biome_climate_router.read_text(encoding="utf-8")
@@ -347,8 +347,27 @@ def main() -> None:
             fail(f"mc1201 biome palette is not matrix-ready/data-driven: {fragment}")
     if "RiparianZone.isDryBank(sample)" not in standard_text or "Blocks.GRASS_BLOCK" not in standard_text:
         fail("standard materializer must grass-over-dirt dry riverbanks")
+    if "StandardTerrainTypes.OCEAN.equals(terrain)" not in standard_text or "StandardTerrainTypes.COAST.equals(terrain)" not in standard_text:
+        fail("standard materializer must restrict sea-level filling to marine terrain semantics")
     if "columns.worldSurfaceTop(sample)" not in generator_text:
         fail("mc1201 height queries must include materialized river/ocean water")
+
+    if "seaLevel - sample.surfaceHeight() >= 12.0D" not in biome_router_text:
+        fail("mc1201 biome router must distinguish deep ocean from shallow ocean")
+    if climate_router_text.find("isDryRiparianBank(sample)") > climate_router_text.find("StandardTerrainTypes.COAST.equals(terrain)"):
+        fail("dry riparian biome routing must have priority over generic coast routing")
+    forced_surface_start = standard_text.find("public Optional<BlockState> forcedSurfaceState(TerrainSample sample)")
+    forced_surface_end = standard_text.find("public BlockState fallbackSurfaceState", forced_surface_start)
+    forced_surface_text = standard_text[forced_surface_start:forced_surface_end]
+    if (forced_surface_start < 0
+            or "RiparianZone.isDryBank(sample)" not in forced_surface_text
+            or "StandardTerrainTypes.COAST.equals(terrain)" not in forced_surface_text
+            or forced_surface_text.find("RiparianZone.isDryBank(sample)")
+                > forced_surface_text.find("StandardTerrainTypes.COAST.equals(terrain)")):
+        fail("standard materializer riparian surface must have priority over coast sand")
+    fill_text = (worldgen_root / "HydrologyFillPass.java").read_text(encoding="utf-8")
+    if "StandardTerrainTypes.COAST.equals(sample.terrainType())" not in fill_text or "marineWet" not in fill_text:
+        fail("final marine fill must include submerged coast columns")
 
     river_api = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/river/RiverSample.java").read_text(encoding="utf-8")
     for fragment in ("waterSurfaceHeight", "flow", "public RiverSample(double distance, double width, double depth)"):

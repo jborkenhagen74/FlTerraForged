@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r27**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r28**.
 
-Current package revision: **r27** 0.1.0-SNAPSHOT
+Current package revision: **r28** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -135,3 +135,8 @@ r26 moves Minecraft block realization behind the public mc1201 `BlockMaterialize
 ### r27 climate, biome matrix and materialization finalization
 
 r27 makes biome realization data-driven per Minecraft family through shared semantic `BiomeRole` values and `BiomeRoleResolver`. It adds Central-Europe randomized and optional north-south presets, configurable standard-materializer block sets, isolated hydrology-gap repair and a wider cave-margin seal. Newer Minecraft families can map the same roles to richer biome candidate lists without changing the Engine.
+
+
+### r28 marine depth, shoreline and riparian correction
+
+r28 pairs with Engine r26. The mc1201 family distinguishes shallow and deep ocean roles from the Engine bathymetry so native deep-ocean biomes can control underwater decoration more naturally. Dry riverbanks now outrank generic coast/sand routing, restoring vegetated corridors through desert terrain. Submerged coast columns participate in the final marine fill repair. The standard materializer increases its default river/lake cave margin to six blocks and bank-seal depth to eight blocks while keeping both options provider-configurable.
