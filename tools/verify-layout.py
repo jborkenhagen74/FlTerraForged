@@ -349,12 +349,13 @@ def main() -> None:
         fail("missing standard watercourse material documentation")
 
     biome_router_text = (worldgen_root / "NativeBiomeRouter.java").read_text(encoding="utf-8")
-    if "BiomeClimateRouter.route(sample)" not in biome_router_text or "palette.resolve(role, sample)" not in biome_router_text:
+    if "BiomeClimateRouter.route(sample)" not in biome_router_text or "palette.resolve(role, sample, x, z, seed)" not in biome_router_text:
         fail("mc1201 biome router must delegate climate selection to the shared version-neutral router")
     biome_role = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeRole.java"
     biome_climate_router = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeClimateRouter.java"
     biome_role_resolver = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeRoleResolver.java"
-    for shared_biome_file in (biome_role, biome_climate_router, biome_role_resolver):
+    biome_variant_selector = ROOT / "common/src/main/java/dev/foucaultleon/flterraforged/core/biome/BiomeVariantSelector.java"
+    for shared_biome_file in (biome_role, biome_climate_router, biome_role_resolver, biome_variant_selector):
         if not shared_biome_file.is_file():
             fail(f"missing matrix-ready shared biome abstraction: {shared_biome_file.relative_to(ROOT)}")
     role_text = biome_role.read_text(encoding="utf-8")
@@ -480,9 +481,12 @@ def main() -> None:
     ):
         if fragment not in decorator_text:
             fail(f"mc1201 watercourse decorator is incomplete or not chunk-safe: {fragment}")
-    for option in ("decoration.enabled", "decoration.plants", "decoration.partial_blocks", "decoration.spray", "decoration.dams"):
+    for option in ("decoration.enabled", "decoration.plants", "decoration.land_plants", "decoration.partial_blocks", "decoration.spray", "decoration.dams"):
         if option not in decorator_text:
             fail(f"mc1201 watercourse decoration is missing bounded option: {option}")
+    for fragment in ("BiomeClimateRouter.route(sample)", "Blocks.CORNFLOWER", "Blocks.AZURE_BLUET", "sample.surfaceHeight() <= 120.0D"):
+        if fragment not in decorator_text:
+            fail(f"mc1201 habitat decoration/version guard is incomplete: {fragment}")
     if "net.minecraft" not in decorator_text:
         fail("version-bound decoration must remain in the concrete mc1201 family")
 
@@ -543,6 +547,15 @@ def main() -> None:
     used_central = {biome for candidates in central_palette.values() for biome in candidates}
     if used_central & forbidden_central:
         fail(f"Central Europe palette contains unsuitable fallback biomes: {sorted(used_central & forbidden_central)}")
+    north_south_palette = json.loads(north_south_preset.read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["biome_source"]["palette"]
+    for role in ("cool_forest", "temperate_open_woodland", "temperate_forest", "temperate_dense_forest", "mediterranean_woodland"):
+        candidates = central_palette[role]
+        if candidates != north_south_palette[role]:
+            fail(f"Central Europe climate layouts must share the same forest balance: {role}")
+        if candidates.count("minecraft:forest") < 1 or not any("birch_forest" in biome for biome in candidates):
+            fail(f"Central Europe must retain both mixed and birch forest stands: {role}")
+    if central_palette["temperate_forest"].count("minecraft:forest") < 2:
+        fail("Central Europe temperate forest must weight mixed forest above each monoculture")
 
     for locale in ("en_us", "de_de"):
         language_file = ROOT / f"families/mc1201/common/src/main/resources/assets/flterraforged/lang/{locale}.json"

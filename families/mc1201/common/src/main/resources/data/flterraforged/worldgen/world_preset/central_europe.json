@@ -44,24 +44,32 @@
               "minecraft:plains"
             ],
             "cool_forest": [
-              "minecraft:birch_forest",
-              "minecraft:old_growth_birch_forest"
+              "minecraft:forest",
+              "minecraft:forest",
+              "minecraft:taiga",
+              "minecraft:birch_forest"
             ],
             "temperate_grassland": [
               "minecraft:plains",
               "minecraft:sunflower_plains"
             ],
             "temperate_open_woodland": [
-              "minecraft:birch_forest",
-              "minecraft:forest"
-            ],
-            "temperate_forest": [
+              "minecraft:forest",
               "minecraft:forest",
               "minecraft:flower_forest",
               "minecraft:birch_forest"
             ],
+            "temperate_forest": [
+              "minecraft:forest",
+              "minecraft:forest",
+              "minecraft:flower_forest",
+              "minecraft:dark_forest",
+              "minecraft:birch_forest"
+            ],
             "temperate_dense_forest": [
               "minecraft:dark_forest",
+              "minecraft:dark_forest",
+              "minecraft:forest",
               "minecraft:old_growth_birch_forest"
             ],
             "wetland": [
@@ -80,6 +88,7 @@
               "minecraft:sunflower_plains"
             ],
             "mediterranean_woodland": [
+              "minecraft:forest",
               "minecraft:forest",
               "minecraft:birch_forest"
             ],

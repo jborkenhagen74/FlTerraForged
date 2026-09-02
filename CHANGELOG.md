@@ -1,3 +1,14 @@
+## 0.1.0-SNAPSHOT-r31
+
+- Pair with Engine `0.1.0-SNAPSHOT-r29`, whose wet-to-dry river/lake shaping and coastal-height release remove first-bank cliffs, dry under-waterline cells and shore detail spikes.
+- Permit bounded final gap repair inside the geometric dry channel envelope even when the corrected Engine classifier intentionally preserves the surrounding land/coast biome.
+- Add broad seed-dependent irregular biome-variant stands shared by matrix families instead of deriving every native candidate from a narrow weighted climate interval.
+- Rebalance both Central-Europe palettes toward mixed `forest` stands while retaining bounded birch, old-growth birch, spruce and dark-oak monoculture regions.
+- Increase coherent moss-carpet and bank-plant coverage, add optional climate-role-driven land herb/flower clusters, and slightly enrich lake lily clusters without increasing uniform underwater grass.
+- Restrict cobweb/carpet waterfall spray to actual river steps above Y 120; lowland lake and shore slopes can no longer trigger spray through operator precedence.
+- Keep every concrete plant/block reference inside the Minecraft 1.20.1 family and add `decoration.land_plants` as an independent default-enabled materializer option.
+- Keep the all-version build expansion deferred until r29/r31 passes real-world 1.20.1 validation.
+
 ## 0.1.0-SNAPSHOT-r30
 
 - Replace fixed three-block material patches with continuous domain-warped formation fields for river, lake, shore and ocean sediments.

@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r30 pairs with Engine r28, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled plants, waterlogged stairs, spray and rare dams. Vanilla ores and all unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r31 pairs with Engine r29, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled water/bank/land plants, waterlogged stairs, high-alpine spray and rare dams. Vanilla ores and unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -159,6 +159,15 @@ water grade is bounded before block projection. River, lake, bank and ocean mate
 domain-warped formations rather than fixed random patches. The outer bank progressively yields to
 the selected biome surface. The mc1201 materializer then adds only 1.20.1-available plants,
 waterlogged stairs, moss carpets, waterfall spray and rare small dams in validated habitats.
+
+### r31 shoreline stability, richer habitats and balanced forests
+
+r31 pairs with Engine r29. Final dry-channel gap repair now recognizes the geometric river envelope
+without forcing dry banks into the river biome. The mc1201 decorator adds denser coherent bank
+vegetation and optional climate-role-driven land-plant clusters, while waterfall spray is restricted
+to real river steps above Y 120. Central-Europe forest candidates are selected in broad irregular
+seeded stands and weight mixed forest more strongly; birch, spruce and dark-oak monocultures remain
+present without making birch the default across large regions.
 
 ### r27 Central-Europe / biome-matrix finalization
 

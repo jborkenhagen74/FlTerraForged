@@ -17,7 +17,9 @@ Each Minecraft family implements `BiomeRoleResolver` with the biomes available i
   "default": ["minecraft:plains"],
   "temperate_forest": [
     "minecraft:forest",
+    "minecraft:forest",
     "minecraft:flower_forest",
+    "minecraft:dark_forest",
     "minecraft:birch_forest"
   ],
   "alpine_rock": [
@@ -28,7 +30,7 @@ Each Minecraft family implements `BiomeRoleResolver` with the biomes available i
 }
 ```
 
-A later family can list newer native biomes for the same role without changing Engine climate generation or the common router. This is the intended Matrix migration path. Depth refinement remains family-owned: mc1201 upgrades semantic ocean roles to `OCEAN_DEEP_*` when the Engine floor lies at least 12 blocks below sea level, while later families can choose different native mappings without changing the Engine. Candidate lists may contain more than one biome; the family resolver uses broad climate/terrain signals to choose a stable sub-variant.
+A later family can list newer native biomes for the same role without changing Engine climate generation or the common router. This is the intended Matrix migration path. Depth refinement remains family-owned: mc1201 upgrades semantic ocean roles to `OCEAN_DEEP_*` when the Engine floor lies at least 12 blocks below sea level, while later families can choose different native mappings without changing the Engine. Candidate lists may contain more than one biome and may repeat an entry to give it additional weight. `BiomeVariantSelector` assigns broad irregular, seed-dependent stands instead of choosing from per-block noise. This lets a family balance mixed and single-species forests without hard-coding any native biome into the shared selector.
 
 ## Climate layouts are independent
 
@@ -47,7 +49,7 @@ preset=balanced       + climateLayout=north_south
 
 ## 1.20.1 mapping
 
-The reference family already uses substantially more than Plains/Desert: cold/frozen/temperate/lukewarm/warm shallow oceans plus deep cold/frozen/temperate/lukewarm ocean roles, beach/stony shore, river/frozen river, snowy plains, taiga and old-growth taiga, birch/old-growth birch/forest/flower/dark forest, swamp, meadow, several peak variants, savanna/badlands/jungle families in the general preset. The Central-Europe preset deliberately maps tropical/hot extremes back into temperate candidates. `windswept_hills` is not used as the default hill/mountain mapping.
+The reference family already uses substantially more than Plains/Desert: cold/frozen/temperate/lukewarm/warm shallow oceans plus deep cold/frozen/temperate/lukewarm ocean roles, beach/stony shore, river/frozen river, snowy plains, taiga and old-growth taiga, birch/old-growth birch/forest/flower/dark forest, swamp, meadow, several peak variants, savanna/badlands/jungle families in the general preset. The Central-Europe preset deliberately maps tropical/hot extremes back into temperate candidates and weights the mixed `forest` candidate above individual deciduous monocultures. Birch, old-growth birch, spruce and dark-oak stands remain available. `windswept_hills` is not used as the default hill/mountain mapping.
 
 ## Adding a newer Minecraft version
 

@@ -3,6 +3,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 import com.mojang.serialization.Codec;
 import dev.foucaultleon.flterraforged.core.biome.BiomeRole;
 import dev.foucaultleon.flterraforged.core.biome.BiomeRoleResolver;
+import dev.foucaultleon.flterraforged.core.biome.BiomeVariantSelector;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -82,14 +83,51 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
     public RegistryEntry<Biome> resolve(BiomeRole role, TerrainSample sample) {
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(sample, "sample");
-        List<RegistryEntry<Biome>> candidates = entries.get(role.key());
-        if (candidates == null || candidates.isEmpty()) {
-            candidates = entries.get(DEFAULT_KEY);
-        }
+        List<RegistryEntry<Biome>> candidates = candidates(role);
         if (candidates.size() == 1) {
             return candidates.get(0);
         }
-        return candidates.get(variantIndex(role, sample, candidates.size()));
+        int specialized = specializedVariantIndex(role, sample, candidates.size());
+        int selected = specialized >= 0
+                ? specialized
+                : signalVariantIndex(role, sample, candidates.size());
+        return candidates.get(selected);
+    }
+
+    /**
+     * Resolves a role into a broad seed-dependent native-biome stand.
+     *
+     * @param role semantic biome role
+     * @param sample Engine sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @param seed world seed
+     * @return selected native biome entry
+     */
+    public RegistryEntry<Biome> resolve(
+            BiomeRole role,
+            TerrainSample sample,
+            int x,
+            int z,
+            long seed) {
+        Objects.requireNonNull(role, "role");
+        Objects.requireNonNull(sample, "sample");
+        List<RegistryEntry<Biome>> candidates = candidates(role);
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+        int specialized = specializedVariantIndex(role, sample, candidates.size());
+        int selected = specialized >= 0
+                ? specialized
+                : BiomeVariantSelector.index(role, candidates.size(), x, z, seed);
+        return candidates.get(selected);
+    }
+
+    private List<RegistryEntry<Biome>> candidates(BiomeRole role) {
+        List<RegistryEntry<Biome>> candidates = entries.get(role.key());
+        return candidates == null || candidates.isEmpty()
+                ? entries.get(DEFAULT_KEY)
+                : candidates;
     }
 
     /**
@@ -101,18 +139,17 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
         return entries.get(DEFAULT_KEY).get(0);
     }
 
-    /** Returns all palette entries for {@link net.minecraft.world.biome.source.BiomeSource}. */
+    /**
+     * Returns all palette entries for {@link net.minecraft.world.biome.source.BiomeSource}.
+     *
+     * @return distinct configured native biome entries
+     */
     public Stream<RegistryEntry<Biome>> stream() {
         return entries.values().stream().flatMap(List::stream).distinct();
     }
 
-    private static int variantIndex(BiomeRole role, TerrainSample sample, int count) {
+    private static int specializedVariantIndex(BiomeRole role, TerrainSample sample, int count) {
         double temperature = sample.climate().isAvailable() ? sample.climate().temperature() : 0.5D;
-        double moisture = sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
-        double continentalness = sample.hasContinentalness()
-                ? clamp01(sample.continentalness() * 0.5D + 0.5D)
-                : 0.5D;
-        double erosion = sample.hasErosion() ? clamp01(sample.erosion() * 0.5D + 0.5D) : 0.5D;
         double slope = sample.hasSlope() ? clamp01(sample.slope() / 3.0D) : 0.0D;
 
         if (role == BiomeRole.ALPINE_ROCK) {
@@ -130,13 +167,23 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
         if (role == BiomeRole.OCEAN_WARM && count > 1) {
             return temperature > 0.86D ? count - 1 : 0;
         }
+        return -1;
+    }
 
-        double selector = temperature * 0.24D
-                + moisture * 0.34D
-                + continentalness * 0.20D
-                + erosion * 0.12D
-                + slope * 0.10D;
-        selector = selector + (role.ordinal() * 0.17320508075688773D);
+    private static int signalVariantIndex(BiomeRole role, TerrainSample sample, int count) {
+        double temperature = sample.climate().isAvailable() ? sample.climate().temperature() : 0.5D;
+        double moisture = sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
+        double continentalness = sample.hasContinentalness()
+                ? clamp01(sample.continentalness() * 0.5D + 0.5D)
+                : 0.5D;
+        double erosion = sample.hasErosion()
+                ? clamp01(sample.erosion() * 0.5D + 0.5D)
+                : 0.5D;
+        double selector = temperature * 3.117D
+                + moisture * 5.173D
+                + continentalness * 2.417D
+                + erosion * 1.731D
+                + role.ordinal() * 0.6180339887498949D;
         selector -= Math.floor(selector);
         return Math.min(count - 1, (int) Math.floor(selector * count));
     }
