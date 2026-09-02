@@ -166,6 +166,13 @@ Use `/locate biome <id>` where useful, then verify the surrounding terrain manua
 | D17 | P0 | Enclosed gap repair | Follow wide rivers/lakes and inspect former one- or two-column grass/sand islands. | Narrow enclosed holes are water-filled with a stable bed; open banks and peninsula edges remain dry. | |
 | D18 | P0 | Dryland riparian zones | Follow a river through desert, badlands or another sandy dry region. | Bed, damp waterline and outer dry bank remain visibly distinct; generic sand does not overwrite the entire hydrological bank. | |
 | D19 | P1 | Altitude material profile | Compare watercourses below Y64, at Y64–89, Y90–120 and above Y120 where available. | Low watercourses accumulate sediment; high watercourses become progressively stonier and use no sand/earth above Y120. | |
+| D20 | P0 | Lake-grid continuity | Cut or spectate through two broad lakes across >= 3 drainage cells. | Bed depth changes by at most one block per horizontal block; no straight internal cliff, ridge or miniature hill repeats at a hidden coarse-grid boundary. | |
+| D21 | P0 | Natural sediment formations | Inspect river, lake and ocean floors over >= 100×100 blocks each. | Sand, gravel, clay, mud and rock form broad irregular lenses/bands; no 3×3 checker, single-block salt-and-pepper field or chunk-aligned reset is visible. | |
+| D22 | P0 | Biome-bank blend | Cross at least six banks in different biomes. | Wet sediment is strongest at water, then yields irregularly over roughly 8–12 blocks until the native biome top fully owns the surface; no hard straight material border. | |
+| D23 | P1 | Controlled decoration | Inspect shallow water, lake surfaces, damp banks and one highland cascade. | Seegrass/tall seagrass, lily pads, bank plants, moss carpets, waterlogged stairs and spray occur only in suitable habitats and never as a uniform blanket. | |
+| D24 | P0 | Decoration chunk boundary | Follow decorated water across >= 10 chunk borders with F3+G. | No half tall-seagrass, cut dam, duplicate spray, cross-border write seam or generation exception. | |
+| D25 | P1 | Rare small dams | Search several kilometres of 3–8 block wide temperate rivers. | Dams are rare, span one validated channel, use oak log/fence/mud, remain inside one chunk and do not repeat periodically. `N/A` is allowed if none occurs in the searched seed. | |
+| D26 | P0 | Confluence and residual-ridge continuity | Inspect at least five tributary/main-river junctions and long wet cross-sections in Spectator. | Switching between source segments creates neither a multi-block trench nor a one-column bed hill; adjacent wet bed and surface steps remain at most one block and the channel does not stop/restart. | |
 
 ---
 
@@ -193,11 +200,11 @@ survives the Engine surface reconciliation without vertical translation.
 | --- | --- | --- | --- | --- | --- |
 | F01 | P0 | Plains topsoil | Inspect normal temperate plains/forest. | Grass/topsoil and dirt filler exist; broad naked-stone plains do not occur. | |
 | F02 | P0 | Desert surface | Inspect desert. | Sand surface/filler behaves like a normal desert. | |
-| F03 | P0 | Ocean floor | Inspect ocean floor. | Floor material is plausible and not universally grass or exposed top stone. | |
+| F03 | P0 | Ocean floor | Compare warm/cold shallows, shelf, deep floor and a steep marine slope. | Depth-, climate- and slope-appropriate formations occur; floor is not uniformly sand/grass, exposed top stone or random checker noise. | |
 | F04 | P0 | River/lake bed override | Inspect river and lake beds plus nearby banks. | Wet channel/body beds use restrained gravel/vanilla material; no circular sand halos are stamped around hydrology samples. | |
 | F05 | P1 | Steep terrain | Inspect cliffs/mountains. | Vanilla/guard interaction does not smear grass vertically down cliff faces in a repeating pattern. | |
 | F06 | P1 | Large height-difference fallback | Search highest mountains for exposed default stone at otherwise soil-covered tops. | Surface guard fills missed surface columns but does not overwrite valid special surfaces globally. | |
-| F07 | P0 | Watercourse palette coherence | Inspect at least 100 blocks of one riverbank from above. | Weighted blocks form restrained multi-block patches across bed/wet/dry zones rather than single-block salt-and-pepper noise. | |
+| F07 | P0 | Watercourse palette coherence | Inspect at least 100 blocks of one riverbank from above. | Weighted blocks form broad domain-warped formations across bed/wet/dry zones rather than fixed-size patches or single-block salt-and-pepper noise. | |
 
 ---
 

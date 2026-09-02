@@ -147,6 +147,9 @@ def main() -> None:
     materializer_runtime_root = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/materializer"
     standard_materializer = materializer_runtime_root / "standard/VanillaBlockMaterializer.java"
     watercourse_palette = materializer_runtime_root / "standard/WatercourseMaterialPalette.java"
+    marine_palette = materializer_runtime_root / "standard/MarineMaterialPalette.java"
+    natural_material_field = materializer_runtime_root / "standard/NaturalMaterialField.java"
+    watercourse_decorator = materializer_runtime_root / "standard/WatercourseDecorator.java"
     standard_provider = materializer_runtime_root / "standard/VanillaBlockMaterializerProvider.java"
     functional_files = (
         worldgen_root / "EngineDensityBridge.java",
@@ -158,6 +161,9 @@ def main() -> None:
         worldgen_root / "HydrologyFillPass.java",
         standard_materializer,
         watercourse_palette,
+        marine_palette,
+        natural_material_field,
+        watercourse_decorator,
         standard_provider,
         materializer_runtime_root / "MaterializerRuntime.java",
     )
@@ -172,6 +178,7 @@ def main() -> None:
         materializer_api_root / "MaterializerCapabilities.java",
         materializer_api_root / "MaterializerContext.java",
         materializer_api_root / "MaterializerRegistry.java",
+        materializer_api_root / "WaterDecorationContext.java",
     )
     for api_file in materializer_api_files:
         if not api_file.is_file():
@@ -196,6 +203,7 @@ def main() -> None:
         "MaterializerRuntime.create(materializerContext)",
         "MaterializerRuntime.selectedId()",
         "hydrologyFillPass.apply(chunk, world)",
+        "materializer.decorateWatercourses(new WaterDecorationContext(",
     )
     for fragment in required_generator_fragments:
         if fragment not in generator_text:
@@ -204,6 +212,14 @@ def main() -> None:
         fail("mc1201 generator still contains deferred carver integration")
     if "simple solid/water columns" in generator_text:
         fail("mc1201 generator still describes the obsolete column-only adapter")
+    feature_start = generator_text.find("public void generateFeatures(")
+    feature_end = generator_text.find("public void getDebugHudText", feature_start)
+    feature_text = generator_text[feature_start:feature_end]
+    if (feature_start < 0
+            or feature_text.find("super.generateFeatures(world, chunk, structureAccessor);") < 0
+            or feature_text.find("super.generateFeatures(world, chunk, structureAccessor);")
+                > feature_text.find("materializer.decorateWatercourses(")):
+        fail("mc1201 must decorate through the materializer only after native biome features")
 
     density_text = (worldgen_root / "EngineDensityBridge.java").read_text(encoding="utf-8")
     if "SURFACE_SEAL_DEPTH" not in density_text:
@@ -401,7 +417,7 @@ def main() -> None:
             fail(f"mc1201 hydrology cave-margin protection is incomplete: {fragment}")
     fill_pass = worldgen_root / "HydrologyFillPass.java"
     fill_text = fill_pass.read_text(encoding="utf-8")
-    for fragment in ("hasMaterializedWater(sample)", "hydrologyBedState(sample, x, column.bedY(), z)", "fluidState(sample)", "repairWaterTop", "mayRepairHydrologyGap(sample)", "hydrologyGapBedY(sample, waterTopExclusive)", "hydrologyGapRepairRadius()", "oppositePair", "requiredWetEvidence"):
+    for fragment in ("hasMaterializedWater(sample)", "smoothedHydrologyBedY", "hydrologyBedState(sample, x, bedY, z)", "fluidState(sample)", "repairWaterTop", "mayRepairHydrologyGap(sample)", "hydrologyGapBedY(sample, waterTopExclusive)", "hydrologyGapRepairRadius()", "oppositePair", "requiredWetEvidence"):
         if fragment not in fill_text:
             fail(f"mc1201 final hydrology fill pass is incomplete: {fragment}")
     if 'integerOption("hydrology.gap_repair_radius", 2, 0, 4)' not in standard_text:
@@ -422,9 +438,53 @@ def main() -> None:
             fail(f"standard materializer is missing configurable terrain block set: {key}")
 
     blockset_text = blockset_source.read_text(encoding="utf-8")
-    for fragment in ("MAX_WEIGHT", "MAX_TOTAL_WEIGHT", "PATCH_SIZE", "weightedId(", "Math.floorDiv(x, PATCH_SIZE)"):
+    for fragment in ("MAX_WEIGHT", "MAX_TOTAL_WEIGHT", "weightedId(", "NaturalMaterialField.sample(x, z, salt, 42.0D)"):
         if fragment not in blockset_text:
-            fail(f"configured block sets are missing weighted spatial selection: {fragment}")
+            fail(f"configured block sets are missing weighted natural-formation selection: {fragment}")
+    if "PATCH_SIZE" in blockset_text or "Math.floorDiv(x, PATCH_SIZE)" in blockset_text:
+        fail("configured block sets must not select independent fixed-size random patches")
+
+    natural_field_text = natural_material_field.read_text(encoding="utf-8")
+    for fragment in ("valueNoise", "warpX", "warpZ", "safeScale", "sparse("):
+        if fragment not in natural_field_text:
+            fail(f"natural material field is missing coherent formation logic: {fragment}")
+
+    marine_text = marine_palette.read_text(encoding="utf-8")
+    for fragment in ("blockset.ocean.shallow_warm", "blockset.ocean.shallow_cold", "blockset.ocean.shelf", "blockset.ocean.deep", "blockset.ocean.rocky"):
+        if fragment not in marine_text:
+            fail(f"marine material palette is missing physical depth band: {fragment}")
+
+    decorator_text = watercourse_decorator.read_text(encoding="utf-8")
+    for fragment in (
+        "Blocks.SEAGRASS",
+        "Blocks.TALL_SEAGRASS",
+        "Blocks.LILY_PAD",
+        "Blocks.MOSS_CARPET",
+        "Blocks.SUGAR_CANE",
+        "Blocks.FERN",
+        "Blocks.GRASS",
+        "Blocks.BAMBOO",
+        "Blocks.COBBLESTONE_STAIRS",
+        "Blocks.ANDESITE_STAIRS",
+        "Blocks.SANDSTONE_STAIRS",
+        "Blocks.COBWEB",
+        "Blocks.WHITE_CARPET",
+        "Blocks.OAK_LOG",
+        "Blocks.OAK_FENCE",
+        "Properties.WATERLOGGED",
+        "Properties.HORIZONTAL_FACING",
+        "Properties.AXIS",
+        "Properties.DOUBLE_BLOCK_HALF",
+        "pruneAquaticPlant",
+        "insideChunk(context.chunk(), x, z)",
+    ):
+        if fragment not in decorator_text:
+            fail(f"mc1201 watercourse decorator is incomplete or not chunk-safe: {fragment}")
+    for option in ("decoration.enabled", "decoration.plants", "decoration.partial_blocks", "decoration.spray", "decoration.dams"):
+        if option not in decorator_text:
+            fail(f"mc1201 watercourse decoration is missing bounded option: {option}")
+    if "net.minecraft" not in decorator_text:
+        fail("version-bound decoration must remain in the concrete mc1201 family")
 
     watercourse_text = watercourse_palette.read_text(encoding="utf-8")
     for fragment in (

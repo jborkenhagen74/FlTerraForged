@@ -169,4 +169,9 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     public int hydrologyBankSealDepth() {
         return delegate.hydrologyBankSealDepth();
     }
+
+    @Override
+    public void decorateWatercourses(WaterDecorationContext context) {
+        delegate.decorateWatercourses(context);
+    }
 }

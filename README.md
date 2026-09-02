@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r29 keeps the r28 marine corrections and materializes climate-weighted, basin-aware Engine hydrology through height-/climate-aware submerged, wet-bank and dry-bank palettes. Dry catchments contribute less runoff, and persistent desert rivers retain a distinct riparian envelope before generic coast/sand handling. Vanilla features and ores remain on the inherited biome-generation path. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r30 pairs with Engine r28, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled plants, waterlogged stairs, spray and rare dams. Vanilla ores and all unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -151,6 +151,14 @@ dry bank transition and chooses full-block palettes from height and climate. The
 blockset keys remain overrides; profile-specific weighted palettes are optional. Engine r27 makes
 river core depth altitude-aware and lake depth basin-size-aware so lowland lakes and broad rivers no
 longer collapse to a single water block while genuinely small ponds may remain shallow.
+
+### r30 continuous hydrology and natural decoration
+
+r30 pairs with Engine r28. Lake depth no longer jumps at internal drainage-grid edges and river
+water grade is bounded before block projection. River, lake, bank and ocean materials use broad
+domain-warped formations rather than fixed random patches. The outer bank progressively yields to
+the selected biome surface. The mc1201 materializer then adds only 1.20.1-available plants,
+waterlogged stairs, moss carpets, waterfall spray and rare small dams in validated habitats.
 
 ### r27 Central-Europe / biome-matrix finalization
 

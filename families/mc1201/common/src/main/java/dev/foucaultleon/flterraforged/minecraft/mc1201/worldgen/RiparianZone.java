@@ -34,9 +34,7 @@ public final class RiparianZone {
                 && river.waterSurfaceHeight() > sample.surfaceHeight() + 0.05D) {
             return false;
         }
-        double halfWidth = Math.max(1.0D, river.width() * 0.5D);
-        double fringe = 5.0D + Math.min(12.0D, Math.sqrt(river.flow()) * 1.80D);
-        return river.distance() <= halfWidth + fringe;
+        return bankStrength(sample) > 0.0D;
     }
 
     /**
@@ -49,10 +47,7 @@ public final class RiparianZone {
         if (!isRiverBank(sample)) {
             return false;
         }
-        var river = sample.river();
-        double halfWidth = Math.max(1.0D, river.width() * 0.5D);
-        double wetReach = 2.5D + Math.min(4.5D, Math.sqrt(river.flow()) * 0.70D);
-        return river.distance() <= halfWidth + wetReach;
+        return bankStrength(sample) >= 0.58D;
     }
 
     /**
@@ -63,5 +58,46 @@ public final class RiparianZone {
      */
     public static boolean isOuterBank(TerrainSample sample) {
         return isRiverBank(sample) && !isWetBank(sample);
+    }
+
+    /**
+     * Returns continuous riverbank influence from one at the waterline to zero in the biome.
+     *
+     * @param sample Engine terrain sample
+     * @return bank influence in {@code [0,1]}
+     */
+    public static double bankStrength(TerrainSample sample) {
+        var river = sample.river();
+        if (!river.isAvailable() || !river.hasFlow() || !(river.flow() > 0.0D)) {
+            return 0.0D;
+        }
+        if (river.hasWaterSurfaceHeight()
+                && river.waterSurfaceHeight() > sample.surfaceHeight() + 0.05D) {
+            return 0.0D;
+        }
+        double halfWidth = Math.max(1.0D, river.width() * 0.5D);
+        double fringe = 8.0D + Math.min(4.0D, Math.sqrt(river.flow()) * 0.90D);
+        double offset = Math.max(0.0D, river.distance() - halfWidth);
+        return 1.0D - smooth(Math.min(1.0D, offset / fringe));
+    }
+
+    /**
+     * Returns continuous dry-lake-shore influence encoded by the Engine's signed distance.
+     *
+     * @param sample Engine terrain sample
+     * @return shore influence in {@code [0,1]}
+     */
+    public static double lakeShoreStrength(TerrainSample sample) {
+        var river = sample.river();
+        if (!river.isAvailable() || river.hasFlow() && river.flow() > 0.0D) {
+            return 0.0D;
+        }
+        double transition = Math.max(1.0D, river.width());
+        double outwardDistance = Math.max(0.0D, river.distance());
+        return 1.0D - smooth(Math.min(1.0D, outwardDistance / transition));
+    }
+
+    private static double smooth(double value) {
+        return value * value * (3.0D - 2.0D * value);
     }
 }

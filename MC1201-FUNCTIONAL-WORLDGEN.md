@@ -4,8 +4,8 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r29 keeps the r20 absolute-Y substrate model and extends the stable
-Minecraft realization of Engine-owned river water levels.
+Snapshot r30 keeps the r20 absolute-Y substrate model, uses Engine r28 continuous water geometry
+and adds family-bound natural material/decorative realization after native features.
 
 ## Ownership boundary
 
@@ -215,3 +215,19 @@ dry outer transition, then chooses stable full-block palettes from height and cl
 selection forms deterministic small patches. Existing global blocksets override every profile;
 profile-specific weighted keys can replace only one height/climate/zone combination. Decorative
 plants, partial blocks and waterfall spray remain outside this structural pass.
+
+## r30 continuous geometry, material formations and decoration
+
+Engine r28 replaces lake depth estimates derived from cell-local slope with a basin-owned distance
+field. The projected lake bed and adjacent river water levels are therefore limited to one block of
+change per horizontal block. `HydrologyFillPass` additionally lowers only a proven residual ridge
+between opposing wet columns of the same surface.
+
+The standard materializer no longer hashes independent three-block patches. River, lake, bank and
+marine palettes use broad continuous formations; the outer 8–12 block bank probabilistically yields
+to the native biome surface as hydrologic influence falls. After native biome features, the active
+materializer receives `WaterDecorationContext`. The mc1201 implementation uses it for habitat-bound
+plants, waterlogged stairs, moss carpets, spray and rare small dams without writing outside the
+current chunk. Existing native seagrass is thinned to the same broad habitat field; kelp and
+unrelated features remain untouched. All concrete blocks and properties remain family-local to
+Minecraft 1.20.1.

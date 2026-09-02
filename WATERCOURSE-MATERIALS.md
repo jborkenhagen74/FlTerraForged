@@ -1,6 +1,6 @@
 # Standardmaterialisierung für Wasserläufe
 
-Stand: **0.1.0-SNAPSHOT-r29**, Minecraft-Familie **mc1201**
+Stand: **0.1.0-SNAPSHOT-r30**, Minecraft-Familie **mc1201**
 
 ## Ziel
 
@@ -13,8 +13,10 @@ drei sichtbaren Zonen zugeordnet:
 3. **Trockenzone:** der äußere Übergang in die normale Biomoberfläche.
 
 Unter Feucht- und Trockenzone liegt zusätzlich ein profilspezifischer stabiler Füller. Die Auswahl
-innerhalb einer Palette erfolgt deterministisch in kleinen zusammenhängenden Flecken. Sie ist daher
-reproduzierbar und erzeugt kein unabhängiges Zufallsrauschen pro Block.
+innerhalb einer Palette folgt einem verzerrten, niederfrequenten Materialfeld. Dadurch entstehen
+breite Sedimentlinsen und Gesteinszüge statt fester 3×3-Zufallsfelder oder unabhängigem Rauschen pro
+Block. Die äußere Uferzone ist 8–12 Blöcke breit und gibt mit abnehmendem Hydrologieeinfluss immer
+mehr Spalten an die normale Biomoberfläche zurück.
 
 ## Höhen- und Klimaprofile
 
@@ -71,6 +73,20 @@ Für jedes Profil stehen vier Endungen zur Verfügung:
 Ein Eintrag ohne `*Gewicht` hat Gewicht 1. Zulässig sind Gewichte von 1 bis 64; die Summe eines
 Blocksets darf 256 nicht überschreiten.
 
+Ozeanböden besitzen eigene physische Formationen. Sie werden nach Wassertiefe, Hangneigung und
+Temperatur gewählt und können ebenfalls überschrieben werden:
+
+```properties
+blockset.ocean.shallow_warm=minecraft:sand*5,minecraft:gravel*2,minecraft:clay
+blockset.ocean.shallow_cold=minecraft:gravel*3,minecraft:stone,minecraft:sand,minecraft:clay
+blockset.ocean.shelf=minecraft:sand*2,minecraft:gravel*3,minecraft:clay*2
+blockset.ocean.deep=minecraft:clay*3,minecraft:gravel*2,minecraft:mud,minecraft:stone
+blockset.ocean.rocky=minecraft:stone*3,minecraft:andesite*2,minecraft:gravel
+```
+
+Der globale Schlüssel `blockset.ocean_bed` bleibt ein bewusster Komplett-Override und ersetzt bei
+Angabe alle fünf Standardformationen.
+
 Schmale, vollständig von einem zusammenhängenden Fluss- oder Seespiegel eingeschlossene
 Landspalten können abschließend repariert werden:
 
@@ -85,34 +101,70 @@ werden dadurch nicht geflutet. `0` deaktiviert nur diese abgeleitete Reparatur; 
 ausgewiesene Wasserspalten werden weiterhin wiederhergestellt. Im Tiefland werden reparierte
 Spalten mit drei vollen Wasserblöcken ausgeformt, oberhalb davon mit zwei.
 
-## Bewusst noch nicht als tragendes Material verwendet
+## Nachgelagerte natürliche Dekoration
 
-Folgende gewünschte Elemente gehören nicht in den Full-Block-Untergrund und werden daher nicht
-blind als Bettblock gesetzt:
+r30 führt den Materializer-Hook nach den nativen Biomfeatures aus. Der Standardmaterializer setzt
+nur Elemente, deren Platzierungsbedingungen im fertigen Chunk erfüllt sind:
 
-- Stufen, Teppiche und Schneeschichten benötigen Teilblock-/Waterlogging-Unterstützung;
-- Seegras, Seerosen, Bambus, Ranken, Tropfblatt und Sporenblüten benötigen Platzierungs- und
-  Überlebensregeln sowie eine kontrollierte Dichte;
-- Zäune als Biberdamm sind ein Geländeelement und kein zufälliges Ufermaterial;
-- weißes Betonpulver härtet an Wasser aus; Spinnweben benötigen eine echte Wasserfall-/Gischtzone;
-- schwarzes Betonpulver ist unter Wasser nicht stabil und wird deshalb durch Schlamm/Lehm ersetzt;
-- Leuchtbeeren können nicht einfach als Unterwasser-Bettblock verwendet werden.
+| Element | Habitat/Begrenzung |
+| --- | --- |
+| Seegras / hohes Seegras | vorhandenes Vanilla-Seegras wird auf breite Habitatcluster in 2–8 Block tiefem, nicht zu steilem Wasser ausgedünnt und dort gezielt ergänzt |
+| Seerosen | feuchte Seen mit freier Wasseroberfläche |
+| Moosteppich | feuchte innere Uferzone; nie als tragender Bettblock |
+| Zuckerrohr, Farn, Gras, Bambus | klima- und feuchteabhängige, dünn verteilte Uferpunkte |
+| Wassergefüllte Stein-/Sandsteinstufen | seltene zusammenhängende Bettformationen in steilerem Gelände |
+| Gischt | nur an einem nachgewiesenen Einblock-Gefälleschritt eines Hochlandflusses; Spinnwebe über Wasser und weißer Teppich auf einem trockenen Vorsprung |
+| kleiner Damm | sehr selten, quer zu einem 3–8 Block breiten gemäßigten Fluss; Eichenstämme, Zaun und Schlammenden |
 
-Diese Elemente gehören in einen nachgelagerten, materializer-gesteuerten Dekorationspass. Die hier
-eingeführte Zonierung und positionsabhängige SPI bilden dafür die Grundlage, ohne die derzeitige
-Full-Block-Geometrie oder externe Materializer zu umgehen.
+Weißes oder schwarzes Betonpulver wird absichtlich nicht an bzw. unter Wasser gesetzt, weil es dort
+zu Beton aushärtet. Jede Platzierung ist auf den aktuell bearbeiteten Chunk beschränkt; damit
+entstehen an Chunkgrenzen keine halben Doppelblockpflanzen oder abgeschnittenen Dämme.
+
+```properties
+decoration.enabled=true
+decoration.plants=true
+decoration.partial_blocks=true
+decoration.spray=true
+decoration.dams=true
+```
+
+## Strikte Versionsbindung
+
+Der Dekorator liegt ausschließlich in `families/mc1201`. Für Minecraft 1.20.1 wurden nur dort
+vorhandene Block- und State-Eigenschaften verwendet: `SEAGRASS`, `TALL_SEAGRASS`, `LILY_PAD`,
+`MOSS_CARPET`, `SUGAR_CANE`, `FERN`, `GRASS`, `BAMBOO`, `COBBLESTONE_STAIRS`,
+`ANDESITE_STAIRS`, `SANDSTONE_STAIRS`, `COBWEB`, `WHITE_CARPET`, `OAK_LOG`, `OAK_FENCE`, `MUD`
+sowie `WATERLOGGED`, `HORIZONTAL_FACING`, `AXIS` und `DOUBLE_BLOCK_HALF`. Spätere
+Minecraft-Familien müssen ihre eigene Verfügbarkeitsliste und eigene Dekoratorimplementierung
+bereitstellen; r30 kopiert diese Auswahl nicht in die Platzhalter der Versionsmatrix.
 
 ## Tiefenprofil des Begleit-Engine-Stands
 
-FlTerraForged r29 ist für Engine r27 vorgesehen:
+FlTerraForged r30 ist für Engine r28 vorgesehen:
 
 - Tiefland-Flusskerne: Zielwert etwa 3,5 Blöcke vor dem Ufer-Taper;
 - mittlere Lagen: weich abnehmend bis etwa 2,75 Blöcke;
 - Hochland: weich abnehmend auf etwa 2,25 Blöcke;
 - extremes Hochland: langfristig bis etwa 1,75 Blöcke;
-- große, niedrige Seen: mindestens etwa 3,5 Blöcke schon im zusammenhängenden Wasserkörper und
-  deutlich tiefere Kerne;
+- große, niedrige Seen: etwa 3–4 Blöcke im zusammenhängenden Innenkörper und kontinuierlich bis
+  ungefähr 10–14 Blöcke in ausreichend großen/tiefen Kernen;
 - kleine Einzelbecken/Teiche dürfen weiterhin flach bleiben.
 
 Alle Höhen sind kontinuierliche Engine-Zielwerte. Der mc1201-Standardmaterializer quantisiert sie
 anschließend konsistent auf ganze Minecraft-Blöcke.
+
+Engine r28 berechnet zusätzlich ein kontinuierliches, basin-eigenes Distanzfeld zur Seeuferkante.
+Damit kann die Tiefe an einer internen Drainage-Rastergrenze nicht mehr springen. Der finale
+Hydrologiepass senkt eingeschlossene Resthügel auf den nachbarschaftlich belegten Bettverlauf ab;
+er hebt dabei keine natürlichen Vertiefungen an und führt keinen freien Flood-Fill aus.
+
+Bei Flussmündungen wird die Sohltiefe nicht mehr aus Breite oder Durchfluss des jeweils nächsten
+Segments abgeleitet. Ein Wechsel vom Neben- zum Hauptfluss kann deshalb keinen vertikalen Graben
+erzeugen. Die Engine korrigiert höchstens zwei zusätzliche Blöcke eines isolierten Resthügels;
+reicht das nicht bis zur hydraulischen Sohle, wird das Wassersignal verworfen statt unter einem
+Ozeanboden oder Berg weitergeführt zu werden.
+
+Der abschließende Engine-Audit tastete für zwei unabhängige Seeds jeweils 1024×1024 Spalten ab.
+Unter den zusammen 36.717 materialisierten Inland-Wasserspalten gab es keine allseitig
+eingeschlossene Lücke, keine nicht tragfähige Wasserkennung und keinen benachbarten Wasser- oder
+Bett-Sprung über einen Block.

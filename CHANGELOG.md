@@ -1,3 +1,17 @@
+## 0.1.0-SNAPSHOT-r30
+
+- Replace fixed three-block material patches with continuous domain-warped formation fields for river, lake, shore and ocean sediments.
+- Add depth-, slope- and climate-aware marine floor profiles for warm/cold shallows, continental shelf, deep floor and exposed rock; retain `blockset.ocean_bed` as a complete override.
+- Blend the 8–12 block outer river/lake bank back into native biome surface blocks instead of forcing sediment across the whole transition.
+- Add the optional `decorateWatercourses(WaterDecorationContext)` materializer hook after native features and forward it through `DelegatingBlockMaterializer`.
+- Add the mc1201-only natural decorator for clustered seagrass/tall seagrass, lily pads, moisture-aware bank plants, moss carpets, waterlogged stairs, bounded waterfall spray and rare habitat-validated small dams.
+- Thin native uniform seagrass into the same broad habitat clusters before adding missing plants; leave kelp and unrelated biome features untouched.
+- Restrict every decorator write to the current chunk so double plants, spray and structures cannot be cut by cross-chunk writes.
+- Smooth high residual hydrology bed cells only when opposing wet neighbors prove one continuous water surface; no free flood fill or raising of natural depressions.
+- Pair with Engine `0.1.0-SNAPSHOT-r28`, whose continuous basin-boundary distance field and bounded river grade remove internal lake-bed cliffs and multi-block water breaks.
+- Keep river-bed depth independent of the winning segment width/flow at confluences and allow only a bounded residual-ridge correction, eliminating the audited one-column hills without accepting deeply buried false water signals.
+- Keep the all-version build expansion explicitly deferred until this 1.20.1 stability gate has been tested in a real world.
+
 ## 0.1.0-SNAPSHOT-r29
 
 - Add a standard three-zone watercourse material system: submerged bed, damp waterline and dry outer transition, plus a stable bank filler below both shore zones.

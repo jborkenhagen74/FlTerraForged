@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationContext;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.MaterializerRuntime;
@@ -18,6 +19,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.biome.source.BiomeSource;
 import net.minecraft.world.gen.GenerationStep;
@@ -232,6 +234,19 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     @Override
     public void populateEntities(ChunkRegion region) {
         vanilla.populateEntities(region);
+    }
+
+    @Override
+    public void generateFeatures(
+            StructureWorldAccess world,
+            Chunk chunk,
+            StructureAccessor structureAccessor) {
+        super.generateFeatures(world, chunk, structureAccessor);
+        materializer.decorateWatercourses(new WaterDecorationContext(
+                world,
+                chunk,
+                session.boundWorld()));
+        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override

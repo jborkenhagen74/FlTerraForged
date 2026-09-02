@@ -14,8 +14,6 @@ final class ConfiguredBlockSet {
 
     private static final int MAX_WEIGHT = 64;
     private static final int MAX_TOTAL_WEIGHT = 256;
-    private static final int PATCH_SIZE = 3;
-
     private final List<BlockState> states;
     private final long salt;
     private final boolean configured;
@@ -75,7 +73,11 @@ final class ConfiguredBlockSet {
         return new ConfiguredBlockSet(parsed, key.hashCode(), true);
     }
 
-    /** Returns whether the user explicitly configured this block set. */
+    /**
+     * Returns whether the user explicitly configured this block set.
+     *
+     * @return {@code true} for an explicit configuration override
+     */
     boolean isConfigured() {
         return configured;
     }
@@ -104,23 +106,12 @@ final class ConfiguredBlockSet {
         if (states.size() == 1) {
             return states.get(0);
         }
-        long hash = salt;
-        int patchX = Math.floorDiv(x, PATCH_SIZE);
-        int patchZ = Math.floorDiv(z, PATCH_SIZE);
-        hash = mix(hash ^ (long) patchX * 0x9E3779B97F4A7C15L);
-        hash = mix(hash ^ (long) y * 0x165667B19E3779F9L);
-        hash = mix(hash ^ (long) patchZ * 0xC2B2AE3D27D4EB4FL);
-        hash = mix(hash ^ quantize(sample.continentalness(), 16.0D));
-        hash = mix(hash ^ quantize(sample.slope(), 16.0D));
-        if (sample.climate().isAvailable()) {
-            hash = mix(hash ^ quantize(sample.climate().temperature(), 16.0D));
-            hash = mix(hash ^ quantize(sample.climate().moisture(), 16.0D));
-        }
-        if (sample.river().isAvailable()) {
-            hash = mix(hash ^ quantize(sample.river().flow(), 4.0D));
-            hash = mix(hash ^ quantize(sample.river().width(), 4.0D));
-        }
-        int index = Math.floorMod((int) (hash ^ (hash >>> 32)), states.size());
+        double formation = NaturalMaterialField.sample(x, z, salt, 42.0D);
+        double relief = Math.min(1.0D, Math.max(0.0D, sample.slope() / 2.5D));
+        double stratified = Math.max(0.0D, Math.min(
+                0.999999D,
+                formation * 0.90D + relief * 0.07D + Math.floorMod(y, 7) * 0.003D));
+        int index = Math.min(states.size() - 1, (int) Math.floor(stratified * states.size()));
         return states.get(index);
     }
 
@@ -161,19 +152,6 @@ final class ConfiguredBlockSet {
                     "Invalid block id '" + token + "' in materializer option '" + key + "'",
                     exception);
         }
-    }
-
-    private static long mix(long value) {
-        value ^= value >>> 33;
-        value *= 0xff51afd7ed558ccdl;
-        value ^= value >>> 33;
-        value *= 0xc4ceb9fe1a85ec53l;
-        value ^= value >>> 33;
-        return value;
-    }
-
-    private static long quantize(double value, double scale) {
-        return Double.isFinite(value) ? Math.round(value * scale) : 0L;
     }
 
     private record WeightedId(String id, int weight) {

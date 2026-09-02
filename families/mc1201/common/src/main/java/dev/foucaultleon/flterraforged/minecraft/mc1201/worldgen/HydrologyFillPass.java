@@ -57,7 +57,10 @@ final class HydrologyFillPass {
                 WaterColumn column = columns[gridZ][gridX];
 
                 if (column.hydrologyWet() || column.marineWet()) {
-                    restoreExact(chunk, mutable, x, z, column);
+                    int bedY = column.hydrologyWet()
+                            ? smoothedHydrologyBedY(columns, gridX, gridZ, column)
+                            : column.bedY();
+                    restoreExact(chunk, mutable, x, z, column, bedY);
                     continue;
                 }
 
@@ -98,21 +101,46 @@ final class HydrologyFillPass {
             BlockPos.Mutable mutable,
             int x,
             int z,
-            WaterColumn column) {
+            WaterColumn column,
+            int bedY) {
         TerrainSample sample = column.sample();
         if (column.hydrologyWet()) {
             set(
                     chunk,
                     mutable,
                     x,
-                    column.bedY(),
+                    bedY,
                     z,
-                    materializer.hydrologyBedState(sample, x, column.bedY(), z));
+                    materializer.hydrologyBedState(sample, x, bedY, z));
         }
         BlockState fluid = materializer.fluidState(sample);
-        for (int y = column.bedY() + 1; y < column.waterTopExclusive(); y++) {
+        for (int y = bedY + 1; y < column.waterTopExclusive(); y++) {
             set(chunk, mutable, x, y, z, fluid);
         }
+    }
+
+    private static int smoothedHydrologyBedY(
+            WaterColumn[][] columns,
+            int gridX,
+            int gridZ,
+            WaterColumn center) {
+        WaterColumn north = columns[gridZ - 1][gridX];
+        WaterColumn south = columns[gridZ + 1][gridX];
+        WaterColumn west = columns[gridZ][gridX - 1];
+        WaterColumn east = columns[gridZ][gridX + 1];
+        int target = center.bedY();
+        if (sameSurface(north, center) && sameSurface(south, center)) {
+            target = Math.min(target, Math.max(north.bedY(), south.bedY()) + 1);
+        }
+        if (sameSurface(west, center) && sameSurface(east, center)) {
+            target = Math.min(target, Math.max(west.bedY(), east.bedY()) + 1);
+        }
+        return target;
+    }
+
+    private static boolean sameSurface(WaterColumn candidate, WaterColumn center) {
+        return candidate.hydrologyWet()
+                && Math.abs(candidate.waterTopExclusive() - center.waterTopExclusive()) <= 1;
     }
 
     private int repairWaterTop(

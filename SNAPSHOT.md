@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r29**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r30**.
 
-Current package revision: **r29** 0.1.0-SNAPSHOT
+Current package revision: **r30** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -149,3 +149,11 @@ selected from height and climate profiles, while global and profile-specific blo
 configurable. Position-aware materializer hooks keep block patches spatially coherent. Engine r27
 deepens broad lowland rivers and connected lake basins without turning every small pond into a deep
 lake. Decorative plants, partial blocks and waterfall spray remain a separate follow-up pass.
+
+### r30 continuous water geometry and version-bound decoration
+
+r30 pairs with Engine r28. Continuous basin distance replaces cell-local lake depth estimates;
+the final host pass repairs only proven enclosed ridges. Low-frequency material formations replace
+the former fixed patches, outer banks fade back into native biome surfaces, and the mc1201-only
+decorator adds validated plants, waterlogged stairs, carpets, spray and rare dams. The build matrix
+is intentionally unchanged until the 1.20.1 runtime stability gate passes.

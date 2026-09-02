@@ -94,6 +94,19 @@ public final class EngineWorldSession implements AutoCloseable {
         }
     }
 
+    /**
+     * Returns the already seed-bound terrain view during the later feature stage.
+     *
+     * @return current world-scoped terrain sampler
+     * @throws IllegalStateException when no earlier chunk stage has bound the session
+     */
+    public synchronized TerrainWorld boundWorld() {
+        if (world == null) {
+            throw new IllegalStateException("Engine world is not bound before feature decoration");
+        }
+        return world;
+    }
+
 
     private static NoiseConfigSeedAccess seedAccess(NoiseConfig noiseConfig) {
         try {

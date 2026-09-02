@@ -1,6 +1,6 @@
 # Austauschbare Block-Materializer – Minecraft 1.20.1 / Fabric
 
-Stand: **0.1.0-SNAPSHOT-r29**
+Stand: **0.1.0-SNAPSHOT-r30**
 
 ## Ziel
 
@@ -82,6 +82,7 @@ Wichtige Typen:
 - `MaterializerCapabilities`
 - `MaterializerRegistry`
 - `DelegatingBlockMaterializer`
+- `WaterDecorationContext`
 
 Die SPI ist bewusst **Minecraft-familienbezogen**. Ein Materializer für 1.20.1 muss nicht binär mit
 einer späteren Minecraft-Familie kompatibel sein. Die Engine-API bleibt davon unberührt und weiterhin
@@ -153,8 +154,8 @@ Der Provider kann dabei den mit FlTerraForged gelieferten
 
 ## Was der Materializer kontrolliert
 
-Die Materialisierung ist in r26 nicht mehr nur ein Höhen-Quantizer. Der aktive Materializer liefert
-konsistent für alle relevanten Worldgen-Stufen:
+Die Materialisierung ist seit r26 nicht mehr nur ein Höhen-Quantizer. Der aktive Materializer
+liefert konsistent für alle relevanten Worldgen-Stufen:
 
 - vertikale Auflösung und Capabilities,
 - materialisierte Festbodenhöhe,
@@ -169,7 +170,8 @@ konsistent für alle relevanten Worldgen-Stufen:
 - erzwungene Surface-Overrides,
 - Surface-Fallback,
 - Hydrologie-Bett,
-- Hydrologie-Seal nach Cave-Carving.
+- Hydrologie-Seal nach Cave-Carving,
+- optionalen versionsgebundenen Bewuchs, Teilblöcke, Gischt und kleine Dämme nach nativen Features.
 
 Damit kann eine externe Mod die Standardmaterialisierung tatsächlich ersetzen. Es bleiben keine
 fest verdrahteten `Blocks.GRAVEL`, `Blocks.SAND`, `Blocks.DIRT` usw. in der Worldgen-Pipeline, die den
@@ -213,13 +215,13 @@ blockset.mountains=minecraft:stone,minecraft:gravel
 blockset.ocean_bed=minecraft:gravel,minecraft:sand
 ```
 
-If a global option is absent, r29 uses the complete height- and climate-aware three-zone
+If a global option is absent, r30 uses the complete height- and climate-aware three-zone
 watercourse palette. Profile-specific keys use the form
 `blockset.watercourse.<profile>.<bed|wet_bank|dry_bank|bank_filler>`. See
-`WATERCOURSE-MATERIALS.md` for the complete mapping. Selection is deterministic from quantized
-Engine signals and three-block spatial patches, so chunk regeneration does not reshuffle materials
-and adjacent surfaces do not devolve into per-block salt-and-pepper noise. An external materializer
-may reuse these keys or ignore them entirely.
+`WATERCOURSE-MATERIALS.md` for the complete mapping. Selection follows a deterministic,
+domain-warped low-frequency field, so chunk regeneration does not reshuffle materials and adjacent
+surfaces form geological bands instead of fixed-size random patches. An external materializer may
+reuse these keys or ignore them entirely.
 
 The original sample-only SPI methods remain available. Position-aware overloads are additive and
 default to their original counterpart, so an existing provider still compiles and behaves as
@@ -230,3 +232,8 @@ before. A provider that wants spatially varying decisions can override the new o
 requires consistent wet evidence on opposing sides; external providers may reduce the radius to
 zero or replace the bed quantization. This keeps final water-gap repair compatible with future
 partial-block/waterlogging materializers.
+
+`decorateWatercourses(WaterDecorationContext)` is an additive default no-op hook. The host calls it
+after native biome features for the current chunk. Existing providers therefore stay source
+compatible. A provider overriding it owns every concrete block and must enforce the availability
+and block-state rules of its Minecraft family. `DelegatingBlockMaterializer` forwards the hook.

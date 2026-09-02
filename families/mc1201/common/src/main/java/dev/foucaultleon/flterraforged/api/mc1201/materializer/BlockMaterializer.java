@@ -295,4 +295,16 @@ public interface BlockMaterializer {
     default int hydrologyBankSealDepth() {
         return 5;
     }
+
+    /**
+     * Applies optional family-specific vegetation, partial blocks, spray and small water structures.
+     *
+     * <p>The host invokes this hook after native biome features. The default is intentionally empty
+     * so legacy and full-block-only providers remain source-compatible.</p>
+     *
+     * @param context writable chunk and semantic terrain context
+     */
+    default void decorateWatercourses(WaterDecorationContext context) {
+        // Optional extension point.
+    }
 }

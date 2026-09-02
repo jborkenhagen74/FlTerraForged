@@ -3,6 +3,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.standard;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerCapabilities;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationContext;
 import dev.foucaultleon.flterraforged.engine.api.river.RiverSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
@@ -39,6 +40,8 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     private final ConfiguredBlockSet substrate;
     private final ConfiguredBlockSet seal;
     private final WatercourseMaterialPalette watercourses;
+    private final MarineMaterialPalette marine;
+    private final WatercourseDecorator decorator;
     private final int hydrologyCaveMargin;
     private final int hydrologyBedSealDepth;
     private final int hydrologyBankSealDepth;
@@ -68,6 +71,8 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         this.substrate = set("blockset.substrate", context.defaultBlock());
         this.seal = set("blockset.seal", context.defaultBlock());
         this.watercourses = new WatercourseMaterialPalette(context.options());
+        this.marine = new MarineMaterialPalette(context.options());
+        this.decorator = new WatercourseDecorator(this, context.options());
         this.hydrologyCaveMargin = integerOption("hydrology.cave_margin", 6, 0, 16);
         this.hydrologyBedSealDepth = integerOption("hydrology.bed_seal_depth", 5, 1, 16);
         this.hydrologyBankSealDepth = integerOption("hydrology.bank_seal_depth", 8, 1, 24);
@@ -202,10 +207,16 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
             return watercourses.bankFiller(sample, x, y, z);
         }
         if (StandardTerrainTypes.OCEAN.equals(terrain)) {
-            return oceanBed.choose(sample, x, y, z);
+            return oceanBed.isConfigured()
+                    ? oceanBed.choose(sample, x, y, z)
+                    : marine.bed(sample, x, y, z, context.seaLevel());
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return coast.choose(sample, x, y, z);
+            return waterTopExclusive(sample) > solidSurfaceTop(sample)
+                    ? oceanBed.isConfigured()
+                            ? oceanBed.choose(sample, x, y, z)
+                            : marine.bed(sample, x, y, z, context.seaLevel())
+                    : coast.choose(sample, x, y, z);
         }
         return landFiller.choose(sample, x, y, z);
     }
@@ -230,22 +241,36 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                     : watercourses.bed(sample, x, y, z));
         }
         if (StandardTerrainTypes.LAKE_SHORE.equals(terrain)) {
-            if (dryShore(sample)) {
+            if (watercourses.isWetBank(sample)) {
+                return Optional.of(lakeShoreWet.isConfigured()
+                        ? lakeShoreWet.choose(sample, x, y, z)
+                        : watercourses.wetBank(sample, x, y, z));
+            }
+            if (watercourses.coversTransition(sample, x, z)) {
                 return Optional.of(lakeShoreDry.isConfigured()
                         ? lakeShoreDry.choose(sample, x, y, z)
                         : watercourses.dryBank(sample, x, y, z));
             }
-            return Optional.of(lakeShoreWet.isConfigured()
-                    ? lakeShoreWet.choose(sample, x, y, z)
-                    : watercourses.wetBank(sample, x, y, z));
+            return Optional.empty();
         }
         if (RiparianZone.isDryBank(sample) || RiparianZone.isRiverBank(sample)) {
+            if (!watercourses.isWetBank(sample)
+                    && !watercourses.coversTransition(sample, x, z)) {
+                return Optional.empty();
+            }
             if (riparian.isConfigured()) {
                 return Optional.of(riparian.choose(sample, x, y, z));
             }
-            return Optional.of(RiparianZone.isWetBank(sample)
+            return Optional.of(watercourses.isWetBank(sample)
                     ? watercourses.wetBank(sample, x, y, z)
                     : watercourses.dryBank(sample, x, y, z));
+        }
+        if (StandardTerrainTypes.OCEAN.equals(terrain)
+                || (StandardTerrainTypes.COAST.equals(terrain)
+                        && waterTopExclusive(sample) > solidSurfaceTop(sample))) {
+            return Optional.of(oceanBed.isConfigured()
+                    ? oceanBed.choose(sample, x, y, z)
+                    : marine.bed(sample, x, y, z, context.seaLevel()));
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
             return Optional.of(coast.choose(sample, x, y, z));
@@ -285,7 +310,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     public BlockState fallbackSurfaceState(TerrainSample sample, int x, int z) {
         int y = solidSurfaceY(sample);
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())) {
-            return oceanBed.choose(sample, x, y, z);
+            return oceanBed.isConfigured()
+                    ? oceanBed.choose(sample, x, y, z)
+                    : marine.bed(sample, x, y, z, context.seaLevel());
         }
         return landSurface.choose(sample, x, y, z);
     }
@@ -320,7 +347,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     public boolean mayRepairHydrologyGap(TerrainSample sample) {
         TerrainType terrain = sample.terrainType();
         return StandardTerrainTypes.RIVER.equals(terrain)
-                || StandardTerrainTypes.LAKE.equals(terrain);
+                || StandardTerrainTypes.LAKE.equals(terrain)
+                || sample.river().hasWaterSurfaceHeight()
+                        && sample.river().depth() > MIN_WET_DEPTH;
     }
 
     @Override
@@ -353,6 +382,11 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         return hydrologyBankSealDepth;
     }
 
+    @Override
+    public void decorateWatercourses(WaterDecorationContext context) {
+        decorator.decorate(context);
+    }
+
     private int integerOption(String key, int fallback, int min, int max) {
         String raw = context.options().get(key);
         if (raw == null || raw.isBlank()) {
@@ -373,12 +407,6 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     private ConfiguredBlockSet set(String key, BlockState fallback) {
         return ConfiguredBlockSet.parse(context.options(), key, List.of(fallback));
-    }
-
-    private static boolean dryShore(TerrainSample sample) {
-        return sample.climate().isAvailable()
-                && (sample.climate().temperature() > 0.72D
-                        || sample.climate().moisture() < 0.30D);
     }
 
     private static int clamp(int value, int min, int max) {

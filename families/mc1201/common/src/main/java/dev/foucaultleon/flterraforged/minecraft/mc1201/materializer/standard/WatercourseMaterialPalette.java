@@ -3,6 +3,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.standard;
 import dev.foucaultleon.flterraforged.core.biome.BiomeClimateRouter;
 import dev.foucaultleon.flterraforged.core.biome.BiomeRole;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.RiparianZone;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,8 @@ import net.minecraft.block.Blocks;
  * into the structural terrain layer.</p>
  */
 final class WatercourseMaterialPalette {
+
+    private static final long BANK_BLEND_SALT = 0xA8D7F1306C42BE95L;
 
     private final Map<Profile, Palette> palettes;
 
@@ -125,24 +128,95 @@ final class WatercourseMaterialPalette {
                 list(Blocks.DEEPSLATE, Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE, Blocks.TUFF)));
     }
 
-    /** Returns a deterministic submerged-bed material. */
+    /**
+     * Returns a deterministic submerged-bed material.
+     *
+     * @param sample semantic terrain sample
+     * @param x world X coordinate
+     * @param y bed Y coordinate
+     * @param z world Z coordinate
+     * @return selected submerged-bed state
+     */
     BlockState bed(TerrainSample sample, int x, int y, int z) {
         return palette(sample, y).bed().choose(sample, x, y, z);
     }
 
-    /** Returns a deterministic material for the damp waterline. */
+    /**
+     * Returns a deterministic material for the damp waterline.
+     *
+     * @param sample semantic terrain sample
+     * @param x world X coordinate
+     * @param y bank Y coordinate
+     * @param z world Z coordinate
+     * @return selected wet-bank state
+     */
     BlockState wetBank(TerrainSample sample, int x, int y, int z) {
         return palette(sample, y).wetBank().choose(sample, x, y, z);
     }
 
-    /** Returns a deterministic material for the outer dry transition. */
+    /**
+     * Returns a deterministic material for the outer dry transition.
+     *
+     * @param sample semantic terrain sample
+     * @param x world X coordinate
+     * @param y bank Y coordinate
+     * @param z world Z coordinate
+     * @return selected dry-bank state
+     */
     BlockState dryBank(TerrainSample sample, int x, int y, int z) {
         return palette(sample, y).dryBank().choose(sample, x, y, z);
     }
 
-    /** Returns a stable filler below either bank transition. */
+    /**
+     * Returns a stable filler below either bank transition.
+     *
+     * @param sample semantic terrain sample
+     * @param x world X coordinate
+     * @param y filler Y coordinate
+     * @param z world Z coordinate
+     * @return selected bank-filler state
+     */
     BlockState bankFiller(TerrainSample sample, int x, int y, int z) {
         return palette(sample, y).bankFiller().choose(sample, x, y, z);
+    }
+
+    /**
+     * Returns whether the candidate belongs to the continuous inner wet-bank band.
+     *
+     * @param sample semantic terrain sample
+     * @return {@code true} inside the wet-bank band
+     */
+    boolean isWetBank(TerrainSample sample) {
+        if (dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes.LAKE_SHORE
+                .equals(sample.terrainType())) {
+            return RiparianZone.lakeShoreStrength(sample) >= 0.58D;
+        }
+        return RiparianZone.isWetBank(sample);
+    }
+
+    /**
+     * Returns whether sediment still covers this outer-bank point instead of yielding to biome topsoil.
+     *
+     * <p>The threshold follows continuous hydrologic distance while a broad field makes the blend
+     * irregular without selecting every individual block independently.</p>
+     *
+     * @param sample semantic terrain sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return {@code true} while hydrologic sediment still owns the surface
+     */
+    boolean coversTransition(TerrainSample sample, int x, int z) {
+        double strength = dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes.LAKE_SHORE
+                        .equals(sample.terrainType())
+                ? RiparianZone.lakeShoreStrength(sample)
+                : RiparianZone.bankStrength(sample);
+        if (strength >= 0.98D) {
+            return true;
+        }
+        if (strength <= 0.02D) {
+            return false;
+        }
+        return NaturalMaterialField.sample(x, z, BANK_BLEND_SALT, 24.0D) < strength;
     }
 
     private Palette palette(TerrainSample sample, int y) {
