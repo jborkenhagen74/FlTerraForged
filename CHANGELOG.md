@@ -1,3 +1,9 @@
+## 0.1.0-SNAPSHOT-r33
+
+- Correct the Minecraft-1.20.1 Yarn import for `StructureSet` from the invalid
+  `net.minecraft.world.gen.structure.StructureSet` package to `net.minecraft.structure.StructureSet`.
+- Preserve the r32 marine-structure placement guard unchanged and continue pairing with Engine r29.
+
 ## 0.1.0-SNAPSHOT-r32
 
 - Add a Minecraft-1.20.1 marine-structure guard at `STRUCTURE_STARTS`, after vanilla has selected

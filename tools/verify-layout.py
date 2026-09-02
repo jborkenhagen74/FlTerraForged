@@ -211,6 +211,10 @@ def main() -> None:
     for fragment in required_generator_fragments:
         if fragment not in generator_text:
             fail(f"mc1201 generator is missing functional worldgen/materializer delegation: {fragment}")
+    if "import net.minecraft.structure.StructureSet;" not in generator_text:
+        fail("mc1201 generator must use the Minecraft 1.20.1 Yarn StructureSet package")
+    if "net.minecraft.world.gen.structure.StructureSet" in generator_text:
+        fail("mc1201 generator uses the invalid StructureSet package")
     marine_guard_text = (worldgen_root / "MarineStructureGuard.java").read_text(encoding="utf-8")
     for structure_id in (
         "minecraft:shipwreck",
