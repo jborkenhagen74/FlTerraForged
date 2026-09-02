@@ -3,38 +3,38 @@
   <groupId>dev.foucaultleon</groupId>
   <artifactId>flterraforged-engine-api</artifactId>
   <versioning>
-    <lastUpdated>20260902072610</lastUpdated>
+    <lastUpdated>20260902151551</lastUpdated>
     <snapshot>
-      <timestamp>20260902.072610</timestamp>
+      <timestamp>20260902.151551</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>0.1.0-20260902.072610-1</value>
-        <updated>20260902072610</updated>
+        <value>0.1.0-20260902.151551-1</value>
+        <updated>20260902151551</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>0.1.0-20260902.151551-1</value>
+        <updated>20260902151551</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>module</extension>
+        <value>0.1.0-20260902.151551-1</value>
+        <updated>20260902151551</updated>
       </snapshotVersion>
       <snapshotVersion>
         <classifier>sources</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260902.072610-1</value>
-        <updated>20260902072610</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>module</extension>
-        <value>0.1.0-20260902.072610-1</value>
-        <updated>20260902072610</updated>
+        <value>0.1.0-20260902.151551-1</value>
+        <updated>20260902151551</updated>
       </snapshotVersion>
       <snapshotVersion>
         <classifier>javadoc</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260902.072610-1</value>
-        <updated>20260902072610</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>pom</extension>
-        <value>0.1.0-20260902.072610-1</value>
-        <updated>20260902072610</updated>
+        <value>0.1.0-20260902.151551-1</value>
+        <updated>20260902151551</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
