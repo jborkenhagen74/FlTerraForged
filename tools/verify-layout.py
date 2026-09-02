@@ -159,6 +159,7 @@ def main() -> None:
         worldgen_root / "ColumnComposer.java",
         worldgen_root / "HydrologyCarverGuard.java",
         worldgen_root / "HydrologyFillPass.java",
+        worldgen_root / "MarineStructureGuard.java",
         standard_materializer,
         watercourse_palette,
         marine_palette,
@@ -204,10 +205,24 @@ def main() -> None:
         "MaterializerRuntime.selectedId()",
         "hydrologyFillPass.apply(chunk, world)",
         "materializer.decorateWatercourses(new WaterDecorationContext(",
+        "MarineStructureGuard.permits(",
+        "chunk.setStructureStarts(retained)",
     )
     for fragment in required_generator_fragments:
         if fragment not in generator_text:
             fail(f"mc1201 generator is missing functional worldgen/materializer delegation: {fragment}")
+    marine_guard_text = (worldgen_root / "MarineStructureGuard.java").read_text(encoding="utf-8")
+    for structure_id in (
+        "minecraft:shipwreck",
+        "minecraft:ocean_ruin_cold",
+        "minecraft:ocean_ruin_warm",
+        "minecraft:monument",
+    ):
+        if structure_id not in marine_guard_text:
+            fail(f"mc1201 marine structure guard is missing {structure_id}")
+    for forbidden_terrain in ("StandardTerrainTypes.RIVER", "StandardTerrainTypes.LAKE"):
+        if forbidden_terrain in marine_guard_text:
+            fail(f"mc1201 marine structure guard must accept only OCEAN/COAST, not {forbidden_terrain}")
     if "intentionally a follow-up integration step" in generator_text:
         fail("mc1201 generator still contains deferred carver integration")
     if "simple solid/water columns" in generator_text:

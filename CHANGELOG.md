@@ -1,3 +1,17 @@
+## 0.1.0-SNAPSHOT-r32
+
+- Add a Minecraft-1.20.1 marine-structure guard at `STRUCTURE_STARTS`, after vanilla has selected
+  candidates but before invalid starts are retained in the chunk.
+- Require shipwrecks, cold/warm ocean ruins and monuments to have a connected 64-by-64-block
+  ocean/coast footprint instead of accepting a nearby ocean biome as sufficient evidence.
+- Reject marine starts when any footprint sample is river, lake, pond, dry terrain or shallower
+  than two blocks; additionally require structure-specific center depths of 5, 6 or 12 blocks.
+- Leave non-marine structures and vanilla's separate beached-shipwreck structure unchanged.
+- Add strict regression coverage for deep ocean acceptance, river/lake/puddle rejection, mixed
+  ocean/river footprints, monument depth and non-marine pass-through behavior.
+- Continue pairing with Engine r29; this is a Minecraft-family placement correction and does not
+  change the version-neutral Engine API or hydrology geometry.
+
 ## 0.1.0-SNAPSHOT-r31
 
 - Pair with Engine `0.1.0-SNAPSHOT-r29`, whose wet-to-dry river/lake shaping and coastal-height release remove first-bank cliffs, dry under-waterline cells and shore detail spikes.

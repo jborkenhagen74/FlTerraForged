@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r31 pairs with Engine r29, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled water/bank/land plants, waterlogged stairs, high-alpine spray and rare dams. Vanilla ores and unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r32 pairs with Engine r29, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled water/bank/land plants, waterlogged stairs, high-alpine spray and rare dams. Its structure-start guard additionally restricts shipwrecks, ocean ruins and monuments to sufficiently broad, deep and connected marine terrain, excluding rivers, lakes and puddles. Vanilla ores and unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -168,6 +168,15 @@ vegetation and optional climate-role-driven land-plant clusters, while waterfall
 to real river steps above Y 120. Central-Europe forest candidates are selected in broad irregular
 seeded stands and weight mixed forest more strongly; birch, spruce and dark-oak monocultures remain
 present without making birch the default across large regions.
+
+### r32 marine structure placement
+
+r32 continues to pair with Engine r29. The Minecraft-1.20.1 adapter validates vanilla marine
+structure starts against Engine terrain semantics. Shipwrecks, cold/warm ocean ruins and monuments
+need a connected 5×5 marine sample field spanning 64×64 blocks; river, lake, puddle, dry or
+one-block-deep samples reject the start. Structure-specific center-depth requirements keep monuments
+in deep water while retaining ordinary deep-ocean shipwrecks and ruins. Beached shipwrecks and all
+non-marine structures retain vanilla placement behavior.
 
 ### r27 Central-Europe / biome-matrix finalization
 

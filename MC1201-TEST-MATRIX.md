@@ -235,6 +235,9 @@ structure and terrain adaptation around it.
 | H04 | P1 | Ruined portal | `/locate structure minecraft:ruined_portal`. | Portal generation and terrain placement are plausible. | |
 | H05 | P1 | Shipwreck | Locate a shipwreck in/near ocean if seed offers one. | Shipwreck is associated with actual ocean/coast, not high inland terrain because of biome/height mismatch. | |
 | H06 | P1 | Structure reload | Visit a structure, restart, revisit. | Structure/chunks remain stable and no regeneration/desync occurs. | |
+| H07 | P0 | Marine-only shipwreck | Locate multiple `minecraft:shipwreck` starts and inspect their complete footprint. | Every underwater shipwreck lies in a broad ocean/coast body; none starts in a river, inland lake or puddle. | |
+| H08 | P0 | Ocean ruins | Locate both cold and warm ocean ruins where available. | The complete start area is connected marine terrain with no river/lake intrusion. | |
+| H09 | P0 | Monument depth | Locate several `minecraft:monument` starts. | Each center has at least 12 blocks of Engine ocean depth and no sampled footprint point is dry or shallower than two blocks. | |
 
 ---
 
