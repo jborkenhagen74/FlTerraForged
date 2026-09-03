@@ -8,13 +8,18 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationCon
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.MaterializerRuntime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.structure.StructureStart;
+import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.HeightLimitView;
@@ -30,7 +35,9 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
 import net.minecraft.world.gen.chunk.GenerationShapeConfig;
 import net.minecraft.world.gen.chunk.VerticalBlockSample;
+import net.minecraft.world.gen.chunk.placement.StructurePlacementCalculator;
 import net.minecraft.world.gen.noise.NoiseConfig;
+import net.minecraft.world.gen.structure.Structure;
 
 /**
  * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
@@ -141,6 +148,67 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     @Override
     protected Codec<? extends ChunkGenerator> getCodec() {
         return CODEC;
+    }
+
+    @Override
+    public void setStructureStarts(
+            DynamicRegistryManager registryManager,
+            StructurePlacementCalculator placementCalculator,
+            StructureAccessor structureAccessor,
+            Chunk chunk,
+            StructureTemplateManager structureTemplateManager) {
+        super.setStructureStarts(
+                registryManager,
+                placementCalculator,
+                structureAccessor,
+                chunk,
+                structureTemplateManager);
+
+        Map<Structure, StructureStart> starts = chunk.getStructureStarts();
+        if (starts.isEmpty()) {
+            return;
+        }
+
+        var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
+        int centerX = chunk.getPos().getCenterX();
+        int centerZ = chunk.getPos().getCenterZ();
+        TerrainWorld placementWorld = null;
+        Map<Structure, StructureStart> retained = null;
+
+        for (Map.Entry<Structure, StructureStart> entry : starts.entrySet()) {
+            var id = structureRegistry.getId(entry.getKey());
+            if (id == null) {
+                continue;
+            }
+            String structureId = id.toString();
+            boolean hasChildren = entry.getValue().hasChildren();
+            if (!MarineStructureGuard.requiresEnvironment(structureId, hasChildren)) {
+                continue;
+            }
+
+            if (placementWorld == null) {
+                // Deliberately bind only the Engine session. Calling this generator's bind(...)
+                // method here would also bind the Engine-backed BiomeSource during STRUCTURE_STARTS
+                // and reintroduce the 0%-startup regression isolated by R42.
+                placementWorld = session.bind(placementCalculator.getNoiseConfig());
+            }
+            if (!MarineStructureGuard.permits(
+                    structureId,
+                    hasChildren,
+                    centerX,
+                    centerZ,
+                    placementWorld,
+                    marineEnvironmentCache)) {
+                if (retained == null) {
+                    retained = new HashMap<>(starts);
+                }
+                retained.remove(entry.getKey());
+            }
+        }
+
+        if (retained != null) {
+            chunk.setStructureStarts(retained);
+        }
     }
 
     @Override
