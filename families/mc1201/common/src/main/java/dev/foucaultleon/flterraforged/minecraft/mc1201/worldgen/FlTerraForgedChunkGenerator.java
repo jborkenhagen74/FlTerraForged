@@ -8,13 +8,20 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationCon
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.MaterializerRuntime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.structure.StructureSet;
+import net.minecraft.structure.StructureStart;
+import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.HeightLimitView;
@@ -22,6 +29,7 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.biome.source.BiomeSource;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.GenerationStep;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.Blender;
@@ -29,17 +37,17 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
 import net.minecraft.world.gen.chunk.GenerationShapeConfig;
 import net.minecraft.world.gen.chunk.VerticalBlockSample;
+import net.minecraft.world.gen.chunk.placement.StructurePlacementCalculator;
 import net.minecraft.world.gen.noise.NoiseConfig;
-import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.gen.structure.Structure;
 
 /**
  * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
  *
- * <p>The external engine owns the large-scale surface shape and climate. A
- * vanilla {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter
- * substrate, aquifers, surface rules, carvers and mob population. The density
- * bridge then truncates or extends that substrate to the engine surface without
- * vertically translating caves or underground layers.</p>
+ * <p>The external engine owns the large-scale surface shape and climate. A vanilla
+ * {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter substrate, aquifers, surface
+ * rules, carvers and mob population. The density bridge then truncates or extends that substrate
+ * to the engine surface without vertically translating caves or underground layers.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -57,8 +65,8 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                             .forGetter(FlTerraForgedChunkGenerator::engineId),
                     Codec.unboundedMap(Codec.STRING, Codec.STRING)
                             .optionalFieldOf("engine_config", Map.of("preset", "balanced"))
-                            .forGetter(FlTerraForgedChunkGenerator::engineConfig)
-            ).apply(instance, FlTerraForgedChunkGenerator::new));
+                            .forGetter(FlTerraForgedChunkGenerator::engineConfig))
+            .apply(instance, FlTerraForgedChunkGenerator::new));
 
     private static final Set<Heightmap.Type> GENERATED_HEIGHTMAPS = Set.of(
             Heightmap.Type.OCEAN_FLOOR_WG,
@@ -76,8 +84,16 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final EngineSurfaceGuard surfaceGuard;
     private final HydrologyCarverGuard hydrologyCarverGuard;
     private final HydrologyFillPass hydrologyFillPass;
+    private final MarineEnvironmentCache marineEnvironmentCache;
 
-    /** Creates a data-driven generator from the registered codec. */
+    /**
+     * Creates a data-driven generator from the registered codec.
+     *
+     * @param biomeSource FlTerraForged biome source
+     * @param settings vanilla chunk-generator settings
+     * @param engineId configured Engine provider identifier
+     * @param engineConfig immutable Engine configuration
+     */
     public FlTerraForgedChunkGenerator(
             BiomeSource biomeSource,
             RegistryEntry<ChunkGeneratorSettings> settings,
@@ -113,6 +129,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         this.surfaceGuard = new EngineSurfaceGuard(materializer);
         this.hydrologyCarverGuard = new HydrologyCarverGuard(materializer);
         this.hydrologyFillPass = new HydrologyFillPass(materializer);
+        this.marineEnvironmentCache = new MarineEnvironmentCache(materializer);
     }
 
     /** Returns the configured vanilla chunk-generator settings entry. */
@@ -133,6 +150,49 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     @Override
     protected Codec<? extends ChunkGenerator> getCodec() {
         return CODEC;
+    }
+
+    @Override
+    public StructurePlacementCalculator createStructurePlacementCalculator(
+            RegistryWrapper<StructureSet> structureSetRegistry,
+            NoiseConfig noiseConfig,
+            long seed) {
+        bind(noiseConfig);
+        return super.createStructurePlacementCalculator(structureSetRegistry, noiseConfig, seed);
+    }
+
+    @Override
+    public void setStructureStarts(
+            DynamicRegistryManager registryManager,
+            StructurePlacementCalculator placementCalculator,
+            StructureAccessor structureAccessor,
+            Chunk chunk,
+            StructureTemplateManager structureTemplateManager) {
+        super.setStructureStarts(
+                registryManager,
+                placementCalculator,
+                structureAccessor,
+                chunk,
+                structureTemplateManager);
+
+        Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
+        var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
+        int centerX = chunk.getPos().getCenterX();
+        int centerZ = chunk.getPos().getCenterZ();
+        TerrainWorld terrainWorld = session.boundWorld();
+        boolean changed = retained.entrySet().removeIf(entry -> {
+            var id = structureRegistry.getId(entry.getKey());
+            return id != null && !MarineStructureGuard.permits(
+                    id.toString(),
+                    entry.getValue().hasChildren(),
+                    centerX,
+                    centerZ,
+                    terrainWorld,
+                    marineEnvironmentCache);
+        });
+        if (changed) {
+            chunk.setStructureStarts(retained);
+        }
     }
 
     @Override
@@ -255,11 +315,13 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         text.add("FlTerraForged engine: " + session.providerId() + " @ " + session.providerVersion());
         text.add(String.format(
                 java.util.Locale.ROOT,
-                "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s",
+                "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s marineCols=%d marineSummaries=%d",
                 MaterializerRuntime.selectedId(),
                 materializer.capabilities().verticalResolution(),
                 materializer.capabilities().partialBlocks(),
-                materializer.capabilities().waterlogging()));
+                materializer.capabilities().waterlogging(),
+                marineEnvironmentCache.cachedColumns(),
+                marineEnvironmentCache.cachedSummaries()));
         text.add(String.format(
                 java.util.Locale.ROOT,
                 "FTF h=%.2f slope=%.3f erosion=%.3f continent=%.3f terrain=%s",
@@ -285,6 +347,4 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         engineBiomeSource.bind(world, getSeaLevel());
         return world;
     }
-
-
 }
