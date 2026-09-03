@@ -1,3 +1,17 @@
+## 0.1.0-SNAPSHOT-r34
+
+- Pair with Engine `0.1.0-SNAPSHOT-r30`, which coalesces concurrent cold misses for identical
+  terrain tiles, erosion regions and river maps instead of multiplying work across spawn workers.
+- Prevent empty vanilla structure starts and non-marine structures from triggering any Engine
+  footprint samples.
+- Reject inland marine candidates after the center sample and replace the cold 25-point survey with
+  one center plus at most eight perimeter points.
+- Avoid rewriting the chunk structure-start map when the guard retained every start.
+- Add regression limits for zero-sample irrelevant starts, one-sample inland rejection and the
+  bounded nine-sample deep-marine acceptance path.
+- Treat the r33 0-percent world-creation stall as a release blocker; waterfall/rapid work remains
+  deferred until this hotfix passes real Minecraft 1.20.1 startup and exploration tests.
+
 ## 0.1.0-SNAPSHOT-r33
 
 - Correct the Minecraft-1.20.1 Yarn import for `StructureSet` from the invalid

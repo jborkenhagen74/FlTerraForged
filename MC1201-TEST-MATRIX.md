@@ -309,6 +309,7 @@ Use the same machine/runtime for comparisons.
 | K04 | P1 | Restart after large exploration | Restart after K01/K02. | Server loads world normally and resumes generation. | |
 | K05 | P1 | Log health | Review `latest.log` after full matrix. | No recurring FlTerraForged exceptions, Mixin failures or repeated failed chunk-generation messages. | |
 | K06 | P1 | JVM memory sanity | Observe heap/RSS before and after exploration plus idle period. | Memory growth is bounded enough to settle/GC; no clear unbounded per-chunk cache growth. | |
+| K07 | P0 | Cold single-player spawn | On a clean client profile create a new FlTerraForged world and time the `0%` phase before spawn chunks advance. Repeat after deleting the test world. | Progress leaves `0%`, the UI remains responsive, and world creation completes without force-killing the JVM. | |
 
 Record separately whether vanilla emits occasional `Can't keep up!` messages during aggressive
 new-chunk generation. A single message is not automatically a failure; sustained stalls or a

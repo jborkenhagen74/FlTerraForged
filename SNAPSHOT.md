@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r30**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r34**.
 
-Current package revision: **r30** 0.1.0-SNAPSHOT
+Current package revision: **r34** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -157,3 +157,22 @@ the final host pass repairs only proven enclosed ridges. Low-frequency material 
 the former fixed patches, outer banks fade back into native biome surfaces, and the mc1201-only
 decorator adds validated plants, waterlogged stairs, carpets, spray and rare dams. The build matrix
 is intentionally unchanged until the 1.20.1 runtime stability gate passes.
+
+### r31 shoreline and forest correction
+
+r31 pairs with Engine r29. It smooths wet-to-dry river, lake and coast edges, enriches coherent
+bank/land habitats and balances Central-Europe mixed and monoculture forest stands.
+
+### r32/r33 marine structure integration
+
+r32 introduced semantic marine structure validation. r33 corrected the Minecraft-1.20.1
+`StructureSet` package and made that hook executable, but its synchronous 5-by-5 Engine survey
+amplified cold spawn generation enough to block world creation on affected systems.
+
+### r34 cold-spawn stability hotfix
+
+r34 pairs with Engine r30. Empty and unrelated structure starts perform no Engine lookup, inland
+marine candidates fail after their center sample, and only a valid deep-marine center reaches the
+bounded eight-point perimeter. Engine r30 coalesces simultaneous cold misses for the same final
+sample tile, erosion region and river map. Waterfall and rapid geometry remains deferred until this
+stability gate passes in a real Minecraft-1.20.1 world.

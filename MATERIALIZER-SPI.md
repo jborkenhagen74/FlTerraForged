@@ -1,6 +1,6 @@
 # Austauschbare Block-Materializer – Minecraft 1.20.1 / Fabric
 
-Stand: **0.1.0-SNAPSHOT-r31**
+Stand: **0.1.0-SNAPSHOT-r34**
 
 ## Ziel
 
@@ -215,7 +215,7 @@ blockset.mountains=minecraft:stone,minecraft:gravel
 blockset.ocean_bed=minecraft:gravel,minecraft:sand
 ```
 
-If a global option is absent, r31 uses the complete height- and climate-aware three-zone
+If a global option is absent, r34 uses the complete height- and climate-aware three-zone
 watercourse palette. Profile-specific keys use the form
 `blockset.watercourse.<profile>.<bed|wet_bank|dry_bank|bank_filler>`. See
 `WATERCOURSE-MATERIALS.md` for the complete mapping. Selection follows a deterministic,

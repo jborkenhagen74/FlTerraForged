@@ -1,6 +1,7 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.foucaultleon.flterraforged.engine.api.EngineContext;
@@ -10,6 +11,7 @@ import dev.foucaultleon.flterraforged.engine.api.river.RiverSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +63,44 @@ final class MarineStructureGuardTest {
                         StandardTerrainTypes.MOUNTAINS))));
     }
 
+    @Test
+    void rejectsAnInlandCenterAfterOneEngineSample() {
+        AtomicInteger samples = new AtomicInteger();
+        TerrainWorld inland = countingWorld(samples, (x, z) -> sample(
+                80.0D,
+                StandardTerrainTypes.MOUNTAINS));
+
+        assertFalse(MarineStructureGuard.permits(
+                "minecraft:shipwreck", 8, 8, 63, inland));
+        assertEquals(1, samples.get(), "inland rejection must not scan the perimeter");
+    }
+
+    @Test
+    void deepMarineAcceptanceUsesOneCenterAndEightPerimeterSamples() {
+        AtomicInteger samples = new AtomicInteger();
+        TerrainWorld ocean = countingWorld(samples, (x, z) -> sample(
+                48.0D,
+                StandardTerrainTypes.OCEAN));
+
+        assertTrue(MarineStructureGuard.permits(
+                "minecraft:monument", 8, 8, 63, ocean));
+        assertEquals(9, samples.get(), "accepted marine start must use the bounded nine-point survey");
+    }
+
+    @Test
+    void emptyAndNonMarineStartsDoNotSampleTheEngine() {
+        AtomicInteger samples = new AtomicInteger();
+        TerrainWorld ocean = countingWorld(samples, (x, z) -> sample(
+                48.0D,
+                StandardTerrainTypes.OCEAN));
+
+        assertTrue(MarineStructureGuard.permits(
+                "minecraft:shipwreck", false, 8, 8, 63, ocean));
+        assertTrue(MarineStructureGuard.permits(
+                "minecraft:village_plains", true, 8, 8, 63, ocean));
+        assertEquals(0, samples.get(), "irrelevant starts must not query terrain");
+    }
+
     private static TerrainWorld world(BiFunction<Integer, Integer, TerrainSample> samples) {
         return new TerrainWorld() {
             @Override
@@ -70,6 +110,23 @@ final class MarineStructureGuardTest {
 
             @Override
             public TerrainSample sample(int x, int z) {
+                return samples.apply(x, z);
+            }
+        };
+    }
+
+    private static TerrainWorld countingWorld(
+            AtomicInteger count,
+            BiFunction<Integer, Integer, TerrainSample> samples) {
+        return new TerrainWorld() {
+            @Override
+            public EngineContext context() {
+                return new EngineContext(1L, -64, 320, 63);
+            }
+
+            @Override
+            public TerrainSample sample(int x, int z) {
+                count.incrementAndGet();
                 return samples.apply(x, z);
             }
         };

@@ -173,12 +173,19 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         int centerX = chunk.getPos().getCenterX();
         int centerZ = chunk.getPos().getCenterZ();
         TerrainWorld terrainWorld = session.boundWorld();
-        retained.entrySet().removeIf(entry -> {
+        boolean changed = retained.entrySet().removeIf(entry -> {
             var id = structureRegistry.getId(entry.getKey());
             return id != null && !MarineStructureGuard.permits(
-                    id.toString(), centerX, centerZ, getSeaLevel(), terrainWorld);
+                    id.toString(),
+                    entry.getValue().hasChildren(),
+                    centerX,
+                    centerZ,
+                    getSeaLevel(),
+                    terrainWorld);
         });
-        chunk.setStructureStarts(retained);
+        if (changed) {
+            chunk.setStructureStarts(retained);
+        }
     }
 
     @Override

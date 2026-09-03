@@ -216,6 +216,21 @@ def main() -> None:
     if "net.minecraft.world.gen.structure.StructureSet" in generator_text:
         fail("mc1201 generator uses the invalid StructureSet package")
     marine_guard_text = (worldgen_root / "MarineStructureGuard.java").read_text(encoding="utf-8")
+    for fragment in (
+        "entry.getValue().hasChildren()",
+        "if (changed)",
+    ):
+        if fragment not in generator_text:
+            fail(f"mc1201 structure-start hotfix is missing: {fragment}")
+    for fragment in (
+        "PERIMETER_OFFSETS",
+        "if (!hasChildren || centerMinimumDepth == null)",
+        "TerrainSample center = world.sample(centerX, centerZ)",
+    ):
+        if fragment not in marine_guard_text:
+            fail(f"mc1201 marine structure guard is missing its bounded fast path: {fragment}")
+    if "SAMPLE_STEP" in marine_guard_text or "for (int dz = -SAMPLE_RADIUS" in marine_guard_text:
+        fail("mc1201 marine structure guard must not restore the cold 5-by-5 sample scan")
     for structure_id in (
         "minecraft:shipwreck",
         "minecraft:ocean_ruin_cold",

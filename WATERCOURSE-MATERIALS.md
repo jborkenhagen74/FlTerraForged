@@ -1,6 +1,6 @@
 # Standardmaterialisierung für Wasserläufe
 
-Stand: **0.1.0-SNAPSHOT-r31**, Minecraft-Familie **mc1201**
+Stand: **0.1.0-SNAPSHOT-r34**, Minecraft-Familie **mc1201**
 
 ## Ziel
 
@@ -139,11 +139,11 @@ vorhandene Block- und State-Eigenschaften verwendet: `SEAGRASS`, `TALL_SEAGRASS`
 `COBWEB`, `WHITE_CARPET`, `OAK_LOG`, `OAK_FENCE`, `MUD`
 sowie `WATERLOGGED`, `HORIZONTAL_FACING`, `AXIS` und `DOUBLE_BLOCK_HALF`. Spätere
 Minecraft-Familien müssen ihre eigene Verfügbarkeitsliste und eigene Dekoratorimplementierung
-bereitstellen; r31 kopiert diese Auswahl nicht in die Platzhalter der Versionsmatrix.
+bereitstellen; r34 kopiert diese Auswahl nicht in die Platzhalter der Versionsmatrix.
 
 ## Tiefenprofil des Begleit-Engine-Stands
 
-FlTerraForged r31 ist für Engine r29 vorgesehen:
+FlTerraForged r34 ist für Engine r30 vorgesehen:
 
 - Tiefland-Flusskerne: Zielwert etwa 3,5 Blöcke vor dem Ufer-Taper;
 - mittlere Lagen: weich abnehmend bis etwa 2,75 Blöcke;
@@ -156,7 +156,8 @@ FlTerraForged r31 ist für Engine r29 vorgesehen:
 Alle Höhen sind kontinuierliche Engine-Zielwerte. Der mc1201-Standardmaterializer quantisiert sie
 anschließend konsistent auf ganze Minecraft-Blöcke.
 
-Engine r29 berechnet zusätzlich ein kontinuierliches, basin-eigenes Distanzfeld zur Seeuferkante.
+Engine r30 behält das in r29 eingeführte kontinuierliche, basin-eigene Distanzfeld zur
+Seeuferkante bei.
 Damit kann die Tiefe an einer internen Drainage-Rastergrenze nicht mehr springen. Der finale
 Hydrologiepass senkt eingeschlossene Resthügel auf den nachbarschaftlich belegten Bettverlauf ab;
 er hebt dabei keine natürlichen Vertiefungen an und führt keinen freien Flood-Fill aus.
