@@ -44,7 +44,7 @@ jobs:
         run: python3 tools/verify-layout.py
 
       - name: Checkout exact Engine R29 control source
-        if: github.ref == 'refs/heads/revision/r39-control-engine-r29'
+        if: github.ref == 'refs/heads/revision/r41-no-structure-hook-engine-r29'
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
@@ -52,17 +52,17 @@ jobs:
           path: .ci/engine-r29-source
 
       - name: Build Engine R29 local control repository
-        if: github.ref == 'refs/heads/revision/r39-control-engine-r29'
+        if: github.ref == 'refs/heads/revision/r41-no-structure-hook-engine-r29'
         run: gradle -p .ci/engine-r29-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all publish
 
       - name: Build and test with exact Engine R29 control runtime
-        if: github.ref == 'refs/heads/revision/r39-control-engine-r29'
+        if: github.ref == 'refs/heads/revision/r41-no-structure-hook-engine-r29'
         env:
           FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r29-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r39-control-engine-r29'
+        if: github.ref != 'refs/heads/revision/r41-no-structure-hook-engine-r29'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -115,11 +115,11 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric R39 control artifact"
+            echo "### Minecraft 1.20.1 Fabric R41 control artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Embedded Engine: exact R29 commit 6fc06491d212d2ad38ece463e81925393828b984"
-            echo "- Marine structure environment guard: disabled for A/B diagnosis"
+            echo "- Structure-start post hook: completely removed"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
