@@ -162,40 +162,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public void setStructureStarts(
-            DynamicRegistryManager registryManager,
-            StructurePlacementCalculator placementCalculator,
-            StructureAccessor structureAccessor,
-            Chunk chunk,
-            StructureTemplateManager structureTemplateManager) {
-        super.setStructureStarts(
-                registryManager,
-                placementCalculator,
-                structureAccessor,
-                chunk,
-                structureTemplateManager);
-
-        Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
-        var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
-        int centerX = chunk.getPos().getCenterX();
-        int centerZ = chunk.getPos().getCenterZ();
-        TerrainWorld terrainWorld = session.boundWorld();
-        boolean changed = retained.entrySet().removeIf(entry -> {
-            var id = structureRegistry.getId(entry.getKey());
-            return id != null && !MarineStructureGuard.permits(
-                    id.toString(),
-                    entry.getValue().hasChildren(),
-                    centerX,
-                    centerZ,
-                    terrainWorld,
-                    marineEnvironmentCache);
-        });
-        if (changed) {
-            chunk.setStructureStarts(retained);
-        }
-    }
-
-    @Override
     public CompletableFuture<Chunk> populateBiomes(
             Executor executor,
             NoiseConfig noiseConfig,
