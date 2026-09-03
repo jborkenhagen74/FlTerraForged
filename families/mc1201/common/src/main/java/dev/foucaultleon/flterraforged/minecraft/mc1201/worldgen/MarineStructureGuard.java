@@ -8,12 +8,6 @@ import java.util.Objects;
 /** Prevents marine structures from starting in inland, undersized or physically shallow water. */
 final class MarineStructureGuard {
 
-    /**
-     * R38 runtime-control switch. The guard is deliberately disabled so this revision can isolate
-     * whether early structure-environment sampling is responsible for the Minecraft 0% worldgen
-     * stall. Do not promote this control setting to a release revision.
-     */
-    private static final boolean ENABLED = false;
     private static final double EDGE_MINIMUM_DEPTH = 2.0D;
     private static final double MONUMENT_EDGE_MINIMUM_DEPTH = 4.0D;
 
@@ -21,11 +15,27 @@ final class MarineStructureGuard {
     }
 
     /**
+     * Returns whether the structure start needs a FlTerraForged environment decision.
+     *
+     * <p>The check is deliberately pure and must run before any Engine world is bound. Empty starts
+     * and unrelated structures therefore keep the R42 fast path and never initialize placement-time
+     * Engine state.</p>
+     *
+     * @param structureId namespaced Minecraft structure identifier
+     * @param hasChildren whether vanilla created at least one structure piece
+     * @return {@code true} when an environment probe is required
+     */
+    static boolean requiresEnvironment(String structureId, boolean hasChildren) {
+        Objects.requireNonNull(structureId, "structureId");
+        return hasChildren && MarineRule.forStructure(structureId) != MarineRule.NONE;
+    }
+
+    /**
      * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>R38 is an explicit runtime-control revision. While {@link #ENABLED} is {@code false}, all
-     * starts are retained before any Engine terrain sample is requested. This isolates the early
-     * structure-start sampling path from all other R37/R33 world-generation behavior.</p>
+     * <p>The world is queried only through the lightweight placement-time environment API. The
+     * normal Engine-backed biome source is not bound by this method. A fast center decision rejects
+     * inland candidates before the reusable inner/outer summary is requested.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -45,9 +55,6 @@ final class MarineStructureGuard {
         Objects.requireNonNull(structureId, "structureId");
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(cache, "cache");
-        if (!ENABLED) {
-            return true;
-        }
         if (!hasChildren) {
             return true;
         }
