@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
+      - name: Checkout FlTerraForged
         uses: actions/checkout@v6
 
       - name: Install Java 17 toolchain
@@ -43,26 +43,32 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
-      - name: Checkout exact Engine R29 control source
-        if: github.ref == 'refs/heads/revision/r42-no-early-structure-bind-r29'
+      - name: Build R43 Engine API local repository
+        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
+
+      - name: Checkout Engine R34 source
+        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: 6fc06491d212d2ad38ece463e81925393828b984
-          path: .ci/engine-r29-source
+          ref: revision/r34-lightweight-structure-environment
+          path: .ci/engine-r34-source
 
-      - name: Build Engine R29 local control repository
-        if: github.ref == 'refs/heads/revision/r42-no-early-structure-bind-r29'
-        run: gradle -p .ci/engine-r29-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all publish
-
-      - name: Build and test with exact Engine R29 control runtime
-        if: github.ref == 'refs/heads/revision/r42-no-early-structure-bind-r29'
+      - name: Build Engine R34 local repository
+        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
         env:
-          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r29-source/build/maven-repository
+          FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
+        run: gradle -p .ci/engine-r34-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
+
+      - name: Build and test R43 with Engine R34
+        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+        env:
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r34-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r42-no-early-structure-bind-r29'
+        if: github.ref != 'refs/heads/revision/r43-lightweight-marine-placement'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -115,12 +121,13 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric R42 control artifact"
+            echo "### Minecraft 1.20.1 Fabric R43 artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: exact R29 commit 6fc06491d212d2ad38ece463e81925393828b984"
-            echo "- Structure-start post hook: removed"
-            echo "- Early createStructurePlacementCalculator Engine/BiomeSource bind: removed"
+            echo "- Embedded Engine: R34 rebuilt from exact R29 baseline"
+            echo "- Structure placement: lightweight environment probe only"
+            echo "- Early createStructurePlacementCalculator Engine/BiomeSource bind: absent"
+            echo "- Variable-height materializer geometry: supported"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
