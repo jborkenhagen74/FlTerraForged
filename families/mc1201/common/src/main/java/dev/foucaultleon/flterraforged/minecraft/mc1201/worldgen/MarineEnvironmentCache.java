@@ -10,20 +10,17 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
 /**
  * Bounded multi-stage cache for marine structure environment checks.
  *
  * <p>Level one stores resolved materialized columns. Level two stores the bounded environment
- * stencil shared by every marine structure rule for one start position. Both levels coalesce
- * concurrent cold misses without scheduling additional executor tasks. Engine samples, provider
- * geometry and environment stencils are therefore generated once per key and reused by parallel
- * structure-start workers.</p>
+ * stencil shared by every marine structure rule for one start position. Cache misses never wait for
+ * another Minecraft world-generation worker: deterministic values are calculated outside the short
+ * completed-cache monitor and a second lookup decides which racing result is retained. This may
+ * duplicate a bounded amount of cold computation under contention, but it cannot create a
+ * cache-mediated synchronous wait graph in Minecraft's chunk executor.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -49,10 +46,10 @@ final class MarineEnvironmentCache {
     };
 
     private final BlockMaterializer materializer;
-    private final SingleFlightCache<ColumnKey, MarineColumn> columns =
-            new SingleFlightCache<>(COLUMN_CACHE_SIZE);
-    private final SingleFlightCache<SummaryKey, MarineEnvironmentSummary> summaries =
-            new SingleFlightCache<>(SUMMARY_CACHE_SIZE);
+    private final OptimisticCache<ColumnKey, MarineColumn> columns =
+            new OptimisticCache<>(COLUMN_CACHE_SIZE);
+    private final OptimisticCache<SummaryKey, MarineEnvironmentSummary> summaries =
+            new OptimisticCache<>(SUMMARY_CACHE_SIZE);
 
     MarineEnvironmentCache(BlockMaterializer materializer) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
@@ -199,12 +196,11 @@ final class MarineEnvironmentCache {
         }
     }
 
-    private static final class SingleFlightCache<K, V> {
+    private static final class OptimisticCache<K, V> {
 
         private final BoundedMap<K, V> completed;
-        private final ConcurrentMap<K, CompletableFuture<V>> inFlight = new ConcurrentHashMap<>();
 
-        SingleFlightCache(int maximumSize) {
+        OptimisticCache(int maximumSize) {
             completed = new BoundedMap<>(maximumSize);
         }
 
@@ -217,31 +213,14 @@ final class MarineEnvironmentCache {
                 return cached;
             }
 
-            CompletableFuture<V> owned = new CompletableFuture<>();
-            CompletableFuture<V> existing = inFlight.putIfAbsent(key, owned);
-            if (existing != null) {
-                return await(existing);
-            }
-
-            try {
-                V loaded = Objects.requireNonNull(loader.get(), "cache loader returned null");
-                V retained;
-                synchronized (completed) {
-                    V secondLook = completed.get(key);
-                    if (secondLook == null) {
-                        completed.put(key, loaded);
-                        retained = loaded;
-                    } else {
-                        retained = secondLook;
-                    }
+            V loaded = Objects.requireNonNull(loader.get(), "cache loader returned null");
+            synchronized (completed) {
+                V secondLook = completed.get(key);
+                if (secondLook != null) {
+                    return secondLook;
                 }
-                owned.complete(retained);
-                return retained;
-            } catch (Throwable throwable) {
-                owned.completeExceptionally(throwable);
-                throw propagate(throwable);
-            } finally {
-                inFlight.remove(key, owned);
+                completed.put(key, loaded);
+                return loaded;
             }
         }
 
@@ -249,25 +228,6 @@ final class MarineEnvironmentCache {
             synchronized (completed) {
                 return completed.size();
             }
-        }
-
-        private static <V> V await(CompletableFuture<V> future) {
-            try {
-                return future.join();
-            } catch (CompletionException exception) {
-                Throwable cause = exception.getCause();
-                throw propagate(cause == null ? exception : cause);
-            }
-        }
-
-        private static RuntimeException propagate(Throwable throwable) {
-            if (throwable instanceof RuntimeException runtimeException) {
-                return runtimeException;
-            }
-            if (throwable instanceof Error error) {
-                throw error;
-            }
-            return new IllegalStateException("Marine environment cache load failed", throwable);
         }
     }
 
