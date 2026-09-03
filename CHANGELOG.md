@@ -1,3 +1,20 @@
+## 0.1.0-SNAPSHOT-r35
+
+- Pair with Engine `0.1.0-SNAPSHOT-r31` and Engine API `0.1.1` after r34 proved insufficient on a
+  real Apple client and still remained at zero-percent world creation for several minutes.
+- Route the marine structure guard through the Engine's conservative lightweight `isMarine` query;
+  the `STRUCTURE_STARTS` stage no longer requests a complete terrain tile, erosion region, river
+  map or lake field.
+- Keep the guard bounded to zero irrelevant queries, one inland center query or nine lightweight
+  center/perimeter queries for a retained deep-marine candidate.
+- Make already-bound `EngineWorldSession.bind` and `boundWorld` reads lock-free after safe volatile
+  publication; only first initialization remains synchronized.
+- Reject an attempted concurrent seed/context switch instead of closing a world cache underneath
+  active chunk workers.
+- Add API fallback, optimized-guard, exact-depth and cache/deadlock regression coverage.
+- Continue deferring waterfall and rapid geometry until this replacement passes the real r35
+  zero-percent startup gate.
+
 ## 0.1.0-SNAPSHOT-r34
 
 - Pair with Engine `0.1.0-SNAPSHOT-r30`, which coalesces concurrent cold misses for identical

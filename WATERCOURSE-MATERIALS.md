@@ -1,6 +1,6 @@
 # Standardmaterialisierung für Wasserläufe
 
-Stand: **0.1.0-SNAPSHOT-r34**, Minecraft-Familie **mc1201**
+Stand: **0.1.0-SNAPSHOT-r35**, Minecraft-Familie **mc1201**
 
 ## Ziel
 
@@ -143,7 +143,7 @@ bereitstellen; r34 kopiert diese Auswahl nicht in die Platzhalter der Versionsma
 
 ## Tiefenprofil des Begleit-Engine-Stands
 
-FlTerraForged r34 ist für Engine r30 vorgesehen:
+FlTerraForged r35 ist für Engine r31 vorgesehen:
 
 - Tiefland-Flusskerne: Zielwert etwa 3,5 Blöcke vor dem Ufer-Taper;
 - mittlere Lagen: weich abnehmend bis etwa 2,75 Blöcke;

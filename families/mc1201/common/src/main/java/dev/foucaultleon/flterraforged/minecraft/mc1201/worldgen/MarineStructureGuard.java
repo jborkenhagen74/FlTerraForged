@@ -1,8 +1,6 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
-import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
-import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,11 +33,12 @@ final class MarineStructureGuard {
      *
      * <p>Non-marine structures are deliberately left to vanilla. Marine structures require a
      * bounded center-and-perimeter marine sample field around the start chunk. The center is
-     * checked first, so the common inland rejection path performs exactly one Engine sample.
+     * checked first, so the common inland rejection path performs exactly one lightweight marine
+     * depth query.
      * Every perimeter point must be actual ocean/coast terrain with at least two blocks of water,
      * while the center additionally has to satisfy the structure-specific depth. A nearby ocean
      * biome can therefore no longer authorize a shipwreck inside a river, lake or puddle without
-     * forcing a cold 5-by-5 terrain-tile scan on chunk-generation workers.</p>
+     * forcing a cold 5-by-5 terrain-tile scan or full hydrology generation on chunk workers.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param centerX block X at the center of the candidate start chunk
@@ -77,29 +76,26 @@ final class MarineStructureGuard {
             TerrainWorld world) {
         Objects.requireNonNull(structureId, "structureId");
         Objects.requireNonNull(world, "world");
+        if (seaLevel != world.context().seaLevel()) {
+            throw new IllegalArgumentException("structure and Engine sea levels must match");
+        }
         Double centerMinimumDepth = MINIMUM_CENTER_DEPTHS.get(structureId);
         if (!hasChildren || centerMinimumDepth == null) {
             return true;
         }
 
-        TerrainSample center = world.sample(centerX, centerZ);
-        if (!isMarine(center)
-                || seaLevel - center.surfaceHeight() < centerMinimumDepth) {
+        if (!world.isMarine(centerX, centerZ, centerMinimumDepth)) {
             return false;
         }
 
         for (int[] offset : PERIMETER_OFFSETS) {
-            TerrainSample sample = world.sample(centerX + offset[0], centerZ + offset[1]);
-            if (!isMarine(sample)
-                    || seaLevel - sample.surfaceHeight() < EDGE_MINIMUM_DEPTH) {
+            if (!world.isMarine(
+                    centerX + offset[0],
+                    centerZ + offset[1],
+                    EDGE_MINIMUM_DEPTH)) {
                 return false;
             }
         }
         return true;
-    }
-
-    private static boolean isMarine(TerrainSample sample) {
-        return StandardTerrainTypes.OCEAN.equals(sample.terrainType())
-                || StandardTerrainTypes.COAST.equals(sample.terrainType());
     }
 }

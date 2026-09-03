@@ -31,8 +31,8 @@ public final class EngineWorldSession implements AutoCloseable {
     private final int seaLevel;
 
     private TerrainEngine engine;
-    private TerrainWorld world;
-    private EngineContext context;
+    private volatile TerrainWorld world;
+    private volatile EngineContext context;
 
     /**
      * Creates a lazily initialized engine session.
@@ -75,22 +75,39 @@ public final class EngineWorldSession implements AutoCloseable {
 
         EngineContext requested = new EngineContext(
                 seedAccess.flterraforged$getSeed(), minY, maxYExclusive, seaLevel);
+        TerrainWorld currentWorld = world;
+        if (currentWorld != null && requested.equals(context)) {
+            return currentWorld;
+        }
 
         synchronized (this) {
-            if (requested.equals(context) && world != null) {
-                return world;
+            currentWorld = world;
+            if (currentWorld != null && requested.equals(context)) {
+                return currentWorld;
             }
-            closeBoundResources();
-            engine = provider.create(config);
-            if (!EngineApiVersion.CURRENT.hasSameMajor(engine.apiVersion())) {
-                closeBoundResources();
+            if (currentWorld != null) {
+                throw new IllegalStateException(
+                        "Engine session is already bound to " + context
+                                + " and cannot switch concurrently to " + requested);
+            }
+            TerrainEngine createdEngine = provider.create(config);
+            if (!EngineApiVersion.CURRENT.hasSameMajor(createdEngine.apiVersion())) {
+                createdEngine.close();
                 throw new IllegalStateException(
                         "Engine instance from '" + provider.id() + "' uses incompatible API "
-                                + provider.apiVersion());
+                                + createdEngine.apiVersion());
             }
-            world = engine.openWorld(requested);
+            TerrainWorld createdWorld;
+            try {
+                createdWorld = createdEngine.openWorld(requested);
+            } catch (RuntimeException | Error failure) {
+                createdEngine.close();
+                throw failure;
+            }
+            engine = createdEngine;
             context = requested;
-            return world;
+            world = createdWorld;
+            return createdWorld;
         }
     }
 
@@ -100,11 +117,12 @@ public final class EngineWorldSession implements AutoCloseable {
      * @return current world-scoped terrain sampler
      * @throws IllegalStateException when no earlier chunk stage has bound the session
      */
-    public synchronized TerrainWorld boundWorld() {
-        if (world == null) {
+    public TerrainWorld boundWorld() {
+        TerrainWorld currentWorld = world;
+        if (currentWorld == null) {
             throw new IllegalStateException("Engine world is not bound before feature decoration");
         }
-        return world;
+        return currentWorld;
     }
 
 
@@ -120,12 +138,20 @@ public final class EngineWorldSession implements AutoCloseable {
         }
     }
 
-    /** Returns the selected engine provider identifier. */
+    /**
+     * Returns the selected engine provider identifier.
+     *
+     * @return selected provider identifier
+     */
     public EngineId providerId() {
         return provider.id();
     }
 
-    /** Returns the external engine implementation version reported by the provider. */
+    /**
+     * Returns the external engine implementation version reported by the provider.
+     *
+     * @return provider-reported engine implementation version
+     */
     public String providerVersion() {
         return provider.engineVersion();
     }
@@ -136,14 +162,15 @@ public final class EngineWorldSession implements AutoCloseable {
     }
 
     private void closeBoundResources() {
-        if (world != null) {
-            world.close();
-            world = null;
+        TerrainWorld currentWorld = world;
+        world = null;
+        context = null;
+        if (currentWorld != null) {
+            currentWorld.close();
         }
         if (engine != null) {
             engine.close();
             engine = null;
         }
-        context = null;
     }
 }

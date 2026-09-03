@@ -1,6 +1,6 @@
 # Austauschbare Block-Materializer – Minecraft 1.20.1 / Fabric
 
-Stand: **0.1.0-SNAPSHOT-r34**
+Stand: **0.1.0-SNAPSHOT-r35**
 
 ## Ziel
 

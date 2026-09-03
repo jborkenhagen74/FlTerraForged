@@ -101,6 +101,32 @@ final class MarineStructureGuardTest {
         assertEquals(0, samples.get(), "irrelevant starts must not query terrain");
     }
 
+    @Test
+    void optimizedMarineQueryAvoidsCompleteTerrainSamples() {
+        AtomicInteger queries = new AtomicInteger();
+        TerrainWorld optimized = new TerrainWorld() {
+            @Override
+            public EngineContext context() {
+                return new EngineContext(1L, -64, 320, 63);
+            }
+
+            @Override
+            public TerrainSample sample(int x, int z) {
+                throw new AssertionError("Guard requested a complete terrain sample");
+            }
+
+            @Override
+            public boolean isMarine(int x, int z, double minimumDepth) {
+                queries.incrementAndGet();
+                return true;
+            }
+        };
+
+        assertTrue(MarineStructureGuard.permits(
+                "minecraft:monument", true, 8, 8, 63, optimized));
+        assertEquals(9, queries.get(), "deep marine start must use nine lightweight queries");
+    }
+
     private static TerrainWorld world(BiFunction<Integer, Integer, TerrainSample> samples) {
         return new TerrainWorld() {
             @Override

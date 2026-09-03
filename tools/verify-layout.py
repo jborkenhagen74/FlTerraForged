@@ -225,10 +225,12 @@ def main() -> None:
     for fragment in (
         "PERIMETER_OFFSETS",
         "if (!hasChildren || centerMinimumDepth == null)",
-        "TerrainSample center = world.sample(centerX, centerZ)",
+        "world.isMarine(centerX, centerZ, centerMinimumDepth)",
     ):
         if fragment not in marine_guard_text:
             fail(f"mc1201 marine structure guard is missing its bounded fast path: {fragment}")
+    if "world.sample(" in marine_guard_text:
+        fail("mc1201 structure-start guard must not trigger full terrain/hydrology sampling")
     if "SAMPLE_STEP" in marine_guard_text or "for (int dz = -SAMPLE_RADIUS" in marine_guard_text:
         fail("mc1201 marine structure guard must not restore the cold 5-by-5 sample scan")
     for structure_id in (
@@ -242,6 +244,24 @@ def main() -> None:
     for forbidden_terrain in ("StandardTerrainTypes.RIVER", "StandardTerrainTypes.LAKE"):
         if forbidden_terrain in marine_guard_text:
             fail(f"mc1201 marine structure guard must accept only OCEAN/COAST, not {forbidden_terrain}")
+    session_text = (worldgen_root / "EngineWorldSession.java").read_text(encoding="utf-8")
+    for fragment in (
+        "private volatile TerrainWorld world",
+        "private volatile EngineContext context",
+        "TerrainWorld currentWorld = world",
+        "if (currentWorld != null && requested.equals(context))",
+    ):
+        if fragment not in session_text:
+            fail(f"mc1201 EngineWorldSession is missing its lock-free bound-world path: {fragment}")
+    if "public synchronized TerrainWorld boundWorld()" in session_text:
+        fail("mc1201 boundWorld fast path must not serialize every chunk worker")
+
+    terrain_world_text = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/TerrainWorld.java").read_text(encoding="utf-8")
+    if "default boolean isMarine(int x, int z, double minimumDepth)" not in terrain_world_text:
+        fail("Engine API is missing the binary-compatible lightweight marine query")
+    api_version_text = (ROOT / "engine-api/src/main/java/dev/foucaultleon/flterraforged/engine/api/EngineApiVersion.java").read_text(encoding="utf-8")
+    if "new EngineApiVersion(0, 1, 1)" not in api_version_text:
+        fail("Engine API patch version must report 0.1.1")
     if "intentionally a follow-up integration step" in generator_text:
         fail("mc1201 generator still contains deferred carver integration")
     if "simple solid/water columns" in generator_text:

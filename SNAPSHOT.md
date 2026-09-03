@@ -7,9 +7,9 @@
 
 # Snapshot
 
-Current repository snapshot: **0.1.0-SNAPSHOT-r34**.
+Current repository snapshot: **0.1.0-SNAPSHOT-r35**.
 
-Current package revision: **r34** 0.1.0-SNAPSHOT
+Current package revision: **r35** 0.1.0-SNAPSHOT
 
 Purpose: freeze the first architecture contract before importing upstream
 worldgen code.
@@ -176,3 +176,11 @@ marine candidates fail after their center sample, and only a valid deep-marine c
 bounded eight-point perimeter. Engine r30 coalesces simultaneous cold misses for the same final
 sample tile, erosion region and river map. Waterfall and rapid geometry remains deferred until this
 stability gate passes in a real Minecraft-1.20.1 world.
+
+### r35 exact-key cache and guard isolation
+
+r35 pairs with Engine r31 after the r34 mitigation still froze a real Apple client at zero percent.
+The marine structure guard now uses a lightweight conservative depth query which cannot initialize
+full erosion/hydrology. Exact-key single-flight datasets replace lock stripes, spawn-stage working
+sets remain cached, and repeated session reads are lock-free after first safe publication. Point 4,
+waterfall and rapid geometry, remains deferred until this replacement passes the real-client gate.
