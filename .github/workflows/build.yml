@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ develop, main, 'revision/**' ]
   pull_request:
     branches: [ develop, main ]
   workflow_dispatch:
@@ -43,7 +43,19 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
-      - name: Build and test
+      - name: Checkout exact Engine R29 source
+        uses: actions/checkout@v6
+        with:
+          repository: jborkenhagen74/FlTerraForged-Engine
+          ref: 6fc06491d212d2ad38ece463e81925393828b984
+          path: .ci/engine-r29-source
+
+      - name: Build Engine R29 local repository
+        run: gradle -p .ci/engine-r29-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all publish
+
+      - name: Build and test exact R31 host with exact Engine R29
+        env:
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r29-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -73,7 +85,7 @@ jobs:
 
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R31-EngineR29-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
 
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
@@ -96,8 +108,10 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric artifact"
+            echo "### Exact FlTerraForged R31 + Engine R29 control artifact"
             echo
+            echo "- Host source: \`6d676f90047285f64534281da44d7e98343b861a\`"
+            echo "- Embedded Engine source: \`6fc06491d212d2ad38ece463e81925393828b984\`"
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
