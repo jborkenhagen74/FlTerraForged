@@ -346,15 +346,10 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public boolean mayRepairHydrologyGap(TerrainSample sample) {
         TerrainType terrain = sample.terrainType();
-        RiverSample river = sample.river();
-        boolean insideDryChannel = river.isAvailable()
-                && river.hasFlow()
-                && river.flow() > 0.0D
-                && river.distance() <= Math.max(0.5D, river.width() * 0.5D);
         return StandardTerrainTypes.RIVER.equals(terrain)
                 || StandardTerrainTypes.LAKE.equals(terrain)
-                || insideDryChannel
-                || river.hasWaterSurfaceHeight() && river.depth() > MIN_WET_DEPTH;
+                || sample.river().hasWaterSurfaceHeight()
+                        && sample.river().depth() > MIN_WET_DEPTH;
     }
 
     @Override

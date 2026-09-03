@@ -1,101 +1,129 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
-import java.util.Map;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.MarineColumn;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.MarineEnvironmentSummary;
 import java.util.Objects;
 
-/** Prevents marine structures from starting in inland or undersized water bodies. */
+/** Prevents marine structures from starting in inland, undersized or physically shallow water. */
 final class MarineStructureGuard {
 
-    private static final int SAMPLE_RADIUS = 32;
     private static final double EDGE_MINIMUM_DEPTH = 2.0D;
-    private static final int[][] PERIMETER_OFFSETS = {
-        {-SAMPLE_RADIUS, -SAMPLE_RADIUS},
-        {0, -SAMPLE_RADIUS},
-        {SAMPLE_RADIUS, -SAMPLE_RADIUS},
-        {-SAMPLE_RADIUS, 0},
-        {SAMPLE_RADIUS, 0},
-        {-SAMPLE_RADIUS, SAMPLE_RADIUS},
-        {0, SAMPLE_RADIUS},
-        {SAMPLE_RADIUS, SAMPLE_RADIUS}
-    };
-    private static final Map<String, Double> MINIMUM_CENTER_DEPTHS = Map.of(
-            "minecraft:shipwreck", 5.0D,
-            "minecraft:ocean_ruin_cold", 6.0D,
-            "minecraft:ocean_ruin_warm", 6.0D,
-            "minecraft:monument", 12.0D);
+    private static final double MONUMENT_EDGE_MINIMUM_DEPTH = 4.0D;
 
     private MarineStructureGuard() {
     }
 
     /**
-     * Tests whether a newly selected structure start is compatible with Engine hydrology.
+     * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>Non-marine structures are deliberately left to vanilla. Marine structures require a
-     * bounded center-and-perimeter marine sample field around the start chunk. The center is
-     * checked first, so the common inland rejection path performs exactly one lightweight marine
-     * depth query.
-     * Every perimeter point must be actual ocean/coast terrain with at least two blocks of water,
-     * while the center additionally has to satisfy the structure-specific depth. A nearby ocean
-     * biome can therefore no longer authorize a shipwreck inside a river, lake or puddle without
-     * forcing a cold 5-by-5 terrain-tile scan or full hydrology generation on chunk workers.</p>
-     *
-     * @param structureId namespaced Minecraft structure identifier
-     * @param centerX block X at the center of the candidate start chunk
-     * @param centerZ block Z at the center of the candidate start chunk
-     * @param seaLevel active world sea level
-     * @param world bound Engine terrain sampler
-     * @return {@code true} when vanilla may retain the structure start
-     */
-    static boolean permits(
-            String structureId,
-            int centerX,
-            int centerZ,
-            int seaLevel,
-            TerrainWorld world) {
-        return permits(structureId, true, centerX, centerZ, seaLevel, world);
-    }
-
-    /**
-     * Tests a potentially empty structure start without sampling terrain unnecessarily.
+     * <p>Empty and unrelated starts return before any terrain lookup. Underwater structures first
+     * validate one cached center column; land, rivers, lakes, lake shores and shallow puddles are
+     * therefore rejected without constructing a perimeter summary. Only plausible marine centers
+     * request the shared inner/outer environment stencil.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
      * @param centerX block X at the center of the candidate start chunk
      * @param centerZ block Z at the center of the candidate start chunk
-     * @param seaLevel active world sea level
      * @param world bound Engine terrain sampler
-     * @return {@code true} when an empty, non-marine or valid marine start may be retained
+     * @param cache world-generator scoped environment cache
+     * @return {@code true} when vanilla may retain the structure start
      */
     static boolean permits(
             String structureId,
             boolean hasChildren,
             int centerX,
             int centerZ,
-            int seaLevel,
-            TerrainWorld world) {
+            TerrainWorld world,
+            MarineEnvironmentCache cache) {
         Objects.requireNonNull(structureId, "structureId");
         Objects.requireNonNull(world, "world");
-        if (seaLevel != world.context().seaLevel()) {
-            throw new IllegalArgumentException("structure and Engine sea levels must match");
-        }
-        Double centerMinimumDepth = MINIMUM_CENTER_DEPTHS.get(structureId);
-        if (!hasChildren || centerMinimumDepth == null) {
+        Objects.requireNonNull(cache, "cache");
+        if (!hasChildren) {
             return true;
         }
 
-        if (!world.isMarine(centerX, centerZ, centerMinimumDepth)) {
+        MarineRule rule = MarineRule.forStructure(structureId);
+        if (rule == MarineRule.NONE) {
+            return true;
+        }
+
+        MarineColumn center = cache.column(world, centerX, centerZ);
+        if (rule == MarineRule.BEACHED_SHIPWRECK) {
+            return permitsBeached(center, cache.summary(world, centerX, centerZ));
+        }
+        if (!center.isMarineWater()
+                || center.inlandWater()
+                || center.waterDepth() < rule.minimumCenterDepth) {
             return false;
         }
 
-        for (int[] offset : PERIMETER_OFFSETS) {
-            if (!world.isMarine(
-                    centerX + offset[0],
-                    centerZ + offset[1],
-                    EDGE_MINIMUM_DEPTH)) {
-                return false;
-            }
+        MarineEnvironmentSummary summary = cache.summary(world, centerX, centerZ);
+        if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
+            return false;
         }
-        return true;
+        if (summary.inner().marineWater() < rule.minimumInnerMarineSamples
+                || summary.outer().marineWater() < rule.minimumOuterMarineSamples) {
+            return false;
+        }
+        if (summary.inner().minimumMarineDepth() < rule.minimumEdgeDepth) {
+            return false;
+        }
+        return summary.outer().marineWater() == 0
+                || summary.outer().minimumMarineDepth() >= EDGE_MINIMUM_DEPTH;
+    }
+
+    private static boolean permitsBeached(
+            MarineColumn center,
+            MarineEnvironmentSummary summary) {
+        if (center.inlandWater() || !center.geometry().supportsDryPlacement()) {
+            return false;
+        }
+        boolean plausibleShoreCenter = center.coast() || !center.materializedWater();
+        if (!plausibleShoreCenter) {
+            return false;
+        }
+        if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
+            return false;
+        }
+        return summary.inner().marineWater() >= 2
+                && summary.outer().marineWater() >= 1;
+    }
+
+    private enum MarineRule {
+        NONE(0.0D, 0.0D, 0, 0),
+        SHIPWRECK(5.0D, EDGE_MINIMUM_DEPTH, 7, 3),
+        OCEAN_RUIN(6.0D, EDGE_MINIMUM_DEPTH, 8, 3),
+        MONUMENT(12.0D, MONUMENT_EDGE_MINIMUM_DEPTH, 8, 4),
+        OCEAN_PORTAL(5.0D, EDGE_MINIMUM_DEPTH, 7, 3),
+        BEACHED_SHIPWRECK(0.0D, 0.0D, 0, 0);
+
+        private final double minimumCenterDepth;
+        private final double minimumEdgeDepth;
+        private final int minimumInnerMarineSamples;
+        private final int minimumOuterMarineSamples;
+
+        MarineRule(
+                double minimumCenterDepth,
+                double minimumEdgeDepth,
+                int minimumInnerMarineSamples,
+                int minimumOuterMarineSamples) {
+            this.minimumCenterDepth = minimumCenterDepth;
+            this.minimumEdgeDepth = minimumEdgeDepth;
+            this.minimumInnerMarineSamples = minimumInnerMarineSamples;
+            this.minimumOuterMarineSamples = minimumOuterMarineSamples;
+        }
+
+        static MarineRule forStructure(String structureId) {
+            return switch (structureId) {
+                case "minecraft:shipwreck" -> SHIPWRECK;
+                case "minecraft:shipwreck_beached" -> BEACHED_SHIPWRECK;
+                case "minecraft:ocean_ruin_cold", "minecraft:ocean_ruin_warm" -> OCEAN_RUIN;
+                case "minecraft:monument" -> MONUMENT;
+                case "minecraft:ruined_portal_ocean" -> OCEAN_PORTAL;
+                default -> NONE;
+            };
+        }
     }
 }

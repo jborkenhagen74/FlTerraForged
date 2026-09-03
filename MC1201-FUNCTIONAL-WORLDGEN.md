@@ -4,9 +4,8 @@
 > **Runtime dependency (Fabric):** Install Fabric API `0.92.2+1.20.1` (or a compatible newer 1.20.1 release). Its `fabric-resource-loader-v0` module is required for FlTerraForged's bundled world-preset data pack to participate in the 1.20.1 worldgen registry reload.
 
 
-Snapshot r35 keeps the r20 absolute-Y substrate model, uses Engine r31 continuous water geometry
-and bounded parallel caches, and retains family-bound natural material/decorative realization after
-native features.
+Snapshot r30 keeps the r20 absolute-Y substrate model, uses Engine r28 continuous water geometry
+and adds family-bound natural material/decorative realization after native features.
 
 ## Ownership boundary
 
@@ -232,25 +231,3 @@ plants, waterlogged stairs, moss carpets, spray and rare small dams without writ
 current chunk. Existing native seagrass is thinned to the same broad habitat field; kelp and
 unrelated features remain untouched. All concrete blocks and properties remain family-local to
 Minecraft 1.20.1.
-
-## r34 cold-spawn stability
-
-The structure-start guard no longer requests a cold 5×5 Engine footprint for every relevant map
-entry. Empty and non-marine starts require no Engine sample, while land, river, lake and puddle
-candidates are rejected by one center sample. Only a deep marine center continues to a bounded
-eight-point perimeter survey. Engine r30 additionally coalesces concurrent misses for the same
-terrain tile, erosion region and river map, preventing spawn workers from multiplying identical
-CPU and allocation work. Independent regions remain parallel.
-
-## r35 exact-key cache and structure-start isolation
-
-The r34 guard still caused a multi-minute zero-percent stall on a real Apple client. In r35 the
-structure-start pass calls only `TerrainWorld.isMarine`. Engine r31 answers from cached base terrain
-with the configured maximum upward erosion delta included conservatively; no full final tile,
-erosion simulation, river map or lake field is initialized by the guard.
-
-Completed spawn working sets remain available across later chunk phases. Concurrent cold misses for
-the same exact tile/region/map share one interruptible in-flight result, while unrelated keys do not
-collide on stripes. The already-bound world session is read without a global monitor. Recursive
-same-cache loads and concurrent seed/context replacement fail explicitly rather than waiting or
-closing state below active workers.

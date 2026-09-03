@@ -1,8 +1,6 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.standard;
 
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationContext;
-import dev.foucaultleon.flterraforged.core.biome.BiomeClimateRouter;
-import dev.foucaultleon.flterraforged.core.biome.BiomeRole;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
@@ -32,8 +30,6 @@ final class WatercourseDecorator {
     private static final long SEAGRASS_SALT = 0x1892C6F04DB73A5EL;
     private static final long LILY_SALT = 0xD7A20B5E4C91386FL;
     private static final long BANK_PLANT_SALT = 0x5C8E21A7D4903BF6L;
-    private static final long LAND_PLANT_SALT = 0x6A31D942E5B708CFL;
-    private static final long LAND_VARIANT_SALT = 0xB20F81C46D73A95EL;
     private static final long STAIR_SALT = 0x83F1D46A20B79CE5L;
     private static final long SPRAY_SALT = 0x31B8E5C792A40DF6L;
     private static final long DAM_SALT = 0xA17C58D3E60942BFL;
@@ -41,7 +37,6 @@ final class WatercourseDecorator {
     private final VanillaBlockMaterializer materializer;
     private final boolean enabled;
     private final boolean plants;
-    private final boolean landPlants;
     private final boolean partialBlocks;
     private final boolean spray;
     private final boolean dams;
@@ -58,7 +53,6 @@ final class WatercourseDecorator {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
         this.enabled = option(options, "decoration.enabled", true);
         this.plants = option(options, "decoration.plants", true);
-        this.landPlants = option(options, "decoration.land_plants", true);
         this.partialBlocks = option(options, "decoration.partial_blocks", true);
         this.spray = option(options, "decoration.spray", true);
         this.dams = option(options, "decoration.dams", true);
@@ -85,10 +79,8 @@ final class WatercourseDecorator {
                 TerrainSample sample = terrain.sample(x, z);
                 if (isAquatic(sample)) {
                     decorateAquatic(context, mutable, x, z, sample);
-                } else if (isBank(sample)) {
-                    decorateBank(context, mutable, x, z, sample);
                 } else {
-                    decorateLand(context, mutable, x, z, sample);
+                    decorateBank(context, mutable, x, z, sample);
                 }
             }
         }
@@ -145,7 +137,7 @@ final class WatercourseDecorator {
                 && StandardTerrainTypes.LAKE.equals(sample.terrainType())
                 && waterDepth >= 2
                 && moist(sample) > 0.58D
-                && NaturalMaterialField.sparse(x, z, LILY_SALT, 5, 0.54D)) {
+                && NaturalMaterialField.sparse(x, z, LILY_SALT, 7, 0.50D)) {
             placeIfAir(
                     context,
                     mutable,
@@ -166,7 +158,7 @@ final class WatercourseDecorator {
             int x,
             int z,
             TerrainSample sample) {
-        if (!plants) {
+        if (!plants || !isBank(sample)) {
             return;
         }
         int y = materializer.solidSurfaceY(sample) + 1;
@@ -175,8 +167,7 @@ final class WatercourseDecorator {
                 ? RiparianZone.lakeShoreStrength(sample)
                 : RiparianZone.bankStrength(sample);
         double habitat = NaturalMaterialField.sample(x, z, BANK_PLANT_SALT, 34.0D);
-        double carpetThreshold = 0.28D + strength * 0.38D;
-        if (partialBlocks && moisture > 0.44D && habitat < carpetThreshold) {
+        if (partialBlocks && moisture > 0.48D && habitat < strength * 0.82D) {
             placeIfAir(
                     context,
                     mutable,
@@ -186,8 +177,7 @@ final class WatercourseDecorator {
                     Blocks.MOSS_CARPET.getDefaultState());
             return;
         }
-        double plantDensity = Math.min(0.94D, 0.24D + strength * 0.68D);
-        if (!NaturalMaterialField.sparse(x, z, BANK_PLANT_SALT, 3, plantDensity)) {
+        if (!NaturalMaterialField.sparse(x, z, BANK_PLANT_SALT, 5, strength * 0.58D)) {
             return;
         }
         BlockState plant;
@@ -205,85 +195,6 @@ final class WatercourseDecorator {
         placeIfAir(context, mutable, x, y, z, plant);
     }
 
-    private void decorateLand(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int z,
-            TerrainSample sample) {
-        if (!plants
-                || !landPlants
-                || sample.surfaceHeight() < 60.0D
-                || sample.surfaceHeight() > 140.0D
-                || sample.slope() > 0.82D) {
-            return;
-        }
-        BiomeRole role = BiomeClimateRouter.route(sample);
-        double density = landPlantDensity(role, moist(sample));
-        if (!(density > 0.0D)) {
-            return;
-        }
-        double habitat = NaturalMaterialField.sample(x, z, LAND_PLANT_SALT, 56.0D);
-        if (habitat > density
-                || !NaturalMaterialField.sparse(
-                        x,
-                        z,
-                        LAND_PLANT_SALT,
-                        3,
-                        0.48D + density * 0.46D)) {
-            return;
-        }
-        int y = materializer.solidSurfaceY(sample) + 1;
-        double variant = NaturalMaterialField.sample(x, z, LAND_VARIANT_SALT, 31.0D);
-        placeIfAir(context, mutable, x, y, z, landPlant(role, moist(sample), variant));
-    }
-
-    private static double landPlantDensity(BiomeRole role, double moisture) {
-        double climateFactor = 0.72D + moisture * 0.28D;
-        double density = switch (role) {
-            case WETLAND -> 0.86D;
-            case TEMPERATE_DENSE_FOREST, HOT_WET -> 0.78D;
-            case COOL_FOREST, TEMPERATE_FOREST, BOREAL_FOREST -> 0.72D;
-            case TEMPERATE_OPEN_WOODLAND, MEDITERRANEAN_WOODLAND -> 0.66D;
-            case TEMPERATE_GRASSLAND, COOL_GRASSLAND, ALPINE_MEADOW -> 0.61D;
-            case MEDITERRANEAN_GRASSLAND, HOT_SEASONAL -> 0.42D;
-            case POLAR_PLAIN, ALPINE_ROCK, HOT_DRY,
-                    OCEAN_COLD, OCEAN_TEMPERATE, OCEAN_WARM,
-                    OCEAN_DEEP_COLD, OCEAN_DEEP_TEMPERATE, OCEAN_DEEP_WARM,
-                    COAST_SANDY, COAST_ROCKY, RIVER_COLD, RIVER_TEMPERATE -> 0.0D;
-        };
-        return density * climateFactor;
-    }
-
-    private static BlockState landPlant(BiomeRole role, double moisture, double variant) {
-        if (role == BiomeRole.WETLAND
-                || role == BiomeRole.TEMPERATE_DENSE_FOREST
-                || role == BiomeRole.COOL_FOREST
-                || role == BiomeRole.BOREAL_FOREST
-                || moisture > 0.74D) {
-            return variant < 0.72D
-                    ? Blocks.FERN.getDefaultState()
-                    : Blocks.GRASS.getDefaultState();
-        }
-        if (role == BiomeRole.ALPINE_MEADOW || role == BiomeRole.TEMPERATE_GRASSLAND) {
-            if (variant > 0.82D) {
-                return Blocks.CORNFLOWER.getDefaultState();
-            }
-            if (variant > 0.69D) {
-                return Blocks.AZURE_BLUET.getDefaultState();
-            }
-            if (variant > 0.57D) {
-                return Blocks.DANDELION.getDefaultState();
-            }
-        }
-        if (role == BiomeRole.TEMPERATE_OPEN_WOODLAND && variant > 0.80D) {
-            return Blocks.POPPY.getDefaultState();
-        }
-        return variant < 0.24D && moisture > 0.52D
-                ? Blocks.FERN.getDefaultState()
-                : Blocks.GRASS.getDefaultState();
-    }
-
     private void decorateSpray(
             WaterDecorationContext context,
             BlockPos.Mutable mutable,
@@ -292,8 +203,7 @@ final class WatercourseDecorator {
             TerrainSample sample,
             int waterTop) {
         if (!StandardTerrainTypes.RIVER.equals(sample.terrainType())
-                || sample.surfaceHeight() <= 120.0D
-                || sample.slope() < 0.55D
+                || sample.surfaceHeight() < 90.0D && sample.slope() < 0.55D
                 || !NaturalMaterialField.sparse(x, z, SPRAY_SALT, 3, 0.62D)) {
             return;
         }

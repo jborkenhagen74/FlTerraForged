@@ -25,11 +25,7 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
     private volatile TerrainWorld terrainWorld;
     private volatile int seaLevel = 63;
 
-    /**
-     * Creates an unbound biome source from a native biome palette.
-     *
-     * @param palette native biome candidates for semantic Engine roles
-     */
+    /** Creates an unbound biome source from a native biome palette. */
     public FlTerraForgedBiomeSource(BiomePalette palette) {
         this.palette = Objects.requireNonNull(palette, "palette");
     }
@@ -54,11 +50,7 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
         bind(terrainWorld, 63);
     }
 
-    /**
-     * Returns the serialized palette.
-     *
-     * @return configured native biome palette
-     */
+    /** Returns the serialized palette. */
     public BiomePalette palette() {
         return palette;
     }
@@ -88,12 +80,6 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
         int blockX = BiomeCoords.toBlock(biomeX);
         int blockZ = BiomeCoords.toBlock(biomeZ);
         TerrainSample sample = world.sample(blockX, blockZ);
-        return NativeBiomeRouter.route(
-                sample,
-                palette,
-                seaLevel,
-                blockX,
-                blockZ,
-                world.context().seed());
+        return NativeBiomeRouter.route(sample, palette, seaLevel);
     }
 }

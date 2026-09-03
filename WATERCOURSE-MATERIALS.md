@@ -1,6 +1,6 @@
 # Standardmaterialisierung für Wasserläufe
 
-Stand: **0.1.0-SNAPSHOT-r35**, Minecraft-Familie **mc1201**
+Stand: **0.1.0-SNAPSHOT-r30**, Minecraft-Familie **mc1201**
 
 ## Ziel
 
@@ -103,7 +103,7 @@ Spalten mit drei vollen Wasserblöcken ausgeformt, oberhalb davon mit zwei.
 
 ## Nachgelagerte natürliche Dekoration
 
-r31 führt den Materializer-Hook nach den nativen Biomfeatures aus. Der Standardmaterializer setzt
+r30 führt den Materializer-Hook nach den nativen Biomfeatures aus. Der Standardmaterializer setzt
 nur Elemente, deren Platzierungsbedingungen im fertigen Chunk erfüllt sind:
 
 | Element | Habitat/Begrenzung |
@@ -111,8 +111,7 @@ nur Elemente, deren Platzierungsbedingungen im fertigen Chunk erfüllt sind:
 | Seegras / hohes Seegras | vorhandenes Vanilla-Seegras wird auf breite Habitatcluster in 2–8 Block tiefem, nicht zu steilem Wasser ausgedünnt und dort gezielt ergänzt |
 | Seerosen | feuchte Seen mit freier Wasseroberfläche |
 | Moosteppich | feuchte innere Uferzone; nie als tragender Bettblock |
-| Zuckerrohr, Farn, Gras, Bambus | klima- und feuchteabhängige, zusammenhängend verteilte Uferpunkte |
-| Gras, Farn und heimische Blüten | optionale breite Landhabitate passend zur semantischen Biomrolle; kein blockweises Weißrauschen |
+| Zuckerrohr, Farn, Gras, Bambus | klima- und feuchteabhängige, dünn verteilte Uferpunkte |
 | Wassergefüllte Stein-/Sandsteinstufen | seltene zusammenhängende Bettformationen in steilerem Gelände |
 | Gischt | nur an einem nachgewiesenen Einblock-Gefälleschritt eines Hochlandflusses; Spinnwebe über Wasser und weißer Teppich auf einem trockenen Vorsprung |
 | kleiner Damm | sehr selten, quer zu einem 3–8 Block breiten gemäßigten Fluss; Eichenstämme, Zaun und Schlammenden |
@@ -124,7 +123,6 @@ entstehen an Chunkgrenzen keine halben Doppelblockpflanzen oder abgeschnittenen 
 ```properties
 decoration.enabled=true
 decoration.plants=true
-decoration.land_plants=true
 decoration.partial_blocks=true
 decoration.spray=true
 decoration.dams=true
@@ -135,15 +133,14 @@ decoration.dams=true
 Der Dekorator liegt ausschließlich in `families/mc1201`. Für Minecraft 1.20.1 wurden nur dort
 vorhandene Block- und State-Eigenschaften verwendet: `SEAGRASS`, `TALL_SEAGRASS`, `LILY_PAD`,
 `MOSS_CARPET`, `SUGAR_CANE`, `FERN`, `GRASS`, `BAMBOO`, `COBBLESTONE_STAIRS`,
-`DANDELION`, `POPPY`, `AZURE_BLUET`, `CORNFLOWER`, `ANDESITE_STAIRS`, `SANDSTONE_STAIRS`,
-`COBWEB`, `WHITE_CARPET`, `OAK_LOG`, `OAK_FENCE`, `MUD`
+`ANDESITE_STAIRS`, `SANDSTONE_STAIRS`, `COBWEB`, `WHITE_CARPET`, `OAK_LOG`, `OAK_FENCE`, `MUD`
 sowie `WATERLOGGED`, `HORIZONTAL_FACING`, `AXIS` und `DOUBLE_BLOCK_HALF`. Spätere
 Minecraft-Familien müssen ihre eigene Verfügbarkeitsliste und eigene Dekoratorimplementierung
-bereitstellen; r34 kopiert diese Auswahl nicht in die Platzhalter der Versionsmatrix.
+bereitstellen; r30 kopiert diese Auswahl nicht in die Platzhalter der Versionsmatrix.
 
 ## Tiefenprofil des Begleit-Engine-Stands
 
-FlTerraForged r35 ist für Engine r31 vorgesehen:
+FlTerraForged r30 ist für Engine r28 vorgesehen:
 
 - Tiefland-Flusskerne: Zielwert etwa 3,5 Blöcke vor dem Ufer-Taper;
 - mittlere Lagen: weich abnehmend bis etwa 2,75 Blöcke;
@@ -156,19 +153,18 @@ FlTerraForged r35 ist für Engine r31 vorgesehen:
 Alle Höhen sind kontinuierliche Engine-Zielwerte. Der mc1201-Standardmaterializer quantisiert sie
 anschließend konsistent auf ganze Minecraft-Blöcke.
 
-Engine r30 behält das in r29 eingeführte kontinuierliche, basin-eigene Distanzfeld zur
-Seeuferkante bei.
+Engine r28 berechnet zusätzlich ein kontinuierliches, basin-eigenes Distanzfeld zur Seeuferkante.
 Damit kann die Tiefe an einer internen Drainage-Rastergrenze nicht mehr springen. Der finale
 Hydrologiepass senkt eingeschlossene Resthügel auf den nachbarschaftlich belegten Bettverlauf ab;
 er hebt dabei keine natürlichen Vertiefungen an und führt keinen freien Flood-Fill aus.
 
 Bei Flussmündungen wird die Sohltiefe nicht mehr aus Breite oder Durchfluss des jeweils nächsten
 Segments abgeleitet. Ein Wechsel vom Neben- zum Hauptfluss kann deshalb keinen vertikalen Graben
-erzeugen. Die Engine toleriert bis zu drei zusätzliche Blöcke eines lokalen Resthügels. Bei einem
-tieferen projizierten Kreuzungssegment wählt sie zuerst das besser zur Geländeoberfläche passende
-Segment; nicht materialisierbare Restpunkte werden als flache Wasserlinienbank statt als Bergzacke
-ausgeformt und dürfen nur bei gegenüberliegendem Wassernachweis repariert werden.
+erzeugen. Die Engine korrigiert höchstens zwei zusätzliche Blöcke eines isolierten Resthügels;
+reicht das nicht bis zur hydraulischen Sohle, wird das Wassersignal verworfen statt unter einem
+Ozeanboden oder Berg weitergeführt zu werden.
 
-Der abschließende r29-Kantenaudit tastete für zwei unabhängige Seeds Fluss-, See- und
-Ozeanübergänge gemeinsam ab. Unter 3.173 direkten Wasser-zu-Land-Kanten gab es keine trockene
-Spalte unterhalb der Wasserlinie und keine erste Uferstufe von mehr als einem Block.
+Der abschließende Engine-Audit tastete für zwei unabhängige Seeds jeweils 1024×1024 Spalten ab.
+Unter den zusammen 36.717 materialisierten Inland-Wasserspalten gab es keine allseitig
+eingeschlossene Lücke, keine nicht tragfähige Wasserkennung und keinen benachbarten Wasser- oder
+Bett-Sprung über einen Block.

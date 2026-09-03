@@ -94,7 +94,6 @@ public final class MaterializerConfig {
                         "# Minecraft-1.20.1-only post-feature decoration switches.",
                         "# decoration.enabled=true",
                         "# decoration.plants=true",
-                        "# decoration.land_plants=true",
                         "# decoration.partial_blocks=true",
                         "# decoration.spray=true",
                         "# decoration.dams=true",
@@ -126,29 +125,17 @@ public final class MaterializerConfig {
         }
     }
 
-    /**
-     * Returns the selected materializer provider identifier.
-     *
-     * @return normalized provider identifier
-     */
+    /** Returns the selected materializer provider identifier. */
     public String materializerId() {
         return materializerId;
     }
 
-    /**
-     * Returns immutable provider-specific materializer options.
-     *
-     * @return immutable provider option map
-     */
+    /** Returns immutable provider-specific materializer options. */
     public Map<String, String> options() {
         return options;
     }
 
-    /**
-     * Returns the backing configuration path.
-     *
-     * @return materializer configuration path
-     */
+    /** Returns the backing configuration path. */
     public Path path() {
         return path;
     }

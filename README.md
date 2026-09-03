@@ -84,7 +84,7 @@ PR      -> build/test only
 
 ## First Minecraft binding
 
-`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r35 pairs with Engine r31, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled water/bank/land plants, waterlogged stairs, high-alpine spray and rare dams. Its bounded structure-start guard restricts shipwrecks, ocean ruins and monuments through lightweight conservative marine-depth queries rather than full terrain/hydrology samples. Empty and unrelated structure starts perform no footprint scan. Already-bound world/session reads are lock-free for parallel chunk workers. Vanilla ores and unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
+`versions/1.20.1/fabric` is the first executable reference target. It registers a custom chunk generator and biome source, binds both to the same external `TerrainWorld`, and exposes the world preset `flterraforged:flterraforged`. The current 1.20.1 adapter delegates Minecraft's vanilla NoiseRouter/aquifer substrate, surface rules, carvers and entity population. It reconciles the substrate with Engine heights without vertically translating caves or underground layers. Snapshot r30 pairs with Engine r28, uses continuous geological material fields and blends hydrologic banks over 8–12 blocks into native biome surfaces. A version-bound post-feature materializer hook adds habitat-controlled plants, waterlogged stairs, spray and rare dams. Vanilla ores and all unrelated biome features remain inherited. See `MC1201-FIRST-BINDING.md`, `MC1201-FUNCTIONAL-WORLDGEN.md` and `WATERCOURSE-MATERIALS.md`. Execute `MC1201-TEST-MATRIX.md` before treating the adapter as the reference for another Minecraft family.
 
 
 ### Build JVM for the 1.20.1 reference adapter
@@ -159,42 +159,6 @@ water grade is bounded before block projection. River, lake, bank and ocean mate
 domain-warped formations rather than fixed random patches. The outer bank progressively yields to
 the selected biome surface. The mc1201 materializer then adds only 1.20.1-available plants,
 waterlogged stairs, moss carpets, waterfall spray and rare small dams in validated habitats.
-
-### r31 shoreline stability, richer habitats and balanced forests
-
-r31 pairs with Engine r29. Final dry-channel gap repair now recognizes the geometric river envelope
-without forcing dry banks into the river biome. The mc1201 decorator adds denser coherent bank
-vegetation and optional climate-role-driven land-plant clusters, while waterfall spray is restricted
-to real river steps above Y 120. Central-Europe forest candidates are selected in broad irregular
-seeded stands and weight mixed forest more strongly; birch, spruce and dark-oak monocultures remain
-present without making birch the default across large regions.
-
-### r32 marine structure placement
-
-r32 continues to pair with Engine r29. The Minecraft-1.20.1 adapter validates vanilla marine
-structure starts against Engine terrain semantics. Shipwrecks, cold/warm ocean ruins and monuments
-need a connected 5×5 marine sample field spanning 64×64 blocks; river, lake, puddle, dry or
-one-block-deep samples reject the start. Structure-specific center-depth requirements keep monuments
-in deep water while retaining ordinary deep-ocean shipwrecks and ruins. Beached shipwrecks and all
-non-marine structures retain vanilla placement behavior.
-
-### r34 world-creation stall hotfix
-
-r34 pairs with Engine r30 and corrects the cold-cache amplification first made executable by r33.
-Empty or unrelated structure starts no longer sample the Engine. A marine candidate checks its
-center first and therefore rejects land, river, lake and puddle positions after one sample; only a
-valid deep-marine center continues to eight perimeter points. Engine r30 concurrently coalesces
-identical cold tile, erosion-region and river-map calculations while retaining parallel work for
-unrelated regions. This release intentionally contains no waterfall/rapid geometry change.
-
-### r35 exact-key cache and lightweight structure guard
-
-r35 supersedes the insufficient r34 hotfix and pairs with Engine r31. Structure starts use the
-binary-compatible Engine API 0.1.1 marine-depth query; the default Engine answers it from cached
-base terrain with a conservative erosion allowance and never initializes full hydrology there.
-Engine caches now share one in-flight future per exact dataset key, preserve a complete spawn-stage
-working set and reject recursive cache loads diagnostically. Repeated bound-session reads no longer
-take one global monitor. Waterfall and rapid geometry remains deliberately unchanged.
 
 ### r27 Central-Europe / biome-matrix finalization
 

@@ -29,27 +29,6 @@ public final class NativeBiomeRouter {
             TerrainSample sample,
             BiomePalette palette,
             int seaLevel) {
-        return route(sample, palette, seaLevel, 0, 0, 0L);
-    }
-
-    /**
-     * Resolves a Minecraft biome with seed-dependent spatial variants.
-     *
-     * @param sample external-engine terrain sample
-     * @param palette configured native biome palette
-     * @param seaLevel active Minecraft sea level
-     * @param x world X coordinate
-     * @param z world Z coordinate
-     * @param seed world seed
-     * @return selected Minecraft biome entry
-     */
-    public static RegistryEntry<Biome> route(
-            TerrainSample sample,
-            BiomePalette palette,
-            int seaLevel,
-            int x,
-            int z,
-            long seed) {
         BiomeRole role = BiomeClimateRouter.route(sample);
         if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
                 && seaLevel - sample.surfaceHeight() >= 12.0D) {
@@ -59,6 +38,6 @@ public final class NativeBiomeRouter {
                 default -> BiomeRole.OCEAN_DEEP_TEMPERATE;
             };
         }
-        return palette.resolve(role, sample, x, z, seed);
+        return palette.resolve(role, sample);
     }
 }
