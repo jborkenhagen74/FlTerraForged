@@ -43,6 +43,10 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
+      - name: Verify R43 worldgen lifecycle
+        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+        run: python3 tools/verify-r43-lifecycle.py
+
       - name: Build R43 Engine API local repository
         if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
