@@ -3,38 +3,38 @@
   <groupId>dev.foucaultleon</groupId>
   <artifactId>flterraforged-engine-api</artifactId>
   <versioning>
-    <lastUpdated>20260903103747</lastUpdated>
+    <lastUpdated>20260903114629</lastUpdated>
     <snapshot>
-      <timestamp>20260903.103747</timestamp>
+      <timestamp>20260903.114629</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
+        <extension>jar</extension>
+        <value>0.1.0-20260903.114629-1</value>
+        <updated>20260903114629</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>0.1.0-20260903.114629-1</value>
+        <updated>20260903114629</updated>
+      </snapshotVersion>
+      <snapshotVersion>
         <classifier>sources</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260903.103747-1</value>
-        <updated>20260903103747</updated>
+        <value>0.1.0-20260903.114629-1</value>
+        <updated>20260903114629</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>module</extension>
+        <value>0.1.0-20260903.114629-1</value>
+        <updated>20260903114629</updated>
       </snapshotVersion>
       <snapshotVersion>
         <classifier>javadoc</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20260903.103747-1</value>
-        <updated>20260903103747</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>jar</extension>
-        <value>0.1.0-20260903.103747-1</value>
-        <updated>20260903103747</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>pom</extension>
-        <value>0.1.0-20260903.103747-1</value>
-        <updated>20260903103747</updated>
-      </snapshotVersion>
-      <snapshotVersion>
-        <extension>module</extension>
-        <value>0.1.0-20260903.103747-1</value>
-        <updated>20260903103747</updated>
+        <value>0.1.0-20260903.114629-1</value>
+        <updated>20260903114629</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
