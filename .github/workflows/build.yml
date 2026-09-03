@@ -44,7 +44,7 @@ jobs:
         run: python3 tools/verify-layout.py
 
       - name: Checkout Engine R33 validation source
-        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine'
+        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine' || github.ref == 'refs/heads/revision/r38-control-no-marine-guard'
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
@@ -52,17 +52,17 @@ jobs:
           path: .ci/engine-r33-source
 
       - name: Build Engine R33 local validation repository
-        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine'
+        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine' || github.ref == 'refs/heads/revision/r38-control-no-marine-guard'
         run: gradle -p .ci/engine-r33-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all publish
 
       - name: Build and test with Engine R33 validation runtime
-        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine'
+        if: github.ref == 'refs/heads/revision/r37-liveness-sparse-marine' || github.ref == 'refs/heads/revision/r38-control-no-marine-guard'
         env:
           FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r33-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r37-liveness-sparse-marine'
+        if: github.ref != 'refs/heads/revision/r37-liveness-sparse-marine' && github.ref != 'refs/heads/revision/r38-control-no-marine-guard'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -115,7 +115,7 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric R37 validation artifact"
+            echo "### Minecraft 1.20.1 Fabric validation artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Embedded Engine for revision validation: R33"
