@@ -17,10 +17,10 @@ final class MarineStructureGuard {
     /**
      * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>Empty and unrelated starts return before any terrain lookup. Underwater structures first
-     * validate one cached center column; land, rivers, lakes, lake shores and shallow puddles are
-     * therefore rejected without constructing a perimeter summary. Only plausible marine centers
-     * request the shared inner/outer environment stencil.</p>
+     * <p>Empty and unrelated starts return before any terrain lookup. Every guarded structure first
+     * validates one cached center column. Land, rivers, lakes, lake shores, shallow water and
+     * implausible beached starts are therefore rejected before constructing the perimeter summary.
+     * Only plausible candidates request the shared inner/outer environment stencil.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -51,7 +51,10 @@ final class MarineStructureGuard {
 
         MarineColumn center = cache.column(world, centerX, centerZ);
         if (rule == MarineRule.BEACHED_SHIPWRECK) {
-            return permitsBeached(center, cache.summary(world, centerX, centerZ));
+            if (!isPlausibleBeachedCenter(center)) {
+                return false;
+            }
+            return permitsBeached(cache.summary(world, centerX, centerZ));
         }
         if (!center.isMarineWater()
                 || center.inlandWater()
@@ -74,16 +77,14 @@ final class MarineStructureGuard {
                 || summary.outer().minimumMarineDepth() >= EDGE_MINIMUM_DEPTH;
     }
 
-    private static boolean permitsBeached(
-            MarineColumn center,
-            MarineEnvironmentSummary summary) {
+    private static boolean isPlausibleBeachedCenter(MarineColumn center) {
         if (center.inlandWater() || !center.geometry().supportsDryPlacement()) {
             return false;
         }
-        boolean plausibleShoreCenter = center.coast() || !center.materializedWater();
-        if (!plausibleShoreCenter) {
-            return false;
-        }
+        return center.coast() || !center.materializedWater();
+    }
+
+    private static boolean permitsBeached(MarineEnvironmentSummary summary) {
         if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
             return false;
         }
