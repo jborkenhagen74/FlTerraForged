@@ -5,7 +5,7 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfac
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
-import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainEnvironmentSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,9 +18,10 @@ import java.util.function.Supplier;
  * <p>Level one stores resolved materialized columns. Level two stores the bounded environment
  * stencil shared by every marine structure rule for one start position. Cache misses never wait for
  * another Minecraft world-generation worker: deterministic values are calculated outside the short
- * completed-cache monitor and a second lookup decides which racing result is retained. This may
- * duplicate a bounded amount of cold computation under contention, but it cannot create a
- * cache-mediated synchronous wait graph in Minecraft's chunk executor.</p>
+ * completed-cache monitor and a second lookup decides which racing result is retained. Structure
+ * checks use {@link TerrainWorld#environment(int, int)} and therefore do not request climate,
+ * gradient-neighbor or full final terrain samples from engines that implement the lightweight
+ * probe.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -76,18 +77,20 @@ final class MarineEnvironmentCache {
     }
 
     private MarineColumn resolveColumn(TerrainWorld world, int x, int z) {
-        TerrainSample sample = world.sample(x, z);
+        TerrainEnvironmentSample sample = world.environment(x, z);
         TerrainType terrainType = sample.terrainType();
         boolean ocean = StandardTerrainTypes.OCEAN.equals(terrainType);
         boolean coast = StandardTerrainTypes.COAST.equals(terrainType);
         boolean inlandWater = StandardTerrainTypes.RIVER.equals(terrainType)
                 || StandardTerrainTypes.LAKE.equals(terrainType)
                 || StandardTerrainTypes.LAKE_SHORE.equals(terrainType);
-        boolean materializedWater = materializer.hasMaterializedWater(sample);
         MaterializedSurfaceGeometry geometry =
                 MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
+        double waterTop = materializedWaterTop(sample);
+        boolean materializedWater = Double.isFinite(waterTop)
+                && waterTop > geometry.topY() + 1.0E-6D;
         double waterDepth = materializedWater
-                ? Math.max(0.0D, materializer.waterTopExclusive(sample) - geometry.topY())
+                ? Math.max(0.0D, waterTop - geometry.topY())
                 : 0.0D;
         return new MarineColumn(
                 sample,
@@ -97,6 +100,16 @@ final class MarineEnvironmentCache {
                 inlandWater,
                 materializedWater,
                 waterDepth);
+    }
+
+    private double materializedWaterTop(TerrainEnvironmentSample sample) {
+        if (!sample.hasWaterSurfaceHeight()) {
+            return Double.NaN;
+        }
+        int waterTop = (int) Math.floor(sample.waterSurfaceHeight()) + 1;
+        waterTop = Math.max(materializer.context().minY(), waterTop);
+        waterTop = Math.min(materializer.context().maxYExclusive(), waterTop);
+        return waterTop;
     }
 
     private MarineEnvironmentSummary resolveSummary(TerrainWorld world, int centerX, int centerZ) {
@@ -146,7 +159,7 @@ final class MarineEnvironmentCache {
 
     /** Materialized semantic information for one sampled X/Z column. */
     record MarineColumn(
-            TerrainSample sample,
+            TerrainEnvironmentSample sample,
             MaterializedSurfaceGeometry geometry,
             boolean ocean,
             boolean coast,
