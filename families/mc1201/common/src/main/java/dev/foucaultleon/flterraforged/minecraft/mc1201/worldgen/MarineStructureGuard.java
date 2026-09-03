@@ -8,6 +8,12 @@ import java.util.Objects;
 /** Prevents marine structures from starting in inland, undersized or physically shallow water. */
 final class MarineStructureGuard {
 
+    /**
+     * R38 runtime-control switch. The guard is deliberately disabled so this revision can isolate
+     * whether early structure-environment sampling is responsible for the Minecraft 0% worldgen
+     * stall. Do not promote this control setting to a release revision.
+     */
+    private static final boolean ENABLED = false;
     private static final double EDGE_MINIMUM_DEPTH = 2.0D;
     private static final double MONUMENT_EDGE_MINIMUM_DEPTH = 4.0D;
 
@@ -17,10 +23,9 @@ final class MarineStructureGuard {
     /**
      * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>Empty and unrelated starts return before any terrain lookup. Every guarded structure first
-     * validates one cached center column. Land, rivers, lakes, lake shores, shallow water and
-     * implausible beached starts are therefore rejected before constructing the perimeter summary.
-     * Only plausible candidates request the shared inner/outer environment stencil.</p>
+     * <p>R38 is an explicit runtime-control revision. While {@link #ENABLED} is {@code false}, all
+     * starts are retained before any Engine terrain sample is requested. This isolates the early
+     * structure-start sampling path from all other R37/R33 world-generation behavior.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -40,6 +45,9 @@ final class MarineStructureGuard {
         Objects.requireNonNull(structureId, "structureId");
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(cache, "cache");
+        if (!ENABLED) {
+            return true;
+        }
         if (!hasChildren) {
             return true;
         }
