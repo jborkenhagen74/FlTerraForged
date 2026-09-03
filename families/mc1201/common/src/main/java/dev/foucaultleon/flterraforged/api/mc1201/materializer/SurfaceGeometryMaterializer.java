@@ -1,5 +1,6 @@
 package dev.foucaultleon.flterraforged.api.mc1201.materializer;
 
+import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainEnvironmentSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 
 /**
@@ -25,4 +26,24 @@ public interface SurfaceGeometryMaterializer {
      * @return realized top-surface geometry
      */
     MaterializedSurfaceGeometry surfaceGeometry(TerrainSample sample, int x, int z);
+
+    /**
+     * Resolves placement-time physical geometry from a lightweight Engine environment sample.
+     *
+     * <p>Variable-height providers should override this overload when their surface occupancy can be
+     * resolved without a full {@link TerrainSample}. The default deliberately assumes one full block
+     * and therefore preserves existing providers while allowing structure checks to remain detached
+     * from the expensive final terrain pipeline.</p>
+     *
+     * @param sample lightweight Engine environment sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return placement-time realized top-surface geometry
+     */
+    default MaterializedSurfaceGeometry surfaceGeometry(
+            TerrainEnvironmentSample sample,
+            int x,
+            int z) {
+        return MaterializedSurfaceGeometry.fullBlock((int) Math.floor(sample.surfaceHeight()));
+    }
 }
