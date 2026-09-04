@@ -18,6 +18,7 @@ public final class MaterializerConfig {
     public static final String RELATIVE_PATH = "flterraforged/materializer.properties";
 
     private static final String KEY_MATERIALIZER = "materializer";
+    private static final String KEY_DECORATION_SPRAY = "decoration.spray";
 
     private final Path path;
     private final String materializerId;
@@ -95,7 +96,8 @@ public final class MaterializerConfig {
                         "# decoration.enabled=true",
                         "# decoration.plants=true",
                         "# decoration.partial_blocks=true",
-                        "# decoration.spray=true",
+                        "# Physical cobweb/carpet spray markers are disabled by default in R44.",
+                        "# decoration.spray=false",
                         "# decoration.dams=true",
                         "");
                 Files.writeString(path, template);
@@ -114,6 +116,10 @@ public final class MaterializerConfig {
                     options.put(name, properties.getProperty(name));
                 }
             }
+            // Existing installations created before R44 do not contain this key. Supply the new
+            // safe default here instead of rewriting user configuration; an explicit true still
+            // opts back into the legacy cobweb/carpet representation.
+            options.putIfAbsent(KEY_DECORATION_SPRAY, "false");
             return new MaterializerConfig(
                     path,
                     MaterializerRegistry.normalizeId(configured),
