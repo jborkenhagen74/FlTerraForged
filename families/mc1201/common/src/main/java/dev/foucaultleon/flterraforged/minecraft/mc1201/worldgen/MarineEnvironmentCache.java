@@ -15,29 +15,31 @@ import java.util.function.Supplier;
 /**
  * Bounded multi-stage cache for marine structure environment checks.
  *
- * <p>Level one stores resolved materialized columns. Level two stores the bounded environment
- * stencil shared by every marine structure rule for one start position. Cache misses never wait for
- * another Minecraft world-generation worker: deterministic values are calculated outside the short
- * completed-cache monitor and a second lookup decides which racing result is retained. Structure
- * checks use {@link TerrainWorld#environment(int, int)} and therefore do not request climate,
- * gradient-neighbor or full final terrain samples from engines that implement the lightweight
- * probe.</p>
+ * <p>Level one stores resolved materialized columns. Level two stores only the ring that a rule
+ * actually requests. The center is always evaluated first, so rejected inland/shallow starts never
+ * pay for surrounding hydrology. Ordinary shipwreck, ocean-ruin and ocean-portal starts request four
+ * cardinal neighbors instead of the former twelve-neighbor summary; only monuments request the
+ * second outer ring.</p>
+ *
+ * <p>Cache misses never wait for another Minecraft world-generation worker. Deterministic values
+ * are calculated outside the short completed-cache monitor and a second lookup decides which racing
+ * result is retained. This deliberately trades a rare duplicate race for freedom from executor
+ * starvation and cyclic waits.</p>
  */
 final class MarineEnvironmentCache {
 
     private static final int COLUMN_CACHE_SIZE = 8192;
-    private static final int SUMMARY_CACHE_SIZE = 2048;
+    private static final int RING_CACHE_SIZE = 4096;
     private static final int INNER_RADIUS = 32;
     private static final int OUTER_RADIUS = 64;
+    private static final int INNER_RING = 0;
+    private static final int OUTER_RING = 1;
+
     private static final int[][] INNER_OFFSETS = {
-        {-INNER_RADIUS, -INNER_RADIUS},
         {0, -INNER_RADIUS},
-        {INNER_RADIUS, -INNER_RADIUS},
         {-INNER_RADIUS, 0},
         {INNER_RADIUS, 0},
-        {-INNER_RADIUS, INNER_RADIUS},
-        {0, INNER_RADIUS},
-        {INNER_RADIUS, INNER_RADIUS}
+        {0, INNER_RADIUS}
     };
     private static final int[][] OUTER_OFFSETS = {
         {0, -OUTER_RADIUS},
@@ -49,8 +51,8 @@ final class MarineEnvironmentCache {
     private final BlockMaterializer materializer;
     private final OptimisticCache<ColumnKey, MarineColumn> columns =
             new OptimisticCache<>(COLUMN_CACHE_SIZE);
-    private final OptimisticCache<SummaryKey, MarineEnvironmentSummary> summaries =
-            new OptimisticCache<>(SUMMARY_CACHE_SIZE);
+    private final OptimisticCache<RingKey, RingStats> rings =
+            new OptimisticCache<>(RING_CACHE_SIZE);
 
     MarineEnvironmentCache(BlockMaterializer materializer) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
@@ -62,10 +64,12 @@ final class MarineEnvironmentCache {
         return columns.get(key, () -> resolveColumn(world, x, z));
     }
 
-    MarineEnvironmentSummary summary(TerrainWorld world, int centerX, int centerZ) {
-        Objects.requireNonNull(world, "world");
-        SummaryKey key = new SummaryKey(world, centerX, centerZ);
-        return summaries.get(key, () -> resolveSummary(world, centerX, centerZ));
+    RingStats innerRing(TerrainWorld world, int centerX, int centerZ) {
+        return ring(world, centerX, centerZ, INNER_RING, INNER_OFFSETS);
+    }
+
+    RingStats outerRing(TerrainWorld world, int centerX, int centerZ) {
+        return ring(world, centerX, centerZ, OUTER_RING, OUTER_OFFSETS);
     }
 
     int cachedColumns() {
@@ -73,7 +77,18 @@ final class MarineEnvironmentCache {
     }
 
     int cachedSummaries() {
-        return summaries.completedSize();
+        return rings.completedSize();
+    }
+
+    private RingStats ring(
+            TerrainWorld world,
+            int centerX,
+            int centerZ,
+            int ringId,
+            int[][] offsets) {
+        Objects.requireNonNull(world, "world");
+        RingKey key = new RingKey(world, centerX, centerZ, ringId);
+        return rings.get(key, () -> sampleRing(world, centerX, centerZ, offsets));
     }
 
     private MarineColumn resolveColumn(TerrainWorld world, int x, int z) {
@@ -110,13 +125,6 @@ final class MarineEnvironmentCache {
         waterTop = Math.max(materializer.context().minY(), waterTop);
         waterTop = Math.min(materializer.context().maxYExclusive(), waterTop);
         return waterTop;
-    }
-
-    private MarineEnvironmentSummary resolveSummary(TerrainWorld world, int centerX, int centerZ) {
-        MarineColumn center = column(world, centerX, centerZ);
-        RingStats inner = sampleRing(world, centerX, centerZ, INNER_OFFSETS);
-        RingStats outer = sampleRing(world, centerX, centerZ, OUTER_OFFSETS);
-        return new MarineEnvironmentSummary(center, inner, outer);
     }
 
     private RingStats sampleRing(
@@ -172,13 +180,6 @@ final class MarineEnvironmentCache {
         }
     }
 
-    /** Reusable center plus inner/outer ring environment summary. */
-    record MarineEnvironmentSummary(
-            MarineColumn center,
-            RingStats inner,
-            RingStats outer) {
-    }
-
     /** Aggregated ring statistics without retaining individual sampled columns. */
     record RingStats(
             int samples,
@@ -203,9 +204,12 @@ final class MarineEnvironmentCache {
         }
     }
 
-    private record SummaryKey(TerrainWorld world, int x, int z) {
-        SummaryKey {
+    private record RingKey(TerrainWorld world, int x, int z, int ringId) {
+        RingKey {
             Objects.requireNonNull(world, "world");
+            if (ringId != INNER_RING && ringId != OUTER_RING) {
+                throw new IllegalArgumentException("unknown marine ring: " + ringId);
+            }
         }
     }
 
