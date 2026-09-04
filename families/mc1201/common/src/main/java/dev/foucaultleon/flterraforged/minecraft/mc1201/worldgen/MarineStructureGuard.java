@@ -2,7 +2,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.MarineColumn;
-import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.MarineEnvironmentSummary;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.RingStats;
 import java.util.Objects;
 
 /** Prevents marine structures from starting in inland, undersized or physically shallow water. */
@@ -33,9 +33,10 @@ final class MarineStructureGuard {
     /**
      * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>The world is queried only through the lightweight placement-time environment API. The
-     * normal Engine-backed biome source is not bound by this method. A fast center decision rejects
-     * inland candidates before the reusable inner/outer summary is requested.</p>
+     * <p>The expensive path is deliberately staged. The center is sampled first. Ordinary marine
+     * structures then require only four cardinal samples at 32 blocks. Only monuments request the
+     * additional 64-block ring. This reduces the common accepted path from thirteen hydrology
+     * probes to five while retaining an explicit open-water guard around every start.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -69,66 +70,73 @@ final class MarineStructureGuard {
             if (!isPlausibleBeachedCenter(center)) {
                 return false;
             }
-            return permitsBeached(cache.summary(world, centerX, centerZ));
+            RingStats inner = cache.innerRing(world, centerX, centerZ);
+            return inner.inlandWater() == 0 && inner.oceanWater() >= 1;
         }
-        if (!center.isMarineWater()
+
+        // Underwater structures require actual OCEAN semantics at the center. R35 defines COAST as
+        // dry shoreline, so this also prevents small river/lake/depression water from qualifying.
+        if (!center.ocean()
+                || !center.materializedWater()
                 || center.inlandWater()
                 || center.waterDepth() < rule.minimumCenterDepth) {
             return false;
         }
 
-        MarineEnvironmentSummary summary = cache.summary(world, centerX, centerZ);
-        if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
+        RingStats inner = cache.innerRing(world, centerX, centerZ);
+        if (!permitsRing(inner, rule.minimumInnerOceanSamples, rule.minimumEdgeDepth)) {
             return false;
         }
-        if (summary.inner().marineWater() < rule.minimumInnerMarineSamples
-                || summary.outer().marineWater() < rule.minimumOuterMarineSamples) {
+        if (!rule.requiresOuterRing) {
+            return true;
+        }
+
+        RingStats outer = cache.outerRing(world, centerX, centerZ);
+        return permitsRing(outer, rule.minimumOuterOceanSamples, MONUMENT_EDGE_MINIMUM_DEPTH);
+    }
+
+    private static boolean permitsRing(
+            RingStats ring,
+            int minimumOceanSamples,
+            double minimumDepth) {
+        if (ring.inlandWater() > 0 || ring.oceanWater() < minimumOceanSamples) {
             return false;
         }
-        if (summary.inner().minimumMarineDepth() < rule.minimumEdgeDepth) {
-            return false;
-        }
-        return summary.outer().marineWater() == 0
-                || summary.outer().minimumMarineDepth() >= EDGE_MINIMUM_DEPTH;
+        return ring.marineWater() == 0 || ring.minimumMarineDepth() >= minimumDepth;
     }
 
     private static boolean isPlausibleBeachedCenter(MarineColumn center) {
         if (center.inlandWater() || !center.geometry().supportsDryPlacement()) {
             return false;
         }
-        return center.coast() || !center.materializedWater();
-    }
-
-    private static boolean permitsBeached(MarineEnvironmentSummary summary) {
-        if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
-            return false;
-        }
-        return summary.inner().marineWater() >= 2
-                && summary.outer().marineWater() >= 1;
+        return center.coast() && !center.materializedWater();
     }
 
     private enum MarineRule {
-        NONE(0.0D, 0.0D, 0, 0),
-        SHIPWRECK(5.0D, EDGE_MINIMUM_DEPTH, 7, 3),
-        OCEAN_RUIN(6.0D, EDGE_MINIMUM_DEPTH, 8, 3),
-        MONUMENT(12.0D, MONUMENT_EDGE_MINIMUM_DEPTH, 8, 4),
-        OCEAN_PORTAL(5.0D, EDGE_MINIMUM_DEPTH, 7, 3),
-        BEACHED_SHIPWRECK(0.0D, 0.0D, 0, 0);
+        NONE(0.0D, 0.0D, 0, 0, false),
+        SHIPWRECK(5.0D, EDGE_MINIMUM_DEPTH, 3, 0, false),
+        OCEAN_RUIN(6.0D, EDGE_MINIMUM_DEPTH, 4, 0, false),
+        MONUMENT(12.0D, MONUMENT_EDGE_MINIMUM_DEPTH, 4, 4, true),
+        OCEAN_PORTAL(5.0D, EDGE_MINIMUM_DEPTH, 3, 0, false),
+        BEACHED_SHIPWRECK(0.0D, 0.0D, 0, 0, false);
 
         private final double minimumCenterDepth;
         private final double minimumEdgeDepth;
-        private final int minimumInnerMarineSamples;
-        private final int minimumOuterMarineSamples;
+        private final int minimumInnerOceanSamples;
+        private final int minimumOuterOceanSamples;
+        private final boolean requiresOuterRing;
 
         MarineRule(
                 double minimumCenterDepth,
                 double minimumEdgeDepth,
-                int minimumInnerMarineSamples,
-                int minimumOuterMarineSamples) {
+                int minimumInnerOceanSamples,
+                int minimumOuterOceanSamples,
+                boolean requiresOuterRing) {
             this.minimumCenterDepth = minimumCenterDepth;
             this.minimumEdgeDepth = minimumEdgeDepth;
-            this.minimumInnerMarineSamples = minimumInnerMarineSamples;
-            this.minimumOuterMarineSamples = minimumOuterMarineSamples;
+            this.minimumInnerOceanSamples = minimumInnerOceanSamples;
+            this.minimumOuterOceanSamples = minimumOuterOceanSamples;
+            this.requiresOuterRing = requiresOuterRing;
         }
 
         static MarineRule forStructure(String structureId) {
