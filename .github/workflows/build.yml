@@ -43,36 +43,36 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
-      - name: Verify R43 worldgen lifecycle
-        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
-        run: python3 tools/verify-r43-lifecycle.py
+      - name: Verify R44 worldgen lifecycle
+        if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
+        run: python3 tools/verify-r44-lifecycle.py
 
-      - name: Build R43 Engine API local repository
-        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+      - name: Build R44 Engine API local repository
+        if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
-      - name: Checkout Engine R34 source
-        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+      - name: Checkout Engine R35 source
+        if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: revision/r34-lightweight-structure-environment
-          path: .ci/engine-r34-source
+          ref: revision/r35-dry-coast-semantics
+          path: .ci/engine-r35-source
 
-      - name: Build Engine R34 local repository
-        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+      - name: Build Engine R35 local repository
+        if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         env:
           FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
-        run: gradle -p .ci/engine-r34-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
+        run: gradle -p .ci/engine-r35-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
 
-      - name: Build and test R43 with Engine R34
-        if: github.ref == 'refs/heads/revision/r43-lightweight-marine-placement'
+      - name: Build and test R44 with Engine R35
+        if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         env:
-          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r34-source/build/maven-repository
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r35-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r43-lightweight-marine-placement'
+        if: github.ref != 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -102,7 +102,7 @@ jobs:
 
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-R44-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
 
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
@@ -125,13 +125,16 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric R43 artifact"
+            echo "### Minecraft 1.20.1 Fabric R44 artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: R34 rebuilt from exact R29 baseline"
-            echo "- Structure placement: lightweight environment probe only"
+            echo "- Embedded Engine: R35, derived from the R29/R34 lightweight baseline"
+            echo "- Coast semantics: dry COAST, submerged oceanward shelf is OCEAN"
+            echo "- Inland hydrology precedence: lake / river / lake shore before marine classification"
+            echo "- Marine placement: center + 4 cardinal probes; outer ring only for monuments"
+            echo "- Birch-only cool-forest macro role: removed"
+            echo "- Block-based cobweb/carpet spray markers: disabled by default"
             echo "- Early createStructurePlacementCalculator Engine/BiomeSource bind: absent"
-            echo "- Variable-height materializer geometry: supported"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
