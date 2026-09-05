@@ -22,4 +22,4 @@ Variable-height providers keep exact authority over their `MaterializedSurfaceGe
 
 ## Engine pairing
 
-R49 is validated against FlTerraForged Engine R39, which extends receiving-lake authority across narrow wet-core connectors while preserving genuine waterfalls.
+R49 is validated against FlTerraForged Engine R39. R39 extends receiving-lake authority across narrow, corroborated wet-core connectors, keeps dry lake-shore transitions dry, uses bounded cached lake-only probes and preserves genuine terrain-backed waterfalls.
