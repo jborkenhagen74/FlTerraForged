@@ -1,8 +1,8 @@
-name: Build R49
+name: Build R50
 
 on:
   push:
-    branches: [ 'revision/r49-hydraulic-quantization' ]
+    branches: [ 'revision/r50-receiver-overlay' ]
   workflow_dispatch:
 
 permissions:
@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   verify:
-    name: Verify R49 with Engine R39
+    name: Verify R50 with Engine R40
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout FlTerraForged R49
+      - name: Checkout FlTerraForged R50
         uses: actions/checkout@v6
 
       - name: Install Java 17 toolchain
@@ -44,30 +44,33 @@ jobs:
       - name: Verify inherited R48 submerged-floor and shoreline invariants
         run: python3 tools/verify-r48-seafloor-shores.py
 
-      - name: Verify R49 hydraulic quantization
+      - name: Verify inherited R49 hydraulic quantization
         run: python3 tools/verify-r49-hydraulic-quantization.py
 
-      - name: Build R49 Engine API local repository
+      - name: Verify R50 receiver-overlay pairing
+        run: python3 tools/verify-r50-receiver-overlay.py
+
+      - name: Build R50 Engine API local repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
-      - name: Checkout fixed Engine R39 pair
+      - name: Checkout Engine R40 source
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: 57b5129cdcc33229269381836c46ffa8c69dfd67
-          path: .ci/engine-r39-source
+          ref: revision/r40-receiver-overlay
+          path: .ci/engine-r40-source
 
-      - name: Build Engine R39 local repository
+      - name: Build Engine R40 local repository
         env:
           FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
-        run: gradle -p .ci/engine-r39-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
+        run: gradle -p .ci/engine-r40-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
 
-      - name: Build and test R49 with Engine R39
+      - name: Build and test R50 with Engine R40
         env:
-          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r39-source/build/maven-repository
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r40-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect installable 1.20.1 Fabric R49 JAR
+      - name: Collect installable 1.20.1 Fabric R50 JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -91,22 +94,22 @@ jobs:
           fi
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-R49-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R50-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
-      - name: Upload installable R49 JAR
+      - name: Upload installable R50 JAR
         id: upload_mc1201_fabric
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: FlTerraForged-R49-1.20.1-Fabric
+          name: FlTerraForged-R50-1.20.1-Fabric
           path: ${{ steps.collect_mc1201_fabric.outputs.artifact_path }}
           archive: false
           if-no-files-found: error
           retention-days: 30
 
-      - name: Add R49 artifact link to job summary
+      - name: Add R50 artifact link to job summary
         shell: bash
         env:
           ARTIFACT_URL: ${{ steps.upload_mc1201_fabric.outputs.artifact-url }}
@@ -114,18 +117,16 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R49 / Minecraft 1.20.1 Fabric"
+            echo "### FlTerraForged R50 / Minecraft 1.20.1 Fabric"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: R39"
-            echo "- Engine commit: \`57b5129cdcc33229269381836c46ffa8c69dfd67\`"
-            echo "- Near-integer height quantization: canonical epsilon snap"
-            echo "- Full-block ocean water-cell reservation: enabled"
-            echo "- Full-block river/lake water-cell reservation: enabled"
-            echo "- Pre-carve semantic wet protection: enabled"
-            echo "- R48 ocean/lake floor seal: retained"
-            echo "- Receiving-water mouth-bed authority: enabled"
+            echo "- Embedded Engine: R40"
+            echo "- Drainage and incision source: same post-erosion terrain"
+            echo "- Final Engine hydrology order: river -> wet-core -> receiver overlay"
+            echo "- Ocean/lake receiver geometry applied before Minecraft materialization"
             echo "- Post-generation water repair pass: none"
+            echo "- R49 height quantization: retained"
+            echo "- R48 submerged-floor seal: retained"
             echo "- Variable-height provider geometry: retained"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
