@@ -22,9 +22,8 @@ import java.util.Objects;
  * <p>Cold keys use synchronous single-flight ownership. One world-generation thread computes each
  * missing column, profile or ring directly and concurrent callers for the same key reuse its
  * completed result. Loaders do not submit executor work and do not execute while a completed-cache
- * monitor is held. The inherited R51 dependency remains {@code ring -> column ->
- * TerrainWorld.environment}; R53 adds the parallel acyclic path {@code profile -> column ->
- * TerrainWorld.environment}.</p>
+ * monitor is held. The inherited R51 ring path and the R53 profile path both terminate at the same
+ * canonical provider-resolved column loader.</p>
  *
  * <p>All wet/open-water decisions use provider-aware physical geometry. An overlapping water plane
  * does not turn a non-waterloggable partial-height top cell into usable marine water merely because
@@ -33,6 +32,7 @@ import java.util.Objects;
  */
 final class MarineEnvironmentCache {
 
+    // R51 invariant: ring -> column -> TerrainWorld.environment
     private static final int COLUMN_CACHE_SIZE = 8192;
     private static final int PROFILE_CACHE_SIZE = 4096;
     private static final int RING_CACHE_SIZE = 4096;
