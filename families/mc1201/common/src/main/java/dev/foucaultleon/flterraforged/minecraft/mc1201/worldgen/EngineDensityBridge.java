@@ -1,7 +1,9 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfaceGeometry;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.Objects;
@@ -16,8 +18,9 @@ import net.minecraft.world.chunk.Chunk;
  * external terrain engine without translating the substrate in the vertical axis.
  *
  * <p>All newly emitted blocks and fluids are selected by the configured {@link BlockMaterializer}.
- * The bridge therefore owns geometry reconciliation only; concrete block choices remain replaceable
- * by an add-on materializer.</p>
+ * R52 resolves the target surface cell through {@link MaterializerGeometry}, so a provider whose
+ * physical top varies by X/Z does not fall back to the legacy sample-only integer height while the
+ * noise substrate is reconciled.</p>
  */
 public final class EngineDensityBridge {
 
@@ -52,10 +55,12 @@ public final class EngineDensityBridge {
             for (int localX = 0; localX < 16; localX++) {
                 int blockX = pos.getStartX() + localX;
                 TerrainSample sample = world.sample(blockX, blockZ);
+                MaterializedSurfaceGeometry geometry =
+                        MaterializerGeometry.surfaceGeometry(materializer, sample, blockX, blockZ);
 
                 snapshotColumn(chunk, blockX, blockZ, mutable, source);
                 int sourceSurfaceY = findSourceSurface(source);
-                int targetSurfaceY = materializer.solidSurfaceY(sample);
+                int targetSurfaceY = geometry.blockY();
                 int sealBottomY = Math.max(
                         context.minY() + 1,
                         targetSurfaceY - SURFACE_SEAL_DEPTH + 1);
