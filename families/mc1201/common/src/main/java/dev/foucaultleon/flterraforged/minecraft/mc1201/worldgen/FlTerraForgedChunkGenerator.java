@@ -44,9 +44,11 @@ import net.minecraft.world.gen.structure.Structure;
  *
  * <p>The external engine owns large-scale surface shape, climate and hydrology. A vanilla
  * {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter substrate, aquifers, surface
- * rules and mob population. R46 deliberately stops delegating carvers: FlTerraForged constructs
- * cave/ravine masks itself so destructive geometry and connected surface water are resolved in one
- * deterministic pass instead of carving first and repairing hydrology afterwards.</p>
+ * rules and mob population. FlTerraForged constructs cave/ravine masks itself so destructive
+ * geometry and connected surface water are resolved in one deterministic pass instead of carving
+ * first and repairing hydrology afterwards. R52 also routes coordinate-sensitive height queries
+ * through provider-supplied physical geometry, allowing layered or partial-height materializers to
+ * remain authoritative outside ordinary chunk filling.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -246,9 +248,9 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         TerrainSample sample = bind(noiseConfig).sample(x, z);
         if (heightmap == Heightmap.Type.OCEAN_FLOOR
                 || heightmap == Heightmap.Type.OCEAN_FLOOR_WG) {
-            return columns.surfaceTop(sample);
+            return columns.surfaceTop(sample, x, z);
         }
-        return columns.worldSurfaceTop(sample);
+        return columns.worldSurfaceTop(sample, x, z);
     }
 
     @Override
