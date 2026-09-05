@@ -1,8 +1,8 @@
-name: Build R52
+name: Build R53
 
 on:
   push:
-    branches: [ 'revision/r52-resolved-water-field' ]
+    branches: [ 'revision/r53-open-water-confinement' ]
   workflow_dispatch:
 
 permissions:
@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   verify:
-    name: Verify R52 with Engine R42
+    name: Verify R53 with Engine R43
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout FlTerraForged R52
+      - name: Checkout FlTerraForged R53
         uses: actions/checkout@v6
 
       - name: Install Java 17 toolchain
@@ -50,33 +50,36 @@ jobs:
       - name: Verify inherited R51 startup-liveness invariants
         run: python3 tools/verify-r51-startup-liveness.py
 
-      - name: Verify R52 resolved-water/provider geometry invariants
+      - name: Verify inherited R52 resolved-water/provider geometry invariants
         run: python3 tools/verify-r52-resolved-water-field.py
 
-      - name: Build R52 Engine API local repository
+      - name: Verify R53 open-water confinement invariants
+        run: python3 tools/verify-r53-open-water-confinement.py
+
+      - name: Build R53 Engine API local repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
-      - name: Checkout Engine R42 source
+      - name: Checkout Engine R43 source
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: revision/r42-resolved-water-field
-          path: .ci/engine-r42-source
+          ref: revision/r43-water-body-semantics
+          path: .ci/engine-r43-source
 
-      - name: Verify Engine R42 resolved water invariants
-        run: python3 .ci/engine-r42-source/tools/verify-r42-resolved-water-field.py
+      - name: Verify Engine R43 water-body invariants
+        run: python3 .ci/engine-r43-source/tools/verify-r43-water-body-semantics.py
 
-      - name: Build, test and publish Engine R42 local repository
+      - name: Build, test and publish Engine R43 local repository
         env:
           FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
-        run: gradle -p .ci/engine-r42-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check publish
+        run: gradle -p .ci/engine-r43-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check publish
 
-      - name: Build and test R52 with Engine R42
+      - name: Build and test R53 with Engine R43
         env:
-          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r42-source/build/maven-repository
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r43-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect installable 1.20.1 Fabric R52 JAR
+      - name: Collect installable 1.20.1 Fabric R53 JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -100,22 +103,22 @@ jobs:
           fi
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-R52-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R53-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
-      - name: Upload installable R52 JAR
+      - name: Upload installable R53 JAR
         id: upload_mc1201_fabric
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: FlTerraForged-R52-1.20.1-Fabric
+          name: FlTerraForged-R53-1.20.1-Fabric
           path: ${{ steps.collect_mc1201_fabric.outputs.artifact_path }}
           archive: false
           if-no-files-found: error
           retention-days: 30
 
-      - name: Add R52 artifact link to job summary
+      - name: Add R53 artifact link to job summary
         shell: bash
         env:
           ARTIFACT_URL: ${{ steps.upload_mc1201_fabric.outputs.artifact-url }}
@@ -123,19 +126,18 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R52 / Minecraft 1.20.1 Fabric"
+            echo "### FlTerraForged R53 / Minecraft 1.20.1 Fabric"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Engine: R42 resolved water field"
-            echo "- Final hydraulic ownership: OCEAN > LAKE > RIVER > DRY"
-            echo "- River mouths: receiver surface authority and bounded bed blend"
-            echo "- River joins: deterministic higher-flow main stem"
-            echo "- Provider X/Z physical geometry: used by column composition, height queries and surface reconciliation"
-            echo "- Waterloggable partial tops: retained through provider final-wet hooks"
-            echo "- Non-waterloggable partial tops: never replaced by same-cell full fluid"
-            echo "- Marine structure checks: canonical quantizer plus provider wet geometry"
-            echo "- Obsolete HydrologyFillPass: removed"
-            echo "- Marine column/ring cache: bounded inline single-flight"
+            echo "- Engine: R43 confined water-body semantics"
+            echo "- River mouths: confined river ownership until strong open-ocean receiver entry"
+            echo "- Lake outlets: material river retained until actual material lake entry"
+            echo "- Marine structures: provider-resolved OPEN_MARINE profile plus existing large rings"
+            echo "- Water-body cache: bounded column + open-water profile + structure rings"
+            echo "- Provider X/Z physical geometry: authoritative for partial/layered top occupancy"
+            echo "- Waterloggable partial tops: evaluated through provider same-cell wet hooks"
+            echo "- Non-waterloggable partial tops: never counted as same-cell marine water"
+            echo "- Engine placement samples: bounded sparse inline single-flight"
             echo "- Worldgen-executor scheduling from cache loaders: none"
             echo "- Post-generation water repair pass: none"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
