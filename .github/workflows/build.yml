@@ -41,11 +41,40 @@ jobs:
           gradle-version: '9.7.1'
 
       - name: Verify layout
+        if: github.ref != 'refs/heads/revision/r45-final-wet-reconciliation'
         run: python3 tools/verify-layout.py
+
+      - name: Verify R45 final wet lifecycle
+        if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
+        run: python3 tools/verify-r45-lifecycle.py
 
       - name: Verify R44 worldgen lifecycle
         if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         run: python3 tools/verify-r44-lifecycle.py
+
+      - name: Build R45 Engine API local repository
+        if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
+
+      - name: Checkout Engine R36 source
+        if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
+        uses: actions/checkout@v6
+        with:
+          repository: jborkenhagen74/FlTerraForged-Engine
+          ref: revision/r36-final-wet-envelope
+          path: .ci/engine-r36-source
+
+      - name: Build Engine R36 local repository
+        if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
+        env:
+          FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
+        run: gradle -p .ci/engine-r36-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
+
+      - name: Build and test R45 with Engine R36
+        if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
+        env:
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r36-source/build/maven-repository
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build R44 Engine API local repository
         if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
@@ -72,7 +101,7 @@ jobs:
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
+        if: github.ref != 'refs/heads/revision/r44-coast-hydrology-performance-biomes' && github.ref != 'refs/heads/revision/r45-final-wet-reconciliation'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -125,16 +154,22 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### Minecraft 1.20.1 Fabric R44 artifact"
-            echo
-            echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: R35, derived from the R29/R34 lightweight baseline"
-            echo "- Coast semantics: dry COAST, submerged oceanward shelf is OCEAN"
-            echo "- Inland hydrology precedence: lake / river / lake shore before marine classification"
-            echo "- Marine placement: center + 4 cardinal probes; outer ring only for monuments"
-            echo "- Birch-only cool-forest macro role: removed"
-            echo "- Block-based cobweb/carpet spray markers: disabled by default"
-            echo "- Early createStructurePlacementCalculator Engine/BiomeSource bind: absent"
+            if [ "$GITHUB_REF" = "refs/heads/revision/r45-final-wet-reconciliation" ]; then
+              echo "### Minecraft 1.20.1 Fabric R45 artifact"
+              echo
+              echo "- JAR: \`$JAR_NAME\`"
+              echo "- Embedded Engine: R36"
+              echo "- Hydrology: exactly one final connected wet reconciliation after all carvers"
+              echo "- Final wet pass: fluid-only; no bed/bank reconstruction"
+              echo "- Carvers: unrestricted solid geometry inside ocean/river/lake beds"
+              echo "- Materializer: variable-height physical wet-envelope hook retained"
+              echo "- Terrain sampling: chunk-aligned bulk tile lookup"
+              echo "- Coast: wider dry semantic plus coherent sand-to-land material transition"
+            else
+              echo "### Minecraft 1.20.1 Fabric artifact"
+              echo
+              echo "- JAR: \`$JAR_NAME\`"
+            fi
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
