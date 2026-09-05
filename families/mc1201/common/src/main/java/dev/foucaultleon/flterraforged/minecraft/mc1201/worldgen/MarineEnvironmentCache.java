@@ -3,6 +3,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfaceGeometry;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerHeightQuantizer;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainEnvironmentSample;
@@ -18,12 +19,14 @@ import java.util.Objects;
  * cardinal neighbors instead of the former twelve-neighbor summary; only monuments request the
  * second outer ring.</p>
  *
- * <p>R51 replaces the former optimistic miss policy with synchronous single-flight ownership. One
- * world-generation thread computes each cold column or ring key directly and concurrent callers for
- * that same key reuse its completed result. Loaders do not submit executor work and do not execute
- * while a completed-cache monitor is held. The dependency graph is strictly one-way:
- * {@code ring -> column -> TerrainWorld.environment}; column resolution never requests a ring, so a
- * waiter cannot form a cache cycle.</p>
+ * <p>Cold keys use synchronous single-flight ownership. One world-generation thread computes each
+ * missing column or ring directly and concurrent callers for the same key reuse its completed result.
+ * Loaders do not submit executor work and do not execute while a completed-cache monitor is held. The
+ * dependency graph is strictly one-way: {@code ring -> column -> TerrainWorld.environment}.</p>
+ *
+ * <p>R52 uses the same provider-aware wet geometry as normal chunk materialization. In particular,
+ * an overlapping water plane does not turn a non-waterloggable partial-height top cell into marine
+ * water merely because both occupy the same integer Minecraft cell.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -100,9 +103,12 @@ final class MarineEnvironmentCache {
                 || StandardTerrainTypes.LAKE_SHORE.equals(terrainType);
         MaterializedSurfaceGeometry geometry =
                 MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
-        double waterTop = materializedWaterTop(sample);
-        boolean materializedWater = Double.isFinite(waterTop)
-                && waterTop > geometry.topY() + 1.0E-6D;
+        int waterTop = materializedWaterTop(sample);
+        boolean materializedWater = waterTop != Integer.MIN_VALUE
+                && MaterializerGeometry.hasMaterializableWater(
+                        materializer,
+                        geometry,
+                        waterTop);
         double waterDepth = materializedWater
                 ? Math.max(0.0D, waterTop - geometry.topY())
                 : 0.0D;
@@ -116,14 +122,14 @@ final class MarineEnvironmentCache {
                 waterDepth);
     }
 
-    private double materializedWaterTop(TerrainEnvironmentSample sample) {
+    private int materializedWaterTop(TerrainEnvironmentSample sample) {
         if (!sample.hasWaterSurfaceHeight()) {
-            return Double.NaN;
+            return Integer.MIN_VALUE;
         }
-        int waterTop = (int) Math.floor(sample.waterSurfaceHeight()) + 1;
+        int waterTop = MaterializerHeightQuantizer.exclusiveFluidTop(
+                sample.waterSurfaceHeight());
         waterTop = Math.max(materializer.context().minY(), waterTop);
-        waterTop = Math.min(materializer.context().maxYExclusive(), waterTop);
-        return waterTop;
+        return Math.min(materializer.context().maxYExclusive(), waterTop);
     }
 
     private RingStats sampleRing(
