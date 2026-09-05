@@ -22,7 +22,8 @@ import java.util.Objects;
  * <p>Cold keys use synchronous single-flight ownership. One world-generation thread computes each
  * missing column, profile or ring directly and concurrent callers for the same key reuse its
  * completed result. Loaders do not submit executor work and do not execute while a completed-cache
- * monitor is held. The dependency graph remains acyclic: {@code ring/profile -> column ->
+ * monitor is held. The inherited R51 dependency remains {@code ring -> column ->
+ * TerrainWorld.environment}; R53 adds the parallel acyclic path {@code profile -> column ->
  * TerrainWorld.environment}.</p>
  *
  * <p>All wet/open-water decisions use provider-aware physical geometry. An overlapping water plane
