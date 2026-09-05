@@ -19,7 +19,6 @@ import net.minecraft.block.Blocks;
 public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     private static final double MIN_WET_DEPTH = 0.05D;
-    private static final long COAST_TRANSITION_SALT = 0x63A5D73C91E04B2FL;
     private static final MaterializerCapabilities CAPABILITIES =
             new MaterializerCapabilities(1.0D, false, false);
 
@@ -43,6 +42,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     private final WatercourseMaterialPalette watercourses;
     private final MarineMaterialPalette marine;
     private final WatercourseDecorator decorator;
+    private final ShorelineDecorator shorelineDecorator;
 
     /**
      * Creates the vanilla-compatible full-block implementation.
@@ -70,6 +70,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         this.watercourses = new WatercourseMaterialPalette(context.options());
         this.marine = new MarineMaterialPalette(context.options());
         this.decorator = new WatercourseDecorator(this, context.options());
+        this.shorelineDecorator = new ShorelineDecorator(this, context.options());
     }
 
     @Override
@@ -210,9 +211,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                         ? oceanBed.choose(sample, x, y, z)
                         : marine.bed(sample, x, y, z, context.seaLevel());
             }
-            return coastUsesLandSurface(sample, x, z)
-                    ? landFiller.choose(sample, x, y, z)
-                    : coast.choose(sample, x, y, z);
+            return coast.choose(sample, x, y, z);
         }
         return landFiller.choose(sample, x, y, z);
     }
@@ -269,9 +268,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                     : marine.bed(sample, x, y, z, context.seaLevel()));
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return Optional.of(coastUsesLandSurface(sample, x, z)
-                    ? landSurface.choose(sample, x, y, z)
-                    : coast.choose(sample, x, y, z));
+            return Optional.of(coast.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain) && mountains.isConfigured()) {
             return Optional.of(mountains.choose(sample, x, y, z));
@@ -312,6 +309,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                     ? oceanBed.choose(sample, x, y, z)
                     : marine.bed(sample, x, y, z, context.seaLevel());
         }
+        if (StandardTerrainTypes.COAST.equals(sample.terrainType())) {
+            return coast.choose(sample, x, y, z);
+        }
         return landSurface.choose(sample, x, y, z);
     }
 
@@ -344,16 +344,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public void decorateWatercourses(WaterDecorationContext context) {
         decorator.decorate(context);
-    }
-
-    private boolean coastUsesLandSurface(TerrainSample sample, int x, int z) {
-        double elevation = clamp01((sample.surfaceHeight() - context.seaLevel()) / 4.0D);
-        double moisture = sample.climate().isAvailable()
-                ? clamp01(sample.climate().moisture())
-                : 0.5D;
-        double landFraction = clamp01(0.08D + elevation * 0.68D + moisture * 0.12D);
-        double field = NaturalMaterialField.sample(x, z, COAST_TRANSITION_SALT, 34.0D);
-        return field < landFraction;
+        shorelineDecorator.decorate(context);
     }
 
     private ConfiguredBlockSet set(String key, BlockState fallback) {
@@ -362,9 +353,5 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clamp01(double value) {
-        return Math.max(0.0D, Math.min(1.0D, value));
     }
 }
