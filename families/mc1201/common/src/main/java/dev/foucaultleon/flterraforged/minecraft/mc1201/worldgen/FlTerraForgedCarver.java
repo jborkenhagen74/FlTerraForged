@@ -5,6 +5,7 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfac
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
+import dev.foucaultleon.flterraforged.engine.api.river.RiverSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.ArrayDeque;
@@ -21,16 +22,15 @@ import net.minecraft.world.gen.GenerationStep;
 /**
  * FlTerraForged-owned deterministic cave and ravine carver for Minecraft 1.20.1.
  *
- * <p>R48 keeps the R47 component-based hydraulic resolver but no longer allows ordinary cave or
- * ravine masks to cut directly through a visible ocean or lake floor. Every sampled column receives
- * one immutable carve ceiling before feature paths are evaluated. Permanent surface-water columns
- * retain a depth-aware solid floor seal, and immediately adjacent columns inherit a one-cell lateral
- * water-contact seal. This prevents long trench-like openings along steep submerged slopes without
- * removing caves below the protected floor.</p>
+ * <p>R49 keeps the depth-aware ocean/lake floor seal introduced by R48, but the protection decision
+ * no longer depends solely on already-quantized Minecraft water. A column that is semantically wet
+ * in Engine space is protected before block quantization, so a near-integer water height cannot
+ * simultaneously lose its final fluid cell and its carver roof.</p>
  *
  * <p>The physical surface geometry, water envelope and carve ceiling are resolved once for the
- * 18-by-18 target tile and then reused by every cave/ravine source. This avoids the repeated
- * materializer geometry work previously performed inside each ellipsoid.</p>
+ * 18-by-18 target tile and then reused by every cave/ravine source. Variable-height providers retain
+ * control of physical geometry and wet states through the materializer API; the semantic wet flag is
+ * only an additional destructive-carving guard.</p>
  */
 final class FlTerraForgedCarver {
 
@@ -43,6 +43,7 @@ final class FlTerraForgedCarver {
     private static final double CAVE_ORIGIN_CHANCE = 0.18D;
     private static final double RAVINE_ORIGIN_CHANCE = 0.028D;
     private static final double GEOMETRY_EPSILON = 1.0E-6D;
+    private static final double SEMANTIC_WET_DEPTH = 0.05D;
     private static final int OCEAN_FLOOR_ROOF = 7;
     private static final int LAKE_FLOOR_ROOF = 6;
     private static final int RIVER_FLOOR_ROOF = 3;
@@ -70,7 +71,7 @@ final class FlTerraForgedCarver {
     /**
      * Applies the requested carving step.
      *
-     * <p>R48 owns AIR carving. LIQUID remains a no-op because water is selected while the immutable
+     * <p>R49 owns AIR carving. LIQUID remains a no-op because water is selected while the immutable
      * AIR mask is materialized; a second destructive liquid stage would reintroduce ordering bugs.</p>
      *
      * @param seed world seed supplied by Minecraft's carving stage
@@ -130,7 +131,9 @@ final class FlTerraForgedCarver {
                         MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
                 surfaceBlockY[column] = geometry.blockY();
 
-                boolean wet = materializer.hasFinalWetEnvelope(sample, x, z);
+                boolean materialWet = materializer.hasFinalWetEnvelope(sample, x, z);
+                boolean semanticWet = expectsSurfaceWater(sample);
+                boolean wet = materialWet || semanticWet;
                 int waterTop = wet
                         ? clamp(materializer.waterTopExclusive(sample),
                                 context.minY(), context.maxYExclusive())
@@ -164,6 +167,16 @@ final class FlTerraForgedCarver {
                 firstWaterY,
                 wetPriority,
                 surfaceBlockY);
+    }
+
+    private static boolean expectsSurfaceWater(TerrainSample sample) {
+        if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())) {
+            return true;
+        }
+        RiverSample hydrology = sample.river();
+        return hydrology.hasWaterSurfaceHeight()
+                && hydrology.depth() > SEMANTIC_WET_DEPTH
+                && hydrology.waterSurfaceHeight() > sample.surfaceHeight() + SEMANTIC_WET_DEPTH;
     }
 
     private static void applyLateralSurfaceWaterSeal(
