@@ -68,8 +68,9 @@ public interface BlockMaterializer {
      *
      * <p>R52 distinguishes a complete fluid cell above the physical surface from water that would
      * share the provider's partial-height top cell. The latter is considered materializable only when
-     * the provider advertises waterlogging. A non-waterloggable custom slab/layer is therefore never
-     * replaced by a full fluid block merely because an integer water top overlaps its block cell.</p>
+     * both the provider and the selected X/Z surface state support waterlogging. A non-waterloggable
+     * custom slab/layer is therefore never replaced by a full fluid block merely because an integer
+     * water top overlaps its block cell.</p>
      *
      * @param sample continuous Engine sample
      * @param x world X coordinate
@@ -80,7 +81,10 @@ public interface BlockMaterializer {
         MaterializedSurfaceGeometry geometry = MaterializerGeometry.surfaceGeometry(this, sample, x, z);
         return MaterializerGeometry.hasMaterializableWater(
                 this,
+                sample,
                 geometry,
+                x,
+                z,
                 waterTopExclusive(sample));
     }
 
@@ -115,7 +119,7 @@ public interface BlockMaterializer {
     }
 
     /**
-     * Resolves the block state used by the one-time final wet reconciliation pass.
+     * Resolves the block state used by the final wet materialization path.
      *
      * <p>This method is called only after {@link #permitsFinalWetFlow(TerrainSample, BlockState,
      * int, int, int)} returned {@code true}. The default returns the configured full fluid state.
@@ -268,8 +272,8 @@ public interface BlockMaterializer {
     /**
      * Returns the legacy visible bed state retained for source compatibility with older add-ons.
      *
-     * <p>R45 no longer reconstructs solid beds after carving; the final wet pass only adds fluid to
-     * connected wet cells.</p>
+     * <p>The active R52 lifecycle does not reconstruct solid beds after carving; the final wet path
+     * only materializes water into cells that the provider permits.</p>
      *
      * @param sample continuous Engine sample
      * @return hydrology bed state
@@ -313,7 +317,7 @@ public interface BlockMaterializer {
     /**
      * Returns whether legacy inferred gap repair would be allowed.
      *
-     * <p>R45 does not perform inferred gap repair. This method remains only for compatibility with
+     * <p>R52 does not perform inferred gap repair. This method remains only for compatibility with
      * existing materializer implementations.</p>
      *
      * @param sample continuous Engine sample at the candidate gap
