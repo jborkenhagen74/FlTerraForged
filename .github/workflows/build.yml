@@ -1,8 +1,8 @@
-name: Build R47
+name: Build R48
 
 on:
   push:
-    branches: [ 'revision/r47-hydraulic-shores' ]
+    branches: [ 'revision/r48-seafloor-seal-lush-shores' ]
   workflow_dispatch:
 
 permissions:
@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   verify:
-    name: Verify R47 with Engine R38
+    name: Verify R48 with Engine R38
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout FlTerraForged R47
+      - name: Checkout FlTerraForged R48
         uses: actions/checkout@v6
 
       - name: Install Java 17 toolchain
@@ -41,10 +41,10 @@ jobs:
       - name: Verify inherited owned-carver lifecycle
         run: python3 tools/verify-r46-lifecycle.py
 
-      - name: Verify R47 hydraulic shores
-        run: python3 tools/verify-r47-hydraulic-shores.py
+      - name: Verify R48 seafloor and shoreline invariants
+        run: python3 tools/verify-r48-seafloor-shores.py
 
-      - name: Build R47 Engine API local repository
+      - name: Build R48 Engine API local repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
       - name: Checkout Engine R38 source
@@ -59,12 +59,12 @@ jobs:
           FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
         run: gradle -p .ci/engine-r38-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
 
-      - name: Build and test R47 with Engine R38
+      - name: Build and test R48 with Engine R38
         env:
           FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r38-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect installable 1.20.1 Fabric R47 JAR
+      - name: Collect installable 1.20.1 Fabric R48 JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -88,22 +88,22 @@ jobs:
           fi
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-R47-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R48-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
-      - name: Upload installable R47 JAR
+      - name: Upload installable R48 JAR
         id: upload_mc1201_fabric
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: FlTerraForged-R47-1.20.1-Fabric
+          name: FlTerraForged-R48-1.20.1-Fabric
           path: ${{ steps.collect_mc1201_fabric.outputs.artifact_path }}
           archive: false
           if-no-files-found: error
           retention-days: 30
 
-      - name: Add R47 artifact link to job summary
+      - name: Add R48 artifact link to job summary
         shell: bash
         env:
           ARTIFACT_URL: ${{ steps.upload_mc1201_fabric.outputs.artifact-url }}
@@ -111,15 +111,18 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R47 / Minecraft 1.20.1 Fabric"
+            echo "### FlTerraForged R48 / Minecraft 1.20.1 Fabric"
             echo
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Embedded Engine: R38"
-            echo "- Coast material lock: enabled"
-            echo "- Carving water: side/vertical component contact"
-            echo "- Surface carving: reduced with dry-shore roofs"
-            echo "- Variable-height materializer geometry: enabled"
-            echo "- Shoreline patch decoration: enabled"
+            echo "- Ocean floor seal: 7-10 solid layers depending on water depth"
+            echo "- Lake floor seal: 6-8 solid layers depending on water depth"
+            echo "- River floor seal: 3-4 solid layers"
+            echo "- Lateral marine/lake water-contact seal: enabled"
+            echo "- Carver surface envelope: computed once per 18x18 tile"
+            echo "- Shore wall markers: removed"
+            echo "- Shore vegetation density: increased"
+            echo "- Shore rocks: low slabs and substrate patches"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
