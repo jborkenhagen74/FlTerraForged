@@ -26,7 +26,8 @@ import java.util.Objects;
  *
  * <p>R52 uses the same provider-aware wet geometry as normal chunk materialization. In particular,
  * an overlapping water plane does not turn a non-waterloggable partial-height top cell into marine
- * water merely because both occupy the same integer Minecraft cell.</p>
+ * water merely because both occupy the same integer Minecraft cell. Mixed provider palettes may
+ * refine same-cell waterlogging independently for every X/Z surface state.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -107,7 +108,10 @@ final class MarineEnvironmentCache {
         boolean materializedWater = waterTop != Integer.MIN_VALUE
                 && MaterializerGeometry.hasMaterializableWater(
                         materializer,
+                        sample,
                         geometry,
+                        x,
+                        z,
                         waterTop);
         double waterDepth = materializedWater
                 ? Math.max(0.0D, waterTop - geometry.topY())
