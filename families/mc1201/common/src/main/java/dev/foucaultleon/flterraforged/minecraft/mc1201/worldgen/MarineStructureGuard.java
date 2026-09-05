@@ -2,10 +2,11 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.MarineColumn;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.OpenWaterProfile;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.MarineEnvironmentCache.RingStats;
 import java.util.Objects;
 
-/** Prevents marine structures from starting in inland, undersized or physically shallow water. */
+/** Prevents marine structures from starting in inland, confined or physically shallow water. */
 final class MarineStructureGuard {
 
     private static final double EDGE_MINIMUM_DEPTH = 2.0D;
@@ -18,7 +19,7 @@ final class MarineStructureGuard {
      * Returns whether the structure start needs a FlTerraForged environment decision.
      *
      * <p>The check is deliberately pure and must run before any Engine world is bound. Empty starts
-     * and unrelated structures therefore keep the R42 fast path and never initialize placement-time
+     * and unrelated structures therefore keep the fast path and never initialize placement-time
      * Engine state.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
@@ -33,10 +34,12 @@ final class MarineStructureGuard {
     /**
      * Tests a vanilla structure start against the materialized FlTerraForged environment.
      *
-     * <p>The expensive path is deliberately staged. The center is sampled first. Ordinary marine
-     * structures then require only four cardinal samples at 32 blocks. Only monuments request the
-     * additional 64-block ring. This reduces the common accepted path from thirteen hydrology
-     * probes to five while retaining an explicit open-water guard around every start.</p>
+     * <p>R53 adds a provider-resolved open-water stage between the center fast rejection and the
+     * existing large structure rings. A candidate whose Engine center happens to carry OCEAN
+     * semantics is still rejected when the surrounding physical water forms a narrow river mouth,
+     * lake outlet, small depression or other confined channel. Every profile sample reuses the same
+     * single-flight column cache and therefore observes the selected provider's real partial-block
+     * and waterlogging geometry.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -70,16 +73,25 @@ final class MarineStructureGuard {
             if (!isPlausibleBeachedCenter(center)) {
                 return false;
             }
+            OpenWaterProfile profile = cache.waterBodyProfile(world, centerX, centerZ);
+            if (!profile.openMarineAccess()) {
+                return false;
+            }
             RingStats inner = cache.innerRing(world, centerX, centerZ);
             return inner.inlandWater() == 0 && inner.oceanWater() >= 1;
         }
 
-        // Underwater structures require actual OCEAN semantics at the center. R35 defines COAST as
-        // dry shoreline, so this also prevents small river/lake/depression water from qualifying.
+        // Underwater structures require actual OCEAN semantics at the center and physical water.
+        // The open-water profile then proves that this is broad marine water rather than an ocean-
+        // classified trench or a narrow receiver corridor below sea level.
         if (!center.ocean()
                 || !center.materializedWater()
                 || center.inlandWater()
                 || center.waterDepth() < rule.minimumCenterDepth) {
+            return false;
+        }
+        OpenWaterProfile profile = cache.waterBodyProfile(world, centerX, centerZ);
+        if (!profile.isOpenMarine()) {
             return false;
         }
 
