@@ -4,10 +4,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.ChunkRegion;
-import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.biome.source.BiomeSource;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.gen.GenerationStep;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.Blender;
 import net.minecraft.world.gen.chunk.ChunkGeneratorSettings;
@@ -15,14 +13,12 @@ import net.minecraft.world.gen.chunk.NoiseChunkGenerator;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
 /**
- * Narrow delegation facade for vanilla 1.20.1 world-generation stages that
- * should remain Minecraft-owned.
+ * Narrow delegation facade for vanilla 1.20.1 world-generation stages that remain Minecraft-owned.
  *
- * <p>The external engine owns continental shape, terrain, erosion, rivers and
- * climate. Minecraft's {@link NoiseChunkGenerator} remains responsible for its
- * native three-dimensional noise substrate, aquifers, surface rules, carvers
- * and mob population. The host may apply narrow semantic repairs after a delegated stage when
- * vanilla cannot know about Engine-owned hydrology.</p>
+ * <p>The external engine owns continental shape, terrain, erosion, rivers and climate. Minecraft's
+ * {@link NoiseChunkGenerator} supplies its native three-dimensional noise substrate, aquifers,
+ * surface rules and mob population. Carving is intentionally absent from this facade in R46:
+ * FlTerraForged owns cave/ravine masks and resolves their hydrology before block materialization.</p>
  */
 public final class VanillaWorldgenDelegate {
 
@@ -52,18 +48,6 @@ public final class VanillaWorldgenDelegate {
             NoiseConfig noiseConfig,
             Chunk chunk) {
         generator.buildSurface(region, structures, noiseConfig, chunk);
-    }
-
-    /** Runs the configured vanilla AIR/LIQUID carver step. */
-    public void carve(
-            ChunkRegion region,
-            long seed,
-            NoiseConfig noiseConfig,
-            BiomeAccess biomeAccess,
-            StructureAccessor structures,
-            Chunk chunk,
-            GenerationStep.Carver step) {
-        generator.carve(region, seed, noiseConfig, biomeAccess, structures, chunk, step);
     }
 
     /** Delegates vanilla biome mob population. */
