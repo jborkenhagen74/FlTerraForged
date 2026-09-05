@@ -49,4 +49,40 @@ public interface SurfaceGeometryMaterializer {
         return MaterializedSurfaceGeometry.fullBlock(
                 MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight()));
     }
+
+    /**
+     * Returns whether the realized top state at this column can share its block cell with water.
+     *
+     * <p>This is a per-column refinement of {@link MaterializerCapabilities#waterlogging()}. The
+     * global capability must still be enabled before the host uses same-cell water. The default is
+     * {@code true} so existing providers that already advertised global waterlogging retain their
+     * behavior. Mixed palettes should override this method and return {@code false} for individual
+     * non-waterloggable top states.</p>
+     *
+     * @param sample continuous Engine terrain sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return {@code true} when the selected top state supports same-cell water
+     */
+    default boolean supportsSurfaceWaterlogging(TerrainSample sample, int x, int z) {
+        return true;
+    }
+
+    /**
+     * Returns placement-time same-cell water support for lightweight environment checks.
+     *
+     * <p>Providers with mixed waterloggable and non-waterloggable surface palettes should override
+     * this overload with the same deterministic X/Z rule used by the full-sample overload.</p>
+     *
+     * @param sample lightweight Engine environment sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return {@code true} when the selected placement-time top state supports same-cell water
+     */
+    default boolean supportsSurfaceWaterlogging(
+            TerrainEnvironmentSample sample,
+            int x,
+            int z) {
+        return true;
+    }
 }
