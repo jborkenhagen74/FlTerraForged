@@ -66,18 +66,22 @@ public interface BlockMaterializer {
     /**
      * Returns whether the column participates in the final physical wet envelope.
      *
-     * <p>The default compares the provider-supplied physical surface geometry with the exclusive
-     * water top instead of assuming a full-block surface. Providers with partial-height terrain can
-     * therefore report the correct wetness without changing Engine semantics.</p>
+     * <p>R52 distinguishes a complete fluid cell above the physical surface from water that would
+     * share the provider's partial-height top cell. The latter is considered materializable only when
+     * the provider advertises waterlogging. A non-waterloggable custom slab/layer is therefore never
+     * replaced by a full fluid block merely because an integer water top overlaps its block cell.</p>
      *
      * @param sample continuous Engine sample
      * @param x world X coordinate
      * @param z world Z coordinate
-     * @return {@code true} when the final water plane lies above the physical solid top
+     * @return {@code true} when the final water envelope can be physically represented
      */
     default boolean hasFinalWetEnvelope(TerrainSample sample, int x, int z) {
         MaterializedSurfaceGeometry geometry = MaterializerGeometry.surfaceGeometry(this, sample, x, z);
-        return waterTopExclusive(sample) > geometry.topY() + 1.0E-6D;
+        return MaterializerGeometry.hasMaterializableWater(
+                this,
+                geometry,
+                waterTopExclusive(sample));
     }
 
     /**
