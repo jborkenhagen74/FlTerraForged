@@ -17,11 +17,13 @@ import net.minecraft.world.chunk.Chunk;
 /**
  * Adds broad, deterministic shoreline habitat sections after ordinary watercourse decoration.
  *
- * <p>The decorator deliberately works in patches rather than per-block random noise. A shoreline
- * can therefore alternate between bare sediment, low vegetation, lush shrub sections and rocky
- * banks. Climate controls which contents are plausible, while the patch field controls where each
- * style occurs. It is part of the standard materializer only; external providers remain free to
- * implement their own geometry- and palette-aware decoration.</p>
+ * <p>R48 keeps broad habitat patches but makes vegetated shoreline the normal case. Bare sections
+ * are deliberately rare, while wet and temperate banks receive continuous low groundcover plus
+ * clustered grasses, ferns, reeds and shrubs. Rocky sections use low slabs and substrate patches
+ * instead of wall blocks, so the result reads as natural stones rather than placed posts.</p>
+ *
+ * <p>This decorator belongs only to the standard materializer. External materializers retain full
+ * control over their own block palettes and geometry-aware decoration.</p>
  */
 final class ShorelineDecorator {
 
@@ -36,6 +38,9 @@ final class ShorelineDecorator {
     private static final long DETAIL_SALT = 0xB134A8E2D76F509CL;
     private static final long ROCK_SALT = 0x3D8C6AF129E750B4L;
     private static final long SHRUB_SALT = 0x9A51E603C2B87D4FL;
+    private static final long GROUNDCOVER_SALT = 0x73C419EA0D65B28FL;
+    private static final long REED_SALT = 0xC50D34A817E96B2FL;
+    private static final long FLOWER_SALT = 0x2B9F40C61D783AE5L;
 
     private final VanillaBlockMaterializer materializer;
     private final boolean enabled;
@@ -79,53 +84,159 @@ final class ShorelineDecorator {
             TerrainSample sample) {
         int y = materializer.solidSurfaceY(sample) + 1;
         double strength = shoreStrength(sample);
-        double style = NaturalMaterialField.sample(x, z, STYLE_SALT, 64.0D);
-        double detail = NaturalMaterialField.sample(x, z, DETAIL_SALT, 21.0D);
+        double style = NaturalMaterialField.sample(x, z, STYLE_SALT, 72.0D);
+        double detail = NaturalMaterialField.sample(x, z, DETAIL_SALT, 19.0D);
         double moisture = sample.climate().isAvailable()
                 ? clamp01(sample.climate().moisture())
                 : 0.5D;
+        double lushness = clamp01(moisture * 0.72D + strength * 0.28D);
 
-        if (style < 0.23D) {
-            pruneSoftVegetation(context, mutable, x, y, z);
-            return;
-        }
-
-        boolean rocky = style > 0.77D || sample.slope() > 0.72D;
+        boolean rocky = style > 0.88D || sample.slope() > 0.88D;
         if (rocky && rocks) {
-            pruneSoftVegetation(context, mutable, x, y, z);
-            if (NaturalMaterialField.sparse(x, z, ROCK_SALT, 5, 0.48D + strength * 0.24D)) {
-                BlockState rock = moisture > 0.58D && detail > 0.52D
-                        ? Blocks.MOSSY_COBBLESTONE_WALL.getDefaultState()
-                        : Blocks.COBBLESTONE_WALL.getDefaultState();
-                placeIfAir(context, mutable, x, y, z, rock);
-            }
-            return;
+            decorateRock(context, mutable, x, y, z, moisture, detail, strength);
         }
 
-        if (!shrubs) {
-            return;
-        }
-        if (moisture < 0.24D) {
-            if (NaturalMaterialField.sparse(x, z, SHRUB_SALT, 7, 0.42D * strength)) {
+        // Truly bare shore is intentionally uncommon. Even rocky banks retain plants between rocks.
+        if (style < 0.08D && moisture < 0.30D) {
+            if (NaturalMaterialField.sparse(x, z, SHRUB_SALT, 4, 0.42D + strength * 0.18D)) {
                 placeIfAir(context, mutable, x, y, z, Blocks.DEAD_BUSH.getDefaultState());
             }
             return;
         }
 
-        if (style > 0.48D && moisture > 0.52D) {
-            if (!NaturalMaterialField.sparse(x, z, SHRUB_SALT, 4, 0.46D + strength * 0.34D)) {
-                return;
-            }
-            BlockState shrub;
-            if (moisture > 0.72D && detail > 0.58D) {
-                shrub = Blocks.AZALEA.getDefaultState();
-            } else if (moisture > 0.60D) {
-                shrub = Blocks.FERN.getDefaultState();
-            } else {
-                shrub = Blocks.GRASS.getDefaultState();
-            }
-            placeIfAir(context, mutable, x, y, z, shrub);
+        if (moisture > 0.38D
+                && NaturalMaterialField.sparse(
+                        x,
+                        z,
+                        GROUNDCOVER_SALT,
+                        2,
+                        0.62D + lushness * 0.32D)) {
+            placeIfAir(context, mutable, x, y, z, Blocks.MOSS_CARPET.getDefaultState());
         }
+
+        if (moisture > 0.40D
+                && isBesideWater(context.terrainWorld(), x, z)
+                && NaturalMaterialField.sparse(
+                        x,
+                        z,
+                        REED_SALT,
+                        4,
+                        0.36D + lushness * 0.36D)) {
+            placeIfAir(context, mutable, x, y, z, Blocks.SUGAR_CANE.getDefaultState());
+        }
+
+        if (!shrubs) {
+            return;
+        }
+
+        if (moisture < 0.22D) {
+            if (NaturalMaterialField.sparse(x, z, SHRUB_SALT, 4, 0.50D + strength * 0.22D)) {
+                placeIfAir(context, mutable, x, y, z, Blocks.DEAD_BUSH.getDefaultState());
+            }
+            return;
+        }
+
+        int spacing = lushness > 0.68D ? 2 : 3;
+        double habitat = 0.56D + lushness * 0.38D;
+        if (rocky) {
+            habitat *= 0.74D;
+        }
+        if (NaturalMaterialField.sparse(x, z, SHRUB_SALT, spacing, habitat)) {
+            BlockState plant = choosePlant(moisture, lushness, detail);
+            placeIfAir(context, mutable, x, y, z, plant);
+        }
+
+        if (lushness > 0.72D
+                && detail > 0.38D
+                && NaturalMaterialField.sparse(
+                        x,
+                        z,
+                        FLOWER_SALT,
+                        5,
+                        0.34D + lushness * 0.24D)) {
+            BlockState flower = detail > 0.66D
+                    ? Blocks.POPPY.getDefaultState()
+                    : Blocks.DANDELION.getDefaultState();
+            placeIfAir(context, mutable, x, y, z, flower);
+        }
+    }
+
+    private void decorateRock(
+            WaterDecorationContext context,
+            BlockPos.Mutable mutable,
+            int x,
+            int y,
+            int z,
+            double moisture,
+            double detail,
+            double strength) {
+        double patch = NaturalMaterialField.sample(x, z, ROCK_SALT, 23.0D);
+        if (patch > 0.66D) {
+            replaceSurfaceRock(context, mutable, x, y - 1, z, moisture, detail);
+        }
+        if (patch < 0.76D
+                || !NaturalMaterialField.sparse(
+                        x,
+                        z,
+                        ROCK_SALT,
+                        3,
+                        0.34D + strength * 0.30D)) {
+            return;
+        }
+
+        clearSoftPlant(context, mutable, x, y, z);
+        BlockState rock;
+        if (moisture > 0.62D && detail > 0.50D) {
+            rock = Blocks.MOSSY_COBBLESTONE_SLAB.getDefaultState();
+        } else if (detail > 0.58D) {
+            rock = Blocks.ANDESITE_SLAB.getDefaultState();
+        } else {
+            rock = Blocks.COBBLESTONE_SLAB.getDefaultState();
+        }
+        placeIfAir(context, mutable, x, y, z, rock);
+    }
+
+    private static BlockState choosePlant(
+            double moisture,
+            double lushness,
+            double detail) {
+        if (lushness > 0.84D && detail > 0.72D) {
+            return Blocks.FLOWERING_AZALEA.getDefaultState();
+        }
+        if (lushness > 0.76D && detail > 0.56D) {
+            return Blocks.AZALEA.getDefaultState();
+        }
+        if (moisture > 0.54D) {
+            return Blocks.FERN.getDefaultState();
+        }
+        return Blocks.GRASS.getDefaultState();
+    }
+
+    private static void replaceSurfaceRock(
+            WaterDecorationContext context,
+            BlockPos.Mutable mutable,
+            int x,
+            int y,
+            int z,
+            double moisture,
+            double detail) {
+        if (!insideChunk(context.chunk(), x, z)) {
+            return;
+        }
+        mutable.set(x, y, z);
+        BlockState current = context.chunk().getBlockState(mutable);
+        if (current.isAir() || !current.getFluidState().isEmpty()) {
+            return;
+        }
+        BlockState rock;
+        if (moisture > 0.64D && detail > 0.56D) {
+            rock = Blocks.MOSSY_COBBLESTONE.getDefaultState();
+        } else if (detail > 0.52D) {
+            rock = Blocks.ANDESITE.getDefaultState();
+        } else {
+            rock = Blocks.GRAVEL.getDefaultState();
+        }
+        context.chunk().setBlockState(mutable, rock, false);
     }
 
     private boolean isShore(TerrainWorld terrain, int x, int z, TerrainSample sample) {
@@ -160,7 +271,7 @@ final class ShorelineDecorator {
         return 0.62D;
     }
 
-    private static void pruneSoftVegetation(
+    private static void clearSoftPlant(
             WaterDecorationContext context,
             BlockPos.Mutable mutable,
             int x,
