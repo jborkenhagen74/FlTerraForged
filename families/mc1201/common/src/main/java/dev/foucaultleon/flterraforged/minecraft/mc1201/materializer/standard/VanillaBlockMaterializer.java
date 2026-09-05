@@ -3,6 +3,7 @@ package dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.standard;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerCapabilities;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerHeightQuantizer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationContext;
 import dev.foucaultleon.flterraforged.engine.api.river.RiverSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
@@ -86,17 +87,25 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public int solidSurfaceY(TerrainSample sample) {
         int surfaceY = clamp(
-                (int) Math.floor(sample.surfaceHeight()),
+                MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight()),
                 context.minY() + 1,
                 context.maxYExclusive() - 2);
+        TerrainType terrain = sample.terrainType();
+
+        // OCEAN is a material-water semantic. A continuous surface infinitesimally below sea level
+        // must not quantize back onto the sea-level block and accidentally erase the last water cell.
+        if (StandardTerrainTypes.OCEAN.equals(terrain)) {
+            surfaceY = Math.min(surfaceY, context.seaLevel() - 1);
+        }
+
         RiverSample hydrology = sample.river();
-        if (StandardTerrainTypes.LAKE.equals(sample.terrainType())
-                && hydrology.hasWaterSurfaceHeight()
-                && hydrology.depth() > MIN_WET_DEPTH) {
+        if (hasContinuousHydrologyWater(sample, hydrology)) {
             int waterTopExclusive = clamp(
-                    (int) Math.floor(hydrology.waterSurfaceHeight()) + 1,
+                    MaterializerHeightQuantizer.exclusiveFluidTop(hydrology.waterSurfaceHeight()),
                     context.minY() + 1,
                     context.maxYExclusive());
+            // Full-block providers cannot represent a fraction of solid and water in one cell. If
+            // Engine semantics say that water exists, reserve at least one complete water block.
             surfaceY = Math.min(surfaceY, waterTopExclusive - 2);
         }
         return clamp(surfaceY, context.minY() + 1, context.maxYExclusive() - 2);
@@ -111,10 +120,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                 ? Math.max(solidTop, context.seaLevel() + 1)
                 : solidTop;
         RiverSample hydrology = sample.river();
-        if (hydrology.hasWaterSurfaceHeight()
-                && hydrology.depth() > MIN_WET_DEPTH
-                && hydrology.waterSurfaceHeight() > sample.surfaceHeight()) {
-            int localWaterTop = (int) Math.floor(hydrology.waterSurfaceHeight()) + 1;
+        if (hasContinuousHydrologyWater(sample, hydrology)) {
+            int localWaterTop = MaterializerHeightQuantizer.exclusiveFluidTop(
+                    hydrology.waterSurfaceHeight());
             waterTop = Math.max(waterTop, localWaterTop);
         }
         return clamp(waterTop, context.minY(), context.maxYExclusive());
@@ -123,12 +131,12 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     @Override
     public boolean hasMaterializedWater(TerrainSample sample) {
         RiverSample hydrology = sample.river();
-        if (!hydrology.hasWaterSurfaceHeight() || hydrology.depth() <= MIN_WET_DEPTH) {
+        if (!hasContinuousHydrologyWater(sample, hydrology)) {
             return false;
         }
         int bedTop = solidSurfaceTop(sample);
         int waterTop = clamp(
-                (int) Math.floor(hydrology.waterSurfaceHeight()) + 1,
+                MaterializerHeightQuantizer.exclusiveFluidTop(hydrology.waterSurfaceHeight()),
                 context.minY(),
                 context.maxYExclusive());
         return waterTop > bedTop;
@@ -172,7 +180,7 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     @Override
     public BlockState fillerState(TerrainSample sample) {
-        return fillerState(sample, 0, (int) Math.floor(sample.surfaceHeight()) - 1, 0);
+        return fillerState(sample, 0, solidSurfaceY(sample) - 1, 0);
     }
 
     @Override
@@ -345,6 +353,12 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     public void decorateWatercourses(WaterDecorationContext context) {
         decorator.decorate(context);
         shorelineDecorator.decorate(context);
+    }
+
+    private boolean hasContinuousHydrologyWater(TerrainSample sample, RiverSample hydrology) {
+        return hydrology.hasWaterSurfaceHeight()
+                && hydrology.depth() > MIN_WET_DEPTH
+                && hydrology.waterSurfaceHeight() > sample.surfaceHeight() + MIN_WET_DEPTH;
     }
 
     private ConfiguredBlockSet set(String key, BlockState fallback) {
