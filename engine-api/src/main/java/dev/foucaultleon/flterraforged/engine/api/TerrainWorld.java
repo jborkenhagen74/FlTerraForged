@@ -31,6 +31,31 @@ public interface TerrainWorld extends AutoCloseable {
     TerrainSample sample(int x, int z);
 
     /**
+     * Samples one rectangular square of terrain data in row-major order.
+     *
+     * <p>The default implementation preserves compatibility with existing providers by delegating
+     * to {@link #sample(int, int)}. Providers with tile-aware caches should override this method so
+     * a caller that already needs a complete chunk-sized area can avoid repeated cache lookups.</p>
+     *
+     * @param originX minimum world X coordinate
+     * @param originZ minimum world Z coordinate
+     * @param size width and depth of the square in blocks
+     * @return row-major terrain samples with {@code size * size} entries
+     */
+    default TerrainSample[] sampleTile(int originX, int originZ, int size) {
+        if (size < 1) {
+            throw new IllegalArgumentException("size must be >= 1");
+        }
+        TerrainSample[] samples = new TerrainSample[size * size];
+        for (int localZ = 0; localZ < size; localZ++) {
+            for (int localX = 0; localX < size; localX++) {
+                samples[localZ * size + localX] = sample(originX + localX, originZ + localZ);
+            }
+        }
+        return samples;
+    }
+
+    /**
      * Samples only the terrain and hydrology data needed for placement-time environment checks.
      *
      * <p>Implementations should override this method when they can answer the query without running
