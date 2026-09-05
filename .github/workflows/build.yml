@@ -41,8 +41,12 @@ jobs:
           gradle-version: '9.7.1'
 
       - name: Verify layout
-        if: github.ref != 'refs/heads/revision/r45-final-wet-reconciliation'
+        if: github.ref != 'refs/heads/revision/r45-final-wet-reconciliation' && github.ref != 'refs/heads/revision/r46-owned-carver'
         run: python3 tools/verify-layout.py
+
+      - name: Verify R46 owned-carver lifecycle
+        if: github.ref == 'refs/heads/revision/r46-owned-carver'
+        run: python3 tools/verify-r46-lifecycle.py
 
       - name: Verify R45 final wet lifecycle
         if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
@@ -51,6 +55,30 @@ jobs:
       - name: Verify R44 worldgen lifecycle
         if: github.ref == 'refs/heads/revision/r44-coast-hydrology-performance-biomes'
         run: python3 tools/verify-r44-lifecycle.py
+
+      - name: Build R46 Engine API local repository
+        if: github.ref == 'refs/heads/revision/r46-owned-carver'
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
+
+      - name: Checkout Engine R37 source
+        if: github.ref == 'refs/heads/revision/r46-owned-carver'
+        uses: actions/checkout@v6
+        with:
+          repository: jborkenhagen74/FlTerraForged-Engine
+          ref: revision/r37-river-wet-core-connectivity
+          path: .ci/engine-r37-source
+
+      - name: Build Engine R37 local repository
+        if: github.ref == 'refs/heads/revision/r46-owned-carver'
+        env:
+          FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
+        run: gradle -p .ci/engine-r37-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all publish
+
+      - name: Build and test R46 with Engine R37
+        if: github.ref == 'refs/heads/revision/r46-owned-carver'
+        env:
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r37-source/build/maven-repository
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build R45 Engine API local repository
         if: github.ref == 'refs/heads/revision/r45-final-wet-reconciliation'
@@ -101,7 +129,7 @@ jobs:
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Build and test
-        if: github.ref != 'refs/heads/revision/r44-coast-hydrology-performance-biomes' && github.ref != 'refs/heads/revision/r45-final-wet-reconciliation'
+        if: github.ref != 'refs/heads/revision/r44-coast-hydrology-performance-biomes' && github.ref != 'refs/heads/revision/r45-final-wet-reconciliation' && github.ref != 'refs/heads/revision/r46-owned-carver'
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
@@ -109,7 +137,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           lib_dir="versions/1.20.1/fabric/build/libs"
           mapfile -t jars < <(
             find "$lib_dir" -maxdepth 1 -type f -name '*.jar' \
@@ -120,7 +147,6 @@ jobs:
               ! -name '*-shadow.jar' \
               -print | sort
           )
-
           if [ "${#jars[@]}" -ne 1 ]; then
             echo "::error::Expected exactly one installable JAR in $lib_dir, found ${#jars[@]}."
             if [ "${#jars[@]}" -gt 0 ]; then
@@ -128,12 +154,10 @@ jobs:
             fi
             exit 1
           fi
-
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
           artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
-
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
@@ -154,17 +178,21 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            if [ "$GITHUB_REF" = "refs/heads/revision/r45-final-wet-reconciliation" ]; then
+            if [ "$GITHUB_REF" = "refs/heads/revision/r46-owned-carver" ]; then
+              echo "### Minecraft 1.20.1 Fabric R46 artifact"
+              echo
+              echo "- JAR: \`$JAR_NAME\`"
+              echo "- Embedded Engine: R37"
+              echo "- Carving: FlTerraForged-owned deterministic cave/ravine mask"
+              echo "- Hydrology: connected wet components resolved before block writes"
+              echo "- Post-carver water reconstruction: none"
+              echo "- Vanilla carver delegation: none"
+              echo "- River wet core: Engine-side continuity layer"
+            elif [ "$GITHUB_REF" = "refs/heads/revision/r45-final-wet-reconciliation" ]; then
               echo "### Minecraft 1.20.1 Fabric R45 artifact"
               echo
               echo "- JAR: \`$JAR_NAME\`"
               echo "- Embedded Engine: R36"
-              echo "- Hydrology: exactly one final connected wet reconciliation after all carvers"
-              echo "- Final wet pass: fluid-only; no bed/bank reconstruction"
-              echo "- Carvers: unrestricted solid geometry inside ocean/river/lake beds"
-              echo "- Materializer: variable-height physical wet-envelope hook retained"
-              echo "- Terrain sampling: chunk-aligned bulk tile lookup"
-              echo "- Coast: wider dry semantic plus coherent sand-to-land material transition"
             else
               echo "### Minecraft 1.20.1 Fabric artifact"
               echo
