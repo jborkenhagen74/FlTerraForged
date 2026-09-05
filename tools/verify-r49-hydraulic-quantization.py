@@ -10,6 +10,7 @@ quantizer_path = api / "MaterializerHeightQuantizer.java"
 geometry = (api / "MaterializerGeometry.java").read_text(encoding="utf-8")
 materializer = (standard / "VanillaBlockMaterializer.java").read_text(encoding="utf-8")
 carver = (worldgen / "FlTerraForgedCarver.java").read_text(encoding="utf-8")
+generator = (worldgen / "FlTerraForgedChunkGenerator.java").read_text(encoding="utf-8")
 errors = []
 
 if not quantizer_path.is_file():
@@ -53,12 +54,15 @@ for token in (
     if token not in carver:
         errors.append(f"FlTerraForgedCarver missing R49 semantic-wet invariant: {token}")
 
-for forbidden_path in (
-        worldgen / "FinalWetReconciliationPass.java",
-        worldgen / "HydrologyFillPass.java",
+# Historical repair classes may remain as dead source for compatibility/history, but the active
+# lifecycle must never invoke them. R49 fixes the source semantics before/during materialization.
+for forbidden in (
+        "FinalWetReconciliationPass",
+        "HydrologyFillPass",
+        "HydrologyCarverGuard",
 ):
-    if forbidden_path.exists():
-        errors.append(f"R49 must not add mutating post-generation repair pass: {forbidden_path.name}")
+    if forbidden in generator or forbidden in carver:
+        errors.append(f"R49 active worldgen lifecycle invokes forbidden repair path: {forbidden}")
 
 if errors:
     print("R49 hydraulic quantization verification failed:", file=sys.stderr)
