@@ -131,6 +131,16 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
+    public BlockState submergedHydrologySurfaceState(
+            TerrainSample sample,
+            int x,
+            int y,
+            int z,
+            BlockState dryState) {
+        return delegate.submergedHydrologySurfaceState(sample, x, y, z, dryState);
+    }
+
+    @Override
     public BlockState hydrologySealState(TerrainSample sample) {
         return delegate.hydrologySealState(sample);
     }
