@@ -20,10 +20,11 @@ import net.minecraft.world.gen.GenerationStep;
  *
  * <p>The carver first constructs an immutable 3D carve mask for the target chunk plus a one-block
  * horizontal halo. No Minecraft block is modified while cave geometry is being decided. A second
- * phase floods only mask components that actually breach an Engine/materializer wet surface, with
- * the source water level propagated through that connected carved volume. The final phase writes
- * the target chunk once. This avoids the former sequence of vanilla carving followed by one or more
- * hydrology reconstruction passes.</p>
+ * phase floods only mask components that actually breach an Engine/materializer wet surface. Wet
+ * river/lake/ocean columns also impose their own hydraulic ceiling, so a high upstream river cannot
+ * back-fill a lower downstream reach through a connected cave and erase a legitimate waterfall.
+ * The final phase writes the target chunk once. This avoids the former sequence of vanilla carving
+ * followed by one or more hydrology reconstruction passes.</p>
  *
  * <p>Feature origins are derived from surrounding source chunks, so a cave crossing a chunk border
  * is generated from the same world-space definition regardless of chunk generation order.</p>
@@ -245,7 +246,9 @@ final class FlTerraForgedCarver {
             TerrainSample[] samples,
             boolean[] mask) {
         int[] floodLevel = new int[mask.length];
+        int[] hydraulicCeiling = new int[AREA];
         Arrays.fill(floodLevel, Integer.MIN_VALUE);
+        Arrays.fill(hydraulicCeiling, context.maxYExclusive());
         ArrayDeque<Integer> queue = new ArrayDeque<>();
 
         for (int localZ = 0; localZ < WIDTH; localZ++) {
@@ -262,6 +265,7 @@ final class FlTerraForgedCarver {
                         materializer.waterTopExclusive(sample),
                         context.minY(),
                         context.maxYExclusive());
+                hydraulicCeiling[column] = waterTop;
                 if (bedY < context.minY()
                         || bedY >= context.maxYExclusive()
                         || waterTop <= bedY
@@ -281,12 +285,12 @@ final class FlTerraForgedCarver {
             int localZ = column / WIDTH;
             int y = context.minY() + vertical;
 
-            offerNeighbor(queue, floodLevel, mask, localX - 1, localZ, y, level);
-            offerNeighbor(queue, floodLevel, mask, localX + 1, localZ, y, level);
-            offerNeighbor(queue, floodLevel, mask, localX, localZ - 1, y, level);
-            offerNeighbor(queue, floodLevel, mask, localX, localZ + 1, y, level);
-            offerNeighbor(queue, floodLevel, mask, localX, localZ, y - 1, level);
-            offerNeighbor(queue, floodLevel, mask, localX, localZ, y + 1, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX - 1, localZ, y, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX + 1, localZ, y, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX, localZ - 1, y, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX, localZ + 1, y, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX, localZ, y - 1, level);
+            offerNeighbor(queue, floodLevel, hydraulicCeiling, mask, localX, localZ, y + 1, level);
         }
         return floodLevel;
     }
@@ -294,6 +298,7 @@ final class FlTerraForgedCarver {
     private void offerNeighbor(
             ArrayDeque<Integer> queue,
             int[] floodLevel,
+            int[] hydraulicCeiling,
             boolean[] mask,
             int localX,
             int localZ,
@@ -304,15 +309,19 @@ final class FlTerraForgedCarver {
                 || localZ < 0
                 || localZ >= WIDTH
                 || y < context.minY()
-                || y >= context.maxYExclusive()
-                || y >= level) {
+                || y >= context.maxYExclusive()) {
             return;
         }
-        int packed = pack(columnIndex(localX, localZ), y);
+        int column = columnIndex(localX, localZ);
+        int cappedLevel = Math.min(level, hydraulicCeiling[column]);
+        if (y >= cappedLevel) {
+            return;
+        }
+        int packed = pack(column, y);
         if (!mask[packed]) {
             return;
         }
-        offerFlood(queue, floodLevel, packed, level);
+        offerFlood(queue, floodLevel, packed, cappedLevel);
     }
 
     private static void offerFlood(
