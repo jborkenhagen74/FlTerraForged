@@ -14,7 +14,7 @@ errors = []
 for token in (
         "FlTerraForged: R51",
         "FlTerraForged Engine: R41",
-        "startup liveness",
+        "startup-liveness",
         "single-flight",
 ):
     if token not in pair:
