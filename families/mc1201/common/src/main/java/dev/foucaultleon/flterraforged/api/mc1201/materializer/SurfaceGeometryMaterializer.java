@@ -33,7 +33,9 @@ public interface SurfaceGeometryMaterializer {
      * <p>Variable-height providers should override this overload when their surface occupancy can be
      * resolved without a full {@link TerrainSample}. The default deliberately assumes one full block
      * and therefore preserves existing providers while allowing structure checks to remain detached
-     * from the expensive final terrain pipeline.</p>
+     * from the expensive final terrain pipeline. R49 uses the same near-integer quantization as the
+     * standard materializer so placement checks cannot disagree with generation by one whole block
+     * because of floating-point noise.</p>
      *
      * @param sample lightweight Engine environment sample
      * @param x world X coordinate
@@ -44,6 +46,7 @@ public interface SurfaceGeometryMaterializer {
             TerrainEnvironmentSample sample,
             int x,
             int z) {
-        return MaterializedSurfaceGeometry.fullBlock((int) Math.floor(sample.surfaceHeight()));
+        return MaterializedSurfaceGeometry.fullBlock(
+                MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight()));
     }
 }
