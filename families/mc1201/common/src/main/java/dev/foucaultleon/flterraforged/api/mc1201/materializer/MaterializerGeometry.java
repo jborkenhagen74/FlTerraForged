@@ -67,7 +67,7 @@ public final class MaterializerGeometry {
                 materializer.context().minY() + 1,
                 Math.min(
                         materializer.context().maxYExclusive() - 2,
-                        (int) Math.floor(sample.surfaceHeight())));
+                        MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight())));
         return MaterializedSurfaceGeometry.fullBlock(blockY);
     }
 }
