@@ -42,10 +42,11 @@ import net.minecraft.world.gen.structure.Structure;
 /**
  * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
  *
- * <p>The external engine owns the large-scale surface shape and climate. A vanilla
+ * <p>The external engine owns large-scale surface shape, climate and hydrology. A vanilla
  * {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter substrate, aquifers, surface
- * rules, carvers and mob population. The density bridge then truncates or extends that substrate
- * to the engine surface without vertically translating caves or underground layers.</p>
+ * rules and mob population. R46 deliberately stops delegating carvers: FlTerraForged constructs
+ * cave/ravine masks itself so destructive geometry and connected surface water are resolved in one
+ * deterministic pass instead of carving first and repairing hydrology afterwards.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -80,7 +81,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final VanillaWorldgenDelegate vanilla;
     private final EngineDensityBridge densityBridge;
     private final EngineSurfaceGuard surfaceGuard;
-    private final FinalWetReconciliationPass finalWetReconciliationPass;
+    private final FlTerraForgedCarver carver;
     private final MarineEnvironmentCache marineEnvironmentCache;
 
     /**
@@ -124,7 +125,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
         this.densityBridge = new EngineDensityBridge(materializer);
         this.surfaceGuard = new EngineSurfaceGuard(materializer);
-        this.finalWetReconciliationPass = new FinalWetReconciliationPass(materializer);
+        this.carver = new FlTerraForgedCarver(materializer);
         this.marineEnvironmentCache = new MarineEnvironmentCache(materializer);
     }
 
@@ -295,8 +296,8 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             GenerationStep.Carver carverStep) {
-        vanilla.carve(
-                chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
+        TerrainWorld world = bind(noiseConfig);
+        carver.carve(seed, chunk, carverStep, world);
     }
 
     @Override
@@ -310,7 +311,9 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             Chunk chunk,
             StructureAccessor structureAccessor) {
         TerrainWorld terrain = session.boundWorld();
-        finalWetReconciliationPass.apply(chunk, terrain);
+        // R46 performs no post-carver water reconstruction. Heightmaps are refreshed once after the
+        // owned carver has materialized its complete AIR/WATER mask and before native features read
+        // the final terrain geometry.
         Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
 
         super.generateFeatures(world, chunk, structureAccessor);
