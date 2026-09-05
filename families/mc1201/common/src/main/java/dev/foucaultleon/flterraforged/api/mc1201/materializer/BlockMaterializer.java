@@ -211,6 +211,31 @@ public interface BlockMaterializer {
     }
 
     /**
+     * Resolves the final block state of a hydrology bed cell whose reported physical surface is
+     * below the Engine-owned water surface.
+     *
+     * <p>The default returns {@code dryState} unchanged and therefore preserves existing providers.
+     * Providers that advertise {@link MaterializerCapabilities#waterlogging()} and emit partial or
+     * layered terrain may override this method to return a waterlogged variant of the same physical
+     * surface. The method must be deterministic and must not query or generate neighboring chunks.</p>
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param y containing surface block Y
+     * @param z world Z coordinate
+     * @param dryState hydrology bed state selected before waterlogging
+     * @return final state for the submerged surface block cell
+     */
+    default BlockState submergedHydrologySurfaceState(
+            TerrainSample sample,
+            int x,
+            int y,
+            int z,
+            BlockState dryState) {
+        return dryState;
+    }
+
+    /**
      * Returns the solid state used to seal hydrology beds and adjacent banks after carving.
      *
      * @param sample continuous Engine sample
@@ -230,7 +255,6 @@ public interface BlockMaterializer {
     default BlockState hydrologySealState(TerrainSample sample, int x, int y, int z) {
         return hydrologySealState(sample);
     }
-
 
     /**
      * Returns whether a dry Engine hydrology column may be repaired as a one-column surface gap
