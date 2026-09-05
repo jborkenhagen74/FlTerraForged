@@ -8,8 +8,8 @@ import net.minecraft.block.BlockState;
  * Converts continuous Engine terrain semantics into Minecraft 1.20.1 block-level decisions.
  *
  * <p>The Engine never depends on this contract. FlTerraForged owns materialization and supplies the
- * selected implementation to every world-generation stage that needs integer heights, fluids,
- * surface blocks or hydrology repair. Add-on mods may provide another implementation through the
+ * selected implementation to every world-generation stage that needs integer heights, fluids or
+ * surface blocks. Add-on mods may provide another implementation through the
  * {@code flterraforged:materializer} Fabric entrypoint.</p>
  */
 public interface BlockMaterializer {
@@ -55,12 +55,84 @@ public interface BlockMaterializer {
     int waterTopExclusive(TerrainSample sample);
 
     /**
-     * Returns whether at least one Engine-owned water cell is materialized above the solid bed.
+     * Returns whether at least one Engine-owned river/lake water cell is materialized above the
+     * solid bed.
      *
      * @param sample continuous Engine sample
-     * @return {@code true} when Engine hydrology becomes actual Minecraft water
+     * @return {@code true} when Engine inland hydrology becomes actual Minecraft water
      */
     boolean hasMaterializedWater(TerrainSample sample);
+
+    /**
+     * Returns whether the column participates in the final physical wet envelope.
+     *
+     * <p>The default compares the provider-supplied physical surface geometry with the exclusive
+     * water top instead of assuming a full-block surface. Providers with partial-height terrain can
+     * therefore report the correct wetness without changing Engine semantics.</p>
+     *
+     * @param sample continuous Engine sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return {@code true} when the final water plane lies above the physical solid top
+     */
+    default boolean hasFinalWetEnvelope(TerrainSample sample, int x, int z) {
+        MaterializedSurfaceGeometry geometry = MaterializerGeometry.surfaceGeometry(this, sample, x, z);
+        return waterTopExclusive(sample) > geometry.topY() + 1.0E-6D;
+    }
+
+    /**
+     * Returns whether the final wet pass may propagate through the current block cell.
+     *
+     * <p>The full-block default permits air and the materializer's own fluid only. A provider that
+     * emits waterloggable partial blocks may override this method together with
+     * {@link #finalWetState(TerrainSample, BlockState, int, int, int)} so connected water can occupy
+     * its custom geometry without the host replacing that geometry with a full fluid block.</p>
+     *
+     * @param sample continuous Engine sample for the column
+     * @param current current Minecraft block state
+     * @param x world X coordinate
+     * @param y world Y coordinate
+     * @param z world Z coordinate
+     * @return {@code true} when final wet connectivity may traverse this block
+     */
+    default boolean permitsFinalWetFlow(
+            TerrainSample sample,
+            BlockState current,
+            int x,
+            int y,
+            int z) {
+        if (current.isAir()) {
+            return true;
+        }
+        BlockState fluid = fluidState(sample);
+        return !current.getFluidState().isEmpty()
+                && !fluid.getFluidState().isEmpty()
+                && current.getFluidState().getFluid() == fluid.getFluidState().getFluid();
+    }
+
+    /**
+     * Resolves the block state used by the one-time final wet reconciliation pass.
+     *
+     * <p>This method is called only after {@link #permitsFinalWetFlow(TerrainSample, BlockState,
+     * int, int, int)} returned {@code true}. The default returns the configured full fluid state.
+     * Waterloggable partial-height providers can instead retain their solid state while enabling
+     * its waterlogged property.</p>
+     *
+     * @param sample continuous Engine sample for the column
+     * @param current current Minecraft block state
+     * @param x world X coordinate
+     * @param y world Y coordinate
+     * @param z world Z coordinate
+     * @return state that represents connected final water in this cell
+     */
+    default BlockState finalWetState(
+            TerrainSample sample,
+            BlockState current,
+            int x,
+            int y,
+            int z) {
+        return fluidState(sample);
+    }
 
     /**
      * Returns the world-floor block used when a source column does not already provide one.
@@ -190,7 +262,10 @@ public interface BlockMaterializer {
     }
 
     /**
-     * Returns the visible bed state restored below Engine-owned river/lake water after carving.
+     * Returns the legacy visible bed state retained for source compatibility with older add-ons.
+     *
+     * <p>R45 no longer reconstructs solid beds after carving; the final wet pass only adds fluid to
+     * connected wet cells.</p>
      *
      * @param sample continuous Engine sample
      * @return hydrology bed state
@@ -198,7 +273,7 @@ public interface BlockMaterializer {
     BlockState hydrologyBedState(TerrainSample sample);
 
     /**
-     * Returns the visible hydrology-bed state for a known block position.
+     * Returns the legacy hydrology-bed state for a known block position.
      *
      * @param sample continuous Engine sample
      * @param x world X coordinate
@@ -211,7 +286,7 @@ public interface BlockMaterializer {
     }
 
     /**
-     * Returns the solid state used to seal hydrology beds and adjacent banks after carving.
+     * Returns the legacy hydrology seal state retained for source compatibility.
      *
      * @param sample continuous Engine sample
      * @return hydrology seal state
@@ -219,7 +294,7 @@ public interface BlockMaterializer {
     BlockState hydrologySealState(TerrainSample sample);
 
     /**
-     * Returns the hydrology seal state for a known block position.
+     * Returns the legacy hydrology seal state for a known block position.
      *
      * @param sample continuous Engine sample
      * @param x world X coordinate
@@ -231,69 +306,64 @@ public interface BlockMaterializer {
         return hydrologySealState(sample);
     }
 
-
     /**
-     * Returns whether a dry Engine hydrology column may be repaired as a one-column surface gap
-     * when surrounding columns form one continuous water body.
+     * Returns whether legacy inferred gap repair would be allowed.
      *
-     * <p>The host performs only the neighborhood/connectivity test. The selected materializer
-     * decides whether its block-resolution model permits the repair at all.</p>
+     * <p>R45 does not perform inferred gap repair. This method remains only for compatibility with
+     * existing materializer implementations.</p>
      *
      * @param sample continuous Engine sample at the candidate gap
-     * @return {@code true} when a connectivity repair is allowed
+     * @return legacy gap-repair permission
      */
     default boolean mayRepairHydrologyGap(TerrainSample sample) {
         return false;
     }
 
     /**
-     * Resolves the bed Y used when closing a one-column hydrology surface gap.
+     * Resolves the legacy inferred-gap bed Y retained for compatibility.
      *
      * @param sample continuous Engine sample at the candidate gap
-     * @param waterTopExclusive neighborhood water-top level chosen by the host
-     * @return topmost solid bed block Y for the repaired column
+     * @param waterTopExclusive neighborhood water-top level
+     * @return legacy bed Y
      */
     default int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
         return solidSurfaceY(sample);
     }
 
     /**
-     * Returns the maximum radius used to prove and close a narrow enclosed hydrology gap.
+     * Returns the legacy gap-repair radius retained for compatibility.
      *
-     * <p>A value of zero disables inferred gap repair. Exact Engine-owned wet columns are restored
-     * independently of this setting.</p>
-     *
-     * @return maximum horizontal gap-repair radius in blocks
+     * @return legacy gap-repair radius
      */
     default int hydrologyGapRepairRadius() {
+        return 0;
+    }
+
+    /**
+     * Returns the legacy cave-protection margin retained for compatibility.
+     *
+     * @return legacy protection radius
+     */
+    default int hydrologyCaveMargin() {
+        return 0;
+    }
+
+    /**
+     * Returns the legacy bed seal depth retained for compatibility.
+     *
+     * @return legacy bed seal depth
+     */
+    default int hydrologyBedSealDepth() {
         return 1;
     }
 
     /**
-     * Returns the horizontal cave-protection margin around materialized hydrology.
+     * Returns the legacy bank seal depth retained for compatibility.
      *
-     * @return protection radius in blocks
-     */
-    default int hydrologyCaveMargin() {
-        return 3;
-    }
-
-    /**
-     * Returns the number of solid blocks maintained below a hydrology bed after carving.
-     *
-     * @return bed seal depth in blocks
-     */
-    default int hydrologyBedSealDepth() {
-        return 5;
-    }
-
-    /**
-     * Returns the vertical seal depth used on banks inside the cave-protection margin.
-     *
-     * @return bank seal depth in blocks
+     * @return legacy bank seal depth
      */
     default int hydrologyBankSealDepth() {
-        return 5;
+        return 1;
     }
 
     /**
