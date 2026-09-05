@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    name: Verify R50 with Engine R40
+    name: Verify R50 with pinned Engine R40
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,11 +53,11 @@ jobs:
       - name: Build R50 Engine API local repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
-      - name: Checkout Engine R40 source
+      - name: Checkout pinned Engine R40 source
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: revision/r40-receiver-overlay
+          ref: c3b0655a1893023c5dc69eb7a4ebd8dfbcc1913c
           path: .ci/engine-r40-source
 
       - name: Build Engine R40 local repository
@@ -121,9 +121,11 @@ jobs:
             echo
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Embedded Engine: R40"
+            echo "- Engine commit: \`c3b0655a1893023c5dc69eb7a4ebd8dfbcc1913c\`"
             echo "- Drainage and incision source: same post-erosion terrain"
             echo "- Final Engine hydrology order: river -> wet-core -> receiver overlay"
             echo "- Ocean/lake receiver geometry applied before Minecraft materialization"
+            echo "- Duplicate erosion sampling in receiver overlay: none"
             echo "- Post-generation water repair pass: none"
             echo "- R49 height quantization: retained"
             echo "- R48 submerged-floor seal: retained"
