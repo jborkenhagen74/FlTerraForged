@@ -1,7 +1,9 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfaceGeometry;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.Objects;
 import net.minecraft.block.BlockState;
@@ -25,13 +27,30 @@ public final class ColumnComposer {
     }
 
     /**
-     * Returns the first air block above the materialized solid surface.
+     * Returns the first air block above the legacy position-independent solid surface.
      *
      * @param sample continuous Engine terrain sample
      * @return first block above the solid surface
      */
     public int surfaceTop(TerrainSample sample) {
         return materializer.solidSurfaceTop(sample);
+    }
+
+    /**
+     * Returns the first air block above the provider's physical surface at one world column.
+     *
+     * <p>Heightmaps operate on occupied Minecraft cells, so a partial-height top still contributes
+     * {@code blockY + 1} even though its physical {@code topY} may be lower.</p>
+     *
+     * @param sample continuous Engine terrain sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return first block cell above the physical top material
+     */
+    public int surfaceTop(TerrainSample sample, int x, int z) {
+        MaterializedSurfaceGeometry geometry =
+                MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
+        return geometry.blockY() + 1;
     }
 
     /**
@@ -42,6 +61,20 @@ public final class ColumnComposer {
      */
     public int worldSurfaceTop(TerrainSample sample) {
         return materializer.waterTopExclusive(sample);
+    }
+
+    /**
+     * Returns the first block above the complete position-aware world surface.
+     *
+     * @param sample continuous Engine terrain sample
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return first block above provider geometry and materialized water
+     */
+    public int worldSurfaceTop(TerrainSample sample, int x, int z) {
+        return Math.max(
+                surfaceTop(sample, x, z),
+                materializer.waterTopExclusive(sample));
     }
 
     /**
@@ -57,6 +90,10 @@ public final class ColumnComposer {
     /**
      * Builds a position-aware vertical column suitable for chunk fill and structure sampling.
      *
+     * <p>The provider's physical top-cell geometry is authoritative. Water that shares a partial top
+     * cell is materialized only through the provider's waterlogging hooks; non-waterloggable partial
+     * states are retained and full fluid starts in the first complete cell above them.</p>
+     *
      * @param sample continuous Engine terrain sample
      * @param x world X coordinate
      * @param z world Z coordinate
@@ -64,10 +101,20 @@ public final class ColumnComposer {
      */
     public BlockState[] compose(TerrainSample sample, int x, int z) {
         BlockState[] states = new BlockState[context.maxYExclusive() - context.minY()];
-        int surfaceTop = surfaceTop(sample);
-        int surfaceY = surfaceTop - 1;
+        MaterializedSurfaceGeometry geometry =
+                MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
+        int surfaceY = geometry.blockY();
         int waterTopExclusive = materializer.waterTopExclusive(sample);
+        int firstWaterY = MaterializerGeometry.firstWaterY(
+                materializer,
+                geometry,
+                waterTopExclusive);
         BlockState top = materializer.composedTopState(sample, x, z);
+        if (firstWaterY == surfaceY
+                && surfaceY < waterTopExclusive
+                && materializer.permitsFinalWetFlow(sample, top, x, surfaceY, z)) {
+            top = materializer.finalWetState(sample, top, x, surfaceY, z);
+        }
         BlockState filler = materializer.fillerState(sample, x, surfaceY - 1, z);
         BlockState substrate = materializer.substrateState(sample);
         BlockState fluid = materializer.fluidState(sample);
@@ -83,7 +130,7 @@ public final class ColumnComposer {
                 state = filler;
             } else if (y == surfaceY) {
                 state = top;
-            } else if (y < waterTopExclusive) {
+            } else if (y >= firstWaterY && y < waterTopExclusive) {
                 state = fluid;
             } else {
                 state = air;
