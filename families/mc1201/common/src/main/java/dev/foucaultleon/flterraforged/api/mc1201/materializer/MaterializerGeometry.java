@@ -75,56 +75,159 @@ public final class MaterializerGeometry {
     }
 
     /**
-     * Returns whether the provider can physically materialize water for the resolved envelope.
-     *
-     * <p>A complete fluid cell above the surface is always representable. Water that reaches only
-     * into the same Minecraft cell as a partial-height solid requires the provider to advertise
-     * waterlogging support; otherwise the host preserves the provider's solid geometry rather than
-     * replacing it with a full fluid block.</p>
+     * Returns whether final water can be represented for a full Engine sample and column.
      *
      * @param materializer active block materializer
+     * @param sample continuous Engine sample
      * @param geometry resolved physical surface geometry
+     * @param x world X coordinate
+     * @param z world Z coordinate
      * @param waterTopExclusive exclusive top of the materialized fluid envelope
      * @return {@code true} when at least one physical wet cell can be represented
      */
     public static boolean hasMaterializableWater(
             BlockMaterializer materializer,
+            TerrainSample sample,
             MaterializedSurfaceGeometry geometry,
+            int x,
+            int z,
             int waterTopExclusive) {
+        Objects.requireNonNull(sample, "sample");
+        return hasMaterializableWater(
+                materializer,
+                geometry,
+                waterTopExclusive,
+                supportsSameCellWater(materializer, sample, x, z));
+    }
+
+    /**
+     * Returns whether final water can be represented for a lightweight placement sample.
+     *
+     * @param materializer active block materializer
+     * @param sample lightweight Engine environment sample
+     * @param geometry resolved physical surface geometry
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @param waterTopExclusive exclusive top of the materialized fluid envelope
+     * @return {@code true} when at least one physical wet cell can be represented
+     */
+    public static boolean hasMaterializableWater(
+            BlockMaterializer materializer,
+            TerrainEnvironmentSample sample,
+            MaterializedSurfaceGeometry geometry,
+            int x,
+            int z,
+            int waterTopExclusive) {
+        Objects.requireNonNull(sample, "sample");
+        return hasMaterializableWater(
+                materializer,
+                geometry,
+                waterTopExclusive,
+                supportsSameCellWater(materializer, sample, x, z));
+    }
+
+    /**
+     * Returns the first Y cell in which final water may be represented for a full sample.
+     *
+     * @param materializer active block materializer
+     * @param sample continuous Engine sample
+     * @param geometry resolved physical surface geometry
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @param waterTopExclusive exclusive top of the materialized fluid envelope
+     * @return first candidate wet block Y
+     */
+    public static int firstWaterY(
+            BlockMaterializer materializer,
+            TerrainSample sample,
+            MaterializedSurfaceGeometry geometry,
+            int x,
+            int z,
+            int waterTopExclusive) {
+        Objects.requireNonNull(sample, "sample");
+        return firstWaterY(
+                geometry,
+                waterTopExclusive,
+                supportsSameCellWater(materializer, sample, x, z));
+    }
+
+    /**
+     * Returns the first Y cell in which final water may be represented for a placement sample.
+     *
+     * @param materializer active block materializer
+     * @param sample lightweight Engine environment sample
+     * @param geometry resolved physical surface geometry
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @param waterTopExclusive exclusive top of the materialized fluid envelope
+     * @return first candidate wet block Y
+     */
+    public static int firstWaterY(
+            BlockMaterializer materializer,
+            TerrainEnvironmentSample sample,
+            MaterializedSurfaceGeometry geometry,
+            int x,
+            int z,
+            int waterTopExclusive) {
+        Objects.requireNonNull(sample, "sample");
+        return firstWaterY(
+                geometry,
+                waterTopExclusive,
+                supportsSameCellWater(materializer, sample, x, z));
+    }
+
+    private static boolean hasMaterializableWater(
+            BlockMaterializer materializer,
+            MaterializedSurfaceGeometry geometry,
+            int waterTopExclusive,
+            boolean supportsSameCellWater) {
         Objects.requireNonNull(materializer, "materializer");
         Objects.requireNonNull(geometry, "geometry");
         if (waterTopExclusive > geometry.blockY() + 1) {
             return true;
         }
         return materializer.capabilities().waterlogging()
+                && supportsSameCellWater
                 && waterTopExclusive > geometry.topY() + GEOMETRY_EPSILON;
     }
 
-    /**
-     * Returns the first Y cell in which the final water envelope may be materialized.
-     *
-     * <p>For a waterloggable partial top block this may be the same cell as the solid geometry.
-     * Otherwise it is the first complete Minecraft cell above the physical top. The returned value
-     * may equal or exceed {@code waterTopExclusive}, in which case no materializable water cell is
-     * present.</p>
-     *
-     * @param materializer active block materializer
-     * @param geometry resolved physical surface geometry
-     * @param waterTopExclusive exclusive top of the materialized fluid envelope
-     * @return first candidate wet block Y
-     */
-    public static int firstWaterY(
-            BlockMaterializer materializer,
+    private static int firstWaterY(
             MaterializedSurfaceGeometry geometry,
-            int waterTopExclusive) {
-        Objects.requireNonNull(materializer, "materializer");
+            int waterTopExclusive,
+            boolean supportsSameCellWater) {
         Objects.requireNonNull(geometry, "geometry");
-        if (materializer.capabilities().waterlogging()
+        if (supportsSameCellWater
                 && waterTopExclusive > geometry.topY() + GEOMETRY_EPSILON) {
             return geometry.blockY();
         }
         return Math.max(
                 geometry.blockY() + 1,
                 (int) Math.ceil(geometry.topY() - GEOMETRY_EPSILON));
+    }
+
+    private static boolean supportsSameCellWater(
+            BlockMaterializer materializer,
+            TerrainSample sample,
+            int x,
+            int z) {
+        Objects.requireNonNull(materializer, "materializer");
+        if (!materializer.capabilities().waterlogging()) {
+            return false;
+        }
+        return !(materializer instanceof SurfaceGeometryMaterializer geometryMaterializer)
+                || geometryMaterializer.supportsSurfaceWaterlogging(sample, x, z);
+    }
+
+    private static boolean supportsSameCellWater(
+            BlockMaterializer materializer,
+            TerrainEnvironmentSample sample,
+            int x,
+            int z) {
+        Objects.requireNonNull(materializer, "materializer");
+        if (!materializer.capabilities().waterlogging()) {
+            return false;
+        }
+        return !(materializer instanceof SurfaceGeometryMaterializer geometryMaterializer)
+                || geometryMaterializer.supportsSurfaceWaterlogging(sample, x, z);
     }
 }
