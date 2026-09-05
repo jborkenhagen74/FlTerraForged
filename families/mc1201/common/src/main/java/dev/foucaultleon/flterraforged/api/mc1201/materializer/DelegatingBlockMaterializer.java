@@ -56,6 +56,31 @@ public abstract class DelegatingBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
+    public boolean hasFinalWetEnvelope(TerrainSample sample, int x, int z) {
+        return delegate.hasFinalWetEnvelope(sample, x, z);
+    }
+
+    @Override
+    public boolean permitsFinalWetFlow(
+            TerrainSample sample,
+            BlockState current,
+            int x,
+            int y,
+            int z) {
+        return delegate.permitsFinalWetFlow(sample, current, x, y, z);
+    }
+
+    @Override
+    public BlockState finalWetState(
+            TerrainSample sample,
+            BlockState current,
+            int x,
+            int y,
+            int z) {
+        return delegate.finalWetState(sample, current, x, y, z);
+    }
+
+    @Override
     public BlockState bedrockState(TerrainSample sample) {
         return delegate.bedrockState(sample);
     }
