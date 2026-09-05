@@ -80,8 +80,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final VanillaWorldgenDelegate vanilla;
     private final EngineDensityBridge densityBridge;
     private final EngineSurfaceGuard surfaceGuard;
-    private final HydrologyCarverGuard hydrologyCarverGuard;
-    private final HydrologyFillPass hydrologyFillPass;
+    private final FinalWetReconciliationPass finalWetReconciliationPass;
     private final MarineEnvironmentCache marineEnvironmentCache;
 
     /**
@@ -125,8 +124,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
         this.densityBridge = new EngineDensityBridge(materializer);
         this.surfaceGuard = new EngineSurfaceGuard(materializer);
-        this.hydrologyCarverGuard = new HydrologyCarverGuard(materializer);
-        this.hydrologyFillPass = new HydrologyFillPass(materializer);
+        this.finalWetReconciliationPass = new FinalWetReconciliationPass(materializer);
         this.marineEnvironmentCache = new MarineEnvironmentCache(materializer);
     }
 
@@ -286,8 +284,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         TerrainWorld world = bind(noiseConfig);
         vanilla.buildSurface(region, structures, noiseConfig, chunk);
         surfaceGuard.apply(chunk, world);
-        hydrologyFillPass.apply(chunk, world);
-        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override
@@ -299,12 +295,8 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             GenerationStep.Carver carverStep) {
-        TerrainWorld world = bind(noiseConfig);
         vanilla.carve(
                 chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
-        hydrologyCarverGuard.repair(chunk, world);
-        hydrologyFillPass.apply(chunk, world);
-        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override
@@ -317,11 +309,15 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureWorldAccess world,
             Chunk chunk,
             StructureAccessor structureAccessor) {
+        TerrainWorld terrain = session.boundWorld();
+        finalWetReconciliationPass.apply(chunk, terrain);
+        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
+
         super.generateFeatures(world, chunk, structureAccessor);
         materializer.decorateWatercourses(new WaterDecorationContext(
                 world,
                 chunk,
-                session.boundWorld()));
+                terrain));
         Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
