@@ -107,7 +107,10 @@ public final class ColumnComposer {
         int waterTopExclusive = materializer.waterTopExclusive(sample);
         int firstWaterY = MaterializerGeometry.firstWaterY(
                 materializer,
+                sample,
                 geometry,
+                x,
+                z,
                 waterTopExclusive);
         BlockState top = materializer.composedTopState(sample, x, z);
         if (firstWaterY == surfaceY
