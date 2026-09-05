@@ -8,6 +8,7 @@ standard = root / "families/mc1201/common/src/main/java/dev/foucaultleon/flterra
 worldgen = root / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen"
 quantizer_path = api / "MaterializerHeightQuantizer.java"
 geometry = (api / "MaterializerGeometry.java").read_text(encoding="utf-8")
+surface_geometry = (api / "SurfaceGeometryMaterializer.java").read_text(encoding="utf-8")
 materializer = (standard / "VanillaBlockMaterializer.java").read_text(encoding="utf-8")
 carver = (worldgen / "FlTerraForgedCarver.java").read_text(encoding="utf-8")
 generator = (worldgen / "FlTerraForgedChunkGenerator.java").read_text(encoding="utf-8")
@@ -29,6 +30,10 @@ else:
 
 if "MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight())" not in geometry:
     errors.append("MaterializerGeometry fallback must use canonical R49 height quantization")
+if "MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight())" not in surface_geometry:
+    errors.append("SurfaceGeometryMaterializer lightweight default must use R49 height quantization")
+if "Math.floor(sample.surfaceHeight())" in surface_geometry:
+    errors.append("SurfaceGeometryMaterializer lightweight default still directly floors Engine height")
 
 for token in (
         "MaterializerHeightQuantizer.floorBlock(sample.surfaceHeight())",
