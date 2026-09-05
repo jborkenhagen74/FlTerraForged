@@ -100,10 +100,17 @@ final class HydrologyFillPass {
                 int bedY = geometry.blockY();
                 int waterTop = materializer.waterTopExclusive(sample);
                 RiverSample hydrology = sample.river();
-                boolean hydrologyWet = hydrology.hasWaterSurfaceHeight()
+                boolean providerWetHint = materializer.hasMaterializedWater(sample);
+                boolean physicallyWetHydrology = hydrology.hasWaterSurfaceHeight()
                         && hydrology.depth() > PHYSICAL_EPSILON
                         && hydrology.waterSurfaceHeight() > geometry.topY() + PHYSICAL_EPSILON
                         && waterTop > geometry.topY() + PHYSICAL_EPSILON;
+                // Preserve the legacy materializer decision for conventional full-block providers.
+                // Partial-height providers may legitimately report false through the old full-cell
+                // test while their continuous topY still leaves physical room for Engine water.
+                boolean hydrologyWet = physicallyWetHydrology
+                        && (providerWetHint
+                                || geometry.occupiedHeight() < 1.0D - PHYSICAL_EPSILON);
                 boolean marineWet = (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
                                 || StandardTerrainTypes.COAST.equals(sample.terrainType()))
                         && waterTop > geometry.topY() + PHYSICAL_EPSILON;
