@@ -1,8 +1,8 @@
-name: Build R51
+name: Build R52
 
 on:
   push:
-    branches: [ 'revision/r51-startup-liveness' ]
+    branches: [ 'revision/r52-resolved-water-field' ]
   workflow_dispatch:
 
 permissions:
@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   verify:
-    name: Verify R51 with pinned Engine R41
+    name: Verify R52 with Engine R42
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout FlTerraForged R51
+      - name: Checkout FlTerraForged R52
         uses: actions/checkout@v6
 
       - name: Install Java 17 toolchain
@@ -47,30 +47,36 @@ jobs:
       - name: Verify inherited R49 hydraulic quantization
         run: python3 tools/verify-r49-hydraulic-quantization.py
 
-      - name: Verify R51 startup-liveness invariants
+      - name: Verify inherited R51 startup-liveness invariants
         run: python3 tools/verify-r51-startup-liveness.py
 
-      - name: Build R51 Engine API local repository
+      - name: Verify R52 resolved-water/provider geometry invariants
+        run: python3 tools/verify-r52-resolved-water-field.py
+
+      - name: Build R52 Engine API local repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
 
-      - name: Checkout pinned Engine R41 source
+      - name: Checkout Engine R42 source
         uses: actions/checkout@v6
         with:
           repository: jborkenhagen74/FlTerraForged-Engine
-          ref: 000e4950f8789de379fb7ff39eaab6bc1682ed0f
-          path: .ci/engine-r41-source
+          ref: revision/r42-resolved-water-field
+          path: .ci/engine-r42-source
 
-      - name: Build, test and publish Engine R41 local repository
+      - name: Verify Engine R42 resolved water invariants
+        run: python3 .ci/engine-r42-source/tools/verify-r42-resolved-water-field.py
+
+      - name: Build, test and publish Engine R42 local repository
         env:
           FLTERRAFORGED_API_LOCAL_REPOSITORY: ${{ github.workspace }}/build/maven-repository
-        run: gradle -p .ci/engine-r41-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check publish
+        run: gradle -p .ci/engine-r42-source -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check publish
 
-      - name: Build and test R51 with Engine R41
+      - name: Build and test R52 with Engine R42
         env:
-          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r41-source/build/maven-repository
+          FLTERRAFORGED_ENGINE_LOCAL_REPOSITORY: ${{ github.workspace }}/.ci/engine-r42-source/build/maven-repository
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect installable 1.20.1 Fabric R51 JAR
+      - name: Collect installable 1.20.1 Fabric R52 JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -94,22 +100,22 @@ jobs:
           fi
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-R51-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R52-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
-      - name: Upload installable R51 JAR
+      - name: Upload installable R52 JAR
         id: upload_mc1201_fabric
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: FlTerraForged-R51-1.20.1-Fabric
+          name: FlTerraForged-R52-1.20.1-Fabric
           path: ${{ steps.collect_mc1201_fabric.outputs.artifact_path }}
           archive: false
           if-no-files-found: error
           retention-days: 30
 
-      - name: Add R51 artifact link to job summary
+      - name: Add R52 artifact link to job summary
         shell: bash
         env:
           ARTIFACT_URL: ${{ steps.upload_mc1201_fabric.outputs.artifact-url }}
@@ -117,23 +123,21 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R51 / Minecraft 1.20.1 Fabric"
+            echo "### FlTerraForged R52 / Minecraft 1.20.1 Fabric"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: R41"
-            echo "- Engine commit: \`000e4950f8789de379fb7ff39eaab6bc1682ed0f\`"
-            echo "- Coarse drainage planning: pre-erosion base terrain"
-            echo "- Final river incision: post-erosion terrain"
-            echo "- Final Engine order: river -> wet-core -> receiver overlay"
-            echo "- Engine cold-start timeout tests: executed before host build"
-            echo "- Engine erosion/rivermap/final-tile cache: bounded inline single-flight"
+            echo "- Engine: R42 resolved water field"
+            echo "- Final hydraulic ownership: OCEAN > LAKE > RIVER > DRY"
+            echo "- River mouths: receiver surface authority and bounded bed blend"
+            echo "- River joins: deterministic higher-flow main stem"
+            echo "- Provider X/Z physical geometry: used by column composition, height queries and surface reconciliation"
+            echo "- Waterloggable partial tops: retained through provider final-wet hooks"
+            echo "- Non-waterloggable partial tops: never replaced by same-cell full fluid"
+            echo "- Marine structure checks: canonical quantizer plus provider wet geometry"
+            echo "- Obsolete HydrologyFillPass: removed"
             echo "- Marine column/ring cache: bounded inline single-flight"
-            echo "- Full BiomeSource bind during STRUCTURE_STARTS: forbidden"
             echo "- Worldgen-executor scheduling from cache loaders: none"
             echo "- Post-generation water repair pass: none"
-            echo "- R49 height quantization: retained"
-            echo "- R48 submerged-floor seal: retained"
-            echo "- Variable-height provider geometry: retained"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
