@@ -1,7 +1,10 @@
 package dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen;
 
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializedSurfaceGeometry;
+import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerGeometry;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
+import dev.foucaultleon.flterraforged.engine.api.river.RiverSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.Objects;
@@ -17,8 +20,18 @@ import net.minecraft.world.chunk.Chunk;
  * columns are always restored. A dry column is additionally repaired only when the active
  * materializer permits it and opposing wet neighbors prove that the column is part of a narrow,
  * enclosed hole in one continuous river/lake surface.</p>
+ *
+ * <p>R54 resolves wetness against the physical surface geometry reported by the selected block
+ * provider instead of assuming that every top block occupies a complete one-block cell. This keeps
+ * variable-height materializers compatible with the same Engine hydrology and allows waterlogging
+ * providers to realize the submerged fraction of a partial surface cell without moving block
+ * selection into the Engine.</p>
  */
 final class HydrologyFillPass {
+
+    private static final double PHYSICAL_EPSILON = 1.0E-6D;
+    private static final int VERTICAL_DROP_MINIMUM = 2;
+    private static final double WATERFALL_CORE_FRACTION = 0.50D;
 
     private final BlockMaterializer materializer;
     private final int repairRadius;
@@ -58,15 +71,18 @@ final class HydrologyFillPass {
 
                 if (column.hydrologyWet() || column.marineWet()) {
                     int bedY = column.hydrologyWet()
-                            ? smoothedHydrologyBedY(columns, gridX, gridZ, column)
+                            ? resolvedBedY(columns, gridX, gridZ, column)
                             : column.bedY();
-                    restoreExact(chunk, mutable, x, z, column, bedY);
+                    int restoreTop = column.hydrologyWet()
+                            ? verticalDropTopExclusive(columns, gridX, gridZ, column)
+                            : column.waterTopExclusive();
+                    restoreExact(chunk, mutable, x, z, column, bedY, restoreTop);
                     continue;
                 }
 
                 int repairedTop = repairWaterTop(columns, gridX, gridZ, column.sample());
                 if (repairedTop != Integer.MIN_VALUE) {
-                    restoreGap(chunk, mutable, x, z, column.sample(), repairedTop);
+                    restoreGap(chunk, mutable, x, z, column, repairedTop);
                 }
             }
         }
@@ -79,14 +95,21 @@ final class HydrologyFillPass {
             for (int sampleX = 0; sampleX < sampleSize; sampleX++) {
                 int x = pos.getStartX() + sampleX - sampleBorder;
                 TerrainSample sample = world.sample(x, z);
-                int bedY = materializer.solidSurfaceY(sample);
+                MaterializedSurfaceGeometry geometry =
+                        MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
+                int bedY = geometry.blockY();
                 int waterTop = materializer.waterTopExclusive(sample);
-                boolean hydrologyWet = materializer.hasMaterializedWater(sample);
+                RiverSample hydrology = sample.river();
+                boolean hydrologyWet = hydrology.hasWaterSurfaceHeight()
+                        && hydrology.depth() > PHYSICAL_EPSILON
+                        && hydrology.waterSurfaceHeight() > geometry.topY() + PHYSICAL_EPSILON
+                        && waterTop > geometry.topY() + PHYSICAL_EPSILON;
                 boolean marineWet = (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
                                 || StandardTerrainTypes.COAST.equals(sample.terrainType()))
-                        && waterTop > bedY + 1;
+                        && waterTop > geometry.topY() + PHYSICAL_EPSILON;
                 columns[sampleZ][sampleX] = new WaterColumn(
                         sample,
+                        geometry,
                         bedY,
                         waterTop,
                         hydrologyWet,
@@ -102,21 +125,37 @@ final class HydrologyFillPass {
             int x,
             int z,
             WaterColumn column,
-            int bedY) {
+            int bedY,
+            int waterTopExclusive) {
         TerrainSample sample = column.sample();
         if (column.hydrologyWet()) {
+            BlockState dryBed = materializer.hydrologyBedState(sample, x, bedY, z);
             set(
                     chunk,
                     mutable,
                     x,
                     bedY,
                     z,
-                    materializer.hydrologyBedState(sample, x, bedY, z));
+                    submergedSurfaceState(column, x, z, bedY, waterTopExclusive, dryBed));
         }
         BlockState fluid = materializer.fluidState(sample);
-        for (int y = bedY + 1; y < column.waterTopExclusive(); y++) {
+        for (int y = bedY + 1; y < waterTopExclusive; y++) {
             set(chunk, mutable, x, y, z, fluid);
         }
+    }
+
+    private int resolvedBedY(
+            WaterColumn[][] columns,
+            int gridX,
+            int gridZ,
+            WaterColumn center) {
+        // Provider-reported partial geometry is authoritative. Moving a half-height or layered
+        // surface to a neighboring integer Y would destroy the provider's physical model. Full
+        // blocks retain the original one-block bed smoothing.
+        if (center.geometry().occupiedHeight() < 1.0D - PHYSICAL_EPSILON) {
+            return center.bedY();
+        }
+        return smoothedHydrologyBedY(columns, gridX, gridZ, center);
     }
 
     private static int smoothedHydrologyBedY(
@@ -141,6 +180,79 @@ final class HydrologyFillPass {
     private static boolean sameSurface(WaterColumn candidate, WaterColumn center) {
         return candidate.hydrologyWet()
                 && Math.abs(candidate.waterTopExclusive() - center.waterTopExclusive()) <= 1;
+    }
+
+    /**
+     * Extends a lower river-core column upward when an immediately adjacent core column carries a
+     * substantially higher resolved water surface.
+     *
+     * <p>The Engine R44 path remains the authority for the two horizontal surface levels. This host
+     * step only realizes the vertical face between them, turning a two-plus-block discontinuity into
+     * a continuous cascade/waterfall column instead of leaving an air gap between independently
+     * materialized river surfaces.</p>
+     */
+    private static int verticalDropTopExclusive(
+            WaterColumn[][] columns,
+            int gridX,
+            int gridZ,
+            WaterColumn center) {
+        int ownTop = center.waterTopExclusive();
+        if (!isRiverCore(center)) {
+            return ownTop;
+        }
+
+        int highest = ownTop;
+        WaterColumn north = columns[gridZ - 1][gridX];
+        WaterColumn south = columns[gridZ + 1][gridX];
+        WaterColumn west = columns[gridZ][gridX - 1];
+        WaterColumn east = columns[gridZ][gridX + 1];
+        highest = higherAdjacentCoreTop(highest, ownTop, north);
+        highest = higherAdjacentCoreTop(highest, ownTop, south);
+        highest = higherAdjacentCoreTop(highest, ownTop, west);
+        highest = higherAdjacentCoreTop(highest, ownTop, east);
+        return highest;
+    }
+
+    private static int higherAdjacentCoreTop(int current, int ownTop, WaterColumn candidate) {
+        if (!candidate.hydrologyWet() || !isRiverCore(candidate)) {
+            return current;
+        }
+        int candidateTop = candidate.waterTopExclusive();
+        return candidateTop - ownTop >= VERTICAL_DROP_MINIMUM
+                ? Math.max(current, candidateTop)
+                : current;
+    }
+
+    private static boolean isRiverCore(WaterColumn column) {
+        if (!StandardTerrainTypes.RIVER.equals(column.sample().terrainType())) {
+            return false;
+        }
+        RiverSample river = column.sample().river();
+        if (!river.hasWaterSurfaceHeight() || river.width() <= 0.0D) {
+            return false;
+        }
+        double halfWidth = Math.max(0.5D, river.width() * 0.5D);
+        return Math.abs(river.distance()) <= Math.max(1.0D, halfWidth * WATERFALL_CORE_FRACTION);
+    }
+
+    private BlockState submergedSurfaceState(
+            WaterColumn column,
+            int x,
+            int z,
+            int bedY,
+            int waterTopExclusive,
+            BlockState dryState) {
+        MaterializedSurfaceGeometry geometry = column.geometry();
+        if (geometry.blockY() != bedY
+                || geometry.occupiedHeight() >= 1.0D - PHYSICAL_EPSILON
+                || !materializer.capabilities().waterlogging()
+                || waterTopExclusive <= geometry.topY() + PHYSICAL_EPSILON) {
+            return dryState;
+        }
+        return Objects.requireNonNull(
+                materializer.submergedHydrologySurfaceState(
+                        column.sample(), x, bedY, z, dryState),
+                "BlockMaterializer returned null submerged hydrology state");
     }
 
     private int repairWaterTop(
@@ -197,13 +309,21 @@ final class HydrologyFillPass {
             BlockPos.Mutable mutable,
             int x,
             int z,
-            TerrainSample sample,
+            WaterColumn column,
             int waterTopExclusive) {
+        TerrainSample sample = column.sample();
         int bedY = materializer.hydrologyGapBedY(sample, waterTopExclusive);
         if (waterTopExclusive <= bedY + 1) {
             return;
         }
-        set(chunk, mutable, x, bedY, z, materializer.hydrologyBedState(sample, x, bedY, z));
+        BlockState dryBed = materializer.hydrologyBedState(sample, x, bedY, z);
+        set(
+                chunk,
+                mutable,
+                x,
+                bedY,
+                z,
+                submergedSurfaceState(column, x, z, bedY, waterTopExclusive, dryBed));
         BlockState fluid = materializer.fluidState(sample);
         for (int y = bedY + 1; y < waterTopExclusive; y++) {
             set(chunk, mutable, x, y, z, fluid);
@@ -225,6 +345,7 @@ final class HydrologyFillPass {
 
     private record WaterColumn(
             TerrainSample sample,
+            MaterializedSurfaceGeometry geometry,
             int bedY,
             int waterTopExclusive,
             boolean hydrologyWet,
