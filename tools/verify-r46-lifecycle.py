@@ -34,6 +34,8 @@ for token in (
         "SOURCE_RADIUS = 2",
         "HALO = 1",
         "ArrayDeque<Integer>",
+        "int[] hydraulicCeiling",
+        "cappedLevel = Math.min(level, hydraulicCeiling[column])",
         "materializer.hasFinalWetEnvelope",
         "materializer.fluidState(sample)",
         "materializer.airState(sample)",
@@ -62,4 +64,4 @@ if errors:
         print(f" - {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("R46 owned-carver lifecycle verification passed; coupled build must use final Engine R37")
+print("R46 owned-carver lifecycle and waterfall-safe flooding verification passed")
