@@ -19,6 +19,7 @@ import net.minecraft.block.Blocks;
 public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     private static final double MIN_WET_DEPTH = 0.05D;
+    private static final long COAST_TRANSITION_SALT = 0x63A5D73C91E04B2FL;
     private static final MaterializerCapabilities CAPABILITIES =
             new MaterializerCapabilities(1.0D, false, false);
 
@@ -42,10 +43,6 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     private final WatercourseMaterialPalette watercourses;
     private final MarineMaterialPalette marine;
     private final WatercourseDecorator decorator;
-    private final int hydrologyCaveMargin;
-    private final int hydrologyBedSealDepth;
-    private final int hydrologyBankSealDepth;
-    private final int hydrologyGapRepairRadius;
 
     /**
      * Creates the vanilla-compatible full-block implementation.
@@ -73,10 +70,6 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
         this.watercourses = new WatercourseMaterialPalette(context.options());
         this.marine = new MarineMaterialPalette(context.options());
         this.decorator = new WatercourseDecorator(this, context.options());
-        this.hydrologyCaveMargin = integerOption("hydrology.cave_margin", 6, 0, 16);
-        this.hydrologyBedSealDepth = integerOption("hydrology.bed_seal_depth", 5, 1, 16);
-        this.hydrologyBankSealDepth = integerOption("hydrology.bank_seal_depth", 8, 1, 24);
-        this.hydrologyGapRepairRadius = integerOption("hydrology.gap_repair_radius", 2, 0, 4);
     }
 
     @Override
@@ -212,10 +205,13 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                     : marine.bed(sample, x, y, z, context.seaLevel());
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return waterTopExclusive(sample) > solidSurfaceTop(sample)
-                    ? oceanBed.isConfigured()
-                            ? oceanBed.choose(sample, x, y, z)
-                            : marine.bed(sample, x, y, z, context.seaLevel())
+            if (waterTopExclusive(sample) > solidSurfaceTop(sample)) {
+                return oceanBed.isConfigured()
+                        ? oceanBed.choose(sample, x, y, z)
+                        : marine.bed(sample, x, y, z, context.seaLevel());
+            }
+            return coastUsesLandSurface(sample, x, z)
+                    ? landFiller.choose(sample, x, y, z)
                     : coast.choose(sample, x, y, z);
         }
         return landFiller.choose(sample, x, y, z);
@@ -273,7 +269,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
                     : marine.bed(sample, x, y, z, context.seaLevel()));
         }
         if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return Optional.of(coast.choose(sample, x, y, z));
+            return Optional.of(coastUsesLandSurface(sample, x, z)
+                    ? landSurface.choose(sample, x, y, z)
+                    : coast.choose(sample, x, y, z));
         }
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain) && mountains.isConfigured()) {
             return Optional.of(mountains.choose(sample, x, y, z));
@@ -344,65 +342,18 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
     }
 
     @Override
-    public boolean mayRepairHydrologyGap(TerrainSample sample) {
-        TerrainType terrain = sample.terrainType();
-        return StandardTerrainTypes.RIVER.equals(terrain)
-                || StandardTerrainTypes.LAKE.equals(terrain)
-                || sample.river().hasWaterSurfaceHeight()
-                        && sample.river().depth() > MIN_WET_DEPTH;
-    }
-
-    @Override
-    public int hydrologyGapBedY(TerrainSample sample, int waterTopExclusive) {
-        int waterBlocks = waterTopExclusive <= context.seaLevel() + 2 ? 3 : 2;
-        int lowestWetBed = waterTopExclusive - waterBlocks - 1;
-        return clamp(
-                Math.min(solidSurfaceY(sample), lowestWetBed),
-                context.minY() + 1,
-                context.maxYExclusive() - 2);
-    }
-
-    @Override
-    public int hydrologyGapRepairRadius() {
-        return hydrologyGapRepairRadius;
-    }
-
-    @Override
-    public int hydrologyCaveMargin() {
-        return hydrologyCaveMargin;
-    }
-
-    @Override
-    public int hydrologyBedSealDepth() {
-        return hydrologyBedSealDepth;
-    }
-
-    @Override
-    public int hydrologyBankSealDepth() {
-        return hydrologyBankSealDepth;
-    }
-
-    @Override
     public void decorateWatercourses(WaterDecorationContext context) {
         decorator.decorate(context);
     }
 
-    private int integerOption(String key, int fallback, int min, int max) {
-        String raw = context.options().get(key);
-        if (raw == null || raw.isBlank()) {
-            return fallback;
-        }
-        try {
-            int parsed = Integer.parseInt(raw.trim());
-            if (parsed < min || parsed > max) {
-                throw new IllegalArgumentException(
-                        "Materializer option '" + key + "' must be in [" + min + ", " + max + "]");
-            }
-            return parsed;
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(
-                    "Materializer option '" + key + "' must be an integer", exception);
-        }
+    private boolean coastUsesLandSurface(TerrainSample sample, int x, int z) {
+        double elevation = clamp01((sample.surfaceHeight() - context.seaLevel()) / 4.0D);
+        double moisture = sample.climate().isAvailable()
+                ? clamp01(sample.climate().moisture())
+                : 0.5D;
+        double landFraction = clamp01(0.08D + elevation * 0.68D + moisture * 0.12D);
+        double field = NaturalMaterialField.sample(x, z, COAST_TRANSITION_SALT, 34.0D);
+        return field < landFraction;
     }
 
     private ConfiguredBlockSet set(String key, BlockState fallback) {
@@ -411,5 +362,9 @@ public final class VanillaBlockMaterializer implements BlockMaterializer {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clamp01(double value) {
+        return Math.max(0.0D, Math.min(1.0D, value));
     }
 }
