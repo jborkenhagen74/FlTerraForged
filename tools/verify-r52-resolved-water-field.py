@@ -23,6 +23,7 @@ def forbid(path: Path, *needles: str) -> None:
 def main() -> None:
     geometry = API / "MaterializerGeometry.java"
     materializer = API / "BlockMaterializer.java"
+    surface_geometry = API / "SurfaceGeometryMaterializer.java"
     columns = WORLDGEN / "ColumnComposer.java"
     density = WORLDGEN / "EngineDensityBridge.java"
     surface = WORLDGEN / "EngineSurfaceGuard.java"
@@ -30,29 +31,51 @@ def main() -> None:
     marine = WORLDGEN / "MarineEnvironmentCache.java"
     legacy_fill = WORLDGEN / "HydrologyFillPass.java"
 
-    for path in (geometry, materializer, columns, density, surface, generator, marine):
+    for path in (
+            geometry,
+            materializer,
+            surface_geometry,
+            columns,
+            density,
+            surface,
+            generator,
+            marine):
         if not path.is_file():
             raise SystemExit(f"missing R52 source: {path}")
     if legacy_fill.exists():
         raise SystemExit("obsolete HydrologyFillPass must not exist in R52")
 
     require(
+        surface_geometry,
+        "supportsSurfaceWaterlogging(TerrainSample sample, int x, int z)",
+        "supportsSurfaceWaterlogging(",
+        "TerrainEnvironmentSample sample",
+    )
+    require(
         geometry,
         "hasMaterializableWater",
         "capabilities().waterlogging()",
+        "supportsSurfaceWaterlogging(sample, x, z)",
         "firstWaterY",
         "geometry.blockY() + 1",
     )
     require(
         materializer,
-        "MaterializerGeometry.hasMaterializableWater",
+        "MaterializerGeometry.hasMaterializableWater(",
+        "sample,",
+        "geometry,",
+        "x,",
+        "z,",
         "finalWetState",
         "permitsFinalWetFlow",
     )
     require(
         columns,
         "MaterializerGeometry.surfaceGeometry(materializer, sample, x, z)",
-        "MaterializerGeometry.firstWaterY",
+        "MaterializerGeometry.firstWaterY(",
+        "materializer,",
+        "sample,",
+        "geometry,",
         "finalWetState",
         "surfaceTop(TerrainSample sample, int x, int z)",
     )
@@ -64,6 +87,7 @@ def main() -> None:
     require(
         surface,
         "MaterializerGeometry.surfaceGeometry(materializer, sample, x, z)",
+        "MaterializerGeometry.firstWaterY(",
         "applySurfaceWaterlogging",
         "finalWetState",
     )
@@ -75,7 +99,11 @@ def main() -> None:
     require(
         marine,
         "MaterializerHeightQuantizer.exclusiveFluidTop",
-        "MaterializerGeometry.hasMaterializableWater",
+        "MaterializerGeometry.hasMaterializableWater(",
+        "sample,",
+        "geometry,",
+        "x,",
+        "z,",
     )
 
     # No host-side second hydrology solution may be reintroduced.
