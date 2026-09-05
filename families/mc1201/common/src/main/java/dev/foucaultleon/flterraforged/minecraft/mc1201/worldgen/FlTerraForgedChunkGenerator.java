@@ -46,9 +46,9 @@ import net.minecraft.world.gen.structure.Structure;
  * {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter substrate, aquifers, surface
  * rules and mob population. FlTerraForged constructs cave/ravine masks itself so destructive
  * geometry and connected surface water are resolved in one deterministic pass instead of carving
- * first and repairing hydrology afterwards. R52 also routes coordinate-sensitive height queries
- * through provider-supplied physical geometry, allowing layered or partial-height materializers to
- * remain authoritative outside ordinary chunk filling.</p>
+ * first and repairing hydrology afterwards. R53 retains provider-authoritative coordinate-sensitive
+ * geometry and additionally distinguishes confined channels from physically open marine water for
+ * structure starts.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -332,12 +332,13 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         text.add("FlTerraForged engine: " + session.providerId() + " @ " + session.providerVersion());
         text.add(String.format(
                 java.util.Locale.ROOT,
-                "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s marineCols=%d marineSummaries=%d",
+                "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s marineCols=%d waterProfiles=%d marineRings=%d",
                 MaterializerRuntime.selectedId(),
                 materializer.capabilities().verticalResolution(),
                 materializer.capabilities().partialBlocks(),
                 materializer.capabilities().waterlogging(),
                 marineEnvironmentCache.cachedColumns(),
+                marineEnvironmentCache.cachedProfiles(),
                 marineEnvironmentCache.cachedSummaries()));
         text.add(String.format(
                 java.util.Locale.ROOT,
