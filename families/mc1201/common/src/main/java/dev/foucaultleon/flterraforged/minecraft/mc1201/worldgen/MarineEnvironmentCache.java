@@ -7,10 +7,7 @@ import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainEnvironmentSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 /**
  * Bounded multi-stage cache for marine structure environment checks.
@@ -21,10 +18,12 @@ import java.util.function.Supplier;
  * cardinal neighbors instead of the former twelve-neighbor summary; only monuments request the
  * second outer ring.</p>
  *
- * <p>Cache misses never wait for another Minecraft world-generation worker. Deterministic values
- * are calculated outside the short completed-cache monitor and a second lookup decides which racing
- * result is retained. This deliberately trades a rare duplicate race for freedom from executor
- * starvation and cyclic waits.</p>
+ * <p>R51 replaces the former optimistic miss policy with synchronous single-flight ownership. One
+ * world-generation thread computes each cold column or ring key directly and concurrent callers for
+ * that same key reuse its completed result. Loaders do not submit executor work and do not execute
+ * while a completed-cache monitor is held. The dependency graph is strictly one-way:
+ * {@code ring -> column -> TerrainWorld.environment}; column resolution never requests a ring, so a
+ * waiter cannot form a cache cycle.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -49,10 +48,10 @@ final class MarineEnvironmentCache {
     };
 
     private final BlockMaterializer materializer;
-    private final OptimisticCache<ColumnKey, MarineColumn> columns =
-            new OptimisticCache<>(COLUMN_CACHE_SIZE);
-    private final OptimisticCache<RingKey, RingStats> rings =
-            new OptimisticCache<>(RING_CACHE_SIZE);
+    private final WorldgenSingleFlightCache<ColumnKey, MarineColumn> columns =
+            new WorldgenSingleFlightCache<>(COLUMN_CACHE_SIZE);
+    private final WorldgenSingleFlightCache<RingKey, RingStats> rings =
+            new WorldgenSingleFlightCache<>(RING_CACHE_SIZE);
 
     MarineEnvironmentCache(BlockMaterializer materializer) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
@@ -210,60 +209,6 @@ final class MarineEnvironmentCache {
             if (ringId != INNER_RING && ringId != OUTER_RING) {
                 throw new IllegalArgumentException("unknown marine ring: " + ringId);
             }
-        }
-    }
-
-    private static final class OptimisticCache<K, V> {
-
-        private final BoundedMap<K, V> completed;
-
-        OptimisticCache(int maximumSize) {
-            completed = new BoundedMap<>(maximumSize);
-        }
-
-        V get(K key, Supplier<V> loader) {
-            V cached;
-            synchronized (completed) {
-                cached = completed.get(key);
-            }
-            if (cached != null) {
-                return cached;
-            }
-
-            V loaded = Objects.requireNonNull(loader.get(), "cache loader returned null");
-            synchronized (completed) {
-                V secondLook = completed.get(key);
-                if (secondLook != null) {
-                    return secondLook;
-                }
-                completed.put(key, loaded);
-                return loaded;
-            }
-        }
-
-        int completedSize() {
-            synchronized (completed) {
-                return completed.size();
-            }
-        }
-    }
-
-    private static final class BoundedMap<K, V> extends LinkedHashMap<K, V> {
-
-        private static final long serialVersionUID = 1L;
-        private final int maximumSize;
-
-        BoundedMap(int maximumSize) {
-            super(maximumSize + 1, 0.75F, true);
-            if (maximumSize < 1) {
-                throw new IllegalArgumentException("maximumSize must be >= 1");
-            }
-            this.maximumSize = maximumSize;
-        }
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-            return size() > maximumSize;
         }
     }
 }
