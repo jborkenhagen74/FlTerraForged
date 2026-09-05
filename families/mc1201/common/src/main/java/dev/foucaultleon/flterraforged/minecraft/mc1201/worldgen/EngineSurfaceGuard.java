@@ -19,7 +19,7 @@ import net.minecraft.world.chunk.Chunk;
  * <p>The guard owns only the decision of <em>when</em> a surface needs correction. Every concrete
  * block emitted by the pass comes from the selected {@link BlockMaterializer}. R52 resolves the
  * actual top cell through provider geometry and gives waterloggable partial-height providers one
- * deterministic opportunity to materialize water inside their top state.</p>
+ * deterministic opportunity to materialize water inside their selected top state.</p>
  */
 public final class EngineSurfaceGuard {
 
@@ -105,7 +105,10 @@ public final class EngineSurfaceGuard {
         int waterTopExclusive = materializer.waterTopExclusive(sample);
         int firstWaterY = MaterializerGeometry.firstWaterY(
                 materializer,
+                sample,
                 geometry,
+                x,
+                z,
                 waterTopExclusive);
         if (firstWaterY != geometry.blockY()
                 || firstWaterY >= waterTopExclusive
