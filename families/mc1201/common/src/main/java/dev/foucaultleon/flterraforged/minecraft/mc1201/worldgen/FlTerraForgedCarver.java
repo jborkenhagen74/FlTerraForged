@@ -21,16 +21,16 @@ import net.minecraft.world.gen.GenerationStep;
 /**
  * FlTerraForged-owned deterministic cave and ravine carver for Minecraft 1.20.1.
  *
- * <p>R47 keeps one immutable carve mask and one final write pass, but water contact is now resolved
- * from the complete carved component rather than from one exact bed block. A carved cell can become
- * hydraulically connected through a vertical breach or through the side of an existing ocean,
- * lake or river column. Open sea outranks lake water and lake water outranks river water, preventing
- * a high river from raising the receiving body through a connected cave.</p>
+ * <p>R48 keeps the R47 component-based hydraulic resolver but no longer allows ordinary cave or
+ * ravine masks to cut directly through a visible ocean or lake floor. Every sampled column receives
+ * one immutable carve ceiling before feature paths are evaluated. Permanent surface-water columns
+ * retain a depth-aware solid floor seal, and immediately adjacent columns inherit a one-cell lateral
+ * water-contact seal. This prevents long trench-like openings along steep submerged slopes without
+ * removing caves below the protected floor.</p>
  *
- * <p>Surface exposure is deliberately rarer than in R46. Dry coasts, lake shores and river banks
- * retain a thicker roof, while genuine underwater openings can still breach into a water body. The
- * roof calculation uses provider-supplied physical geometry, so partial-height providers do not get
- * treated as if every top block occupied a full block.</p>
+ * <p>The physical surface geometry, water envelope and carve ceiling are resolved once for the
+ * 18-by-18 target tile and then reused by every cave/ravine source. This avoids the repeated
+ * materializer geometry work previously performed inside each ellipsoid.</p>
  */
 final class FlTerraForgedCarver {
 
@@ -43,6 +43,9 @@ final class FlTerraForgedCarver {
     private static final double CAVE_ORIGIN_CHANCE = 0.18D;
     private static final double RAVINE_ORIGIN_CHANCE = 0.028D;
     private static final double GEOMETRY_EPSILON = 1.0E-6D;
+    private static final int OCEAN_FLOOR_ROOF = 7;
+    private static final int LAKE_FLOOR_ROOF = 6;
+    private static final int RIVER_FLOOR_ROOF = 3;
     private static final int WATER_PRIORITY_RIVER = 1;
     private static final int WATER_PRIORITY_LAKE = 2;
     private static final int WATER_PRIORITY_OCEAN = 3;
@@ -67,7 +70,7 @@ final class FlTerraForgedCarver {
     /**
      * Applies the requested carving step.
      *
-     * <p>R47 owns AIR carving. LIQUID remains a no-op because water is selected while the immutable
+     * <p>R48 owns AIR carving. LIQUID remains a no-op because water is selected while the immutable
      * AIR mask is materialized; a second destructive liquid stage would reintroduce ordering bugs.</p>
      *
      * @param seed world seed supplied by Minecraft's carving stage
@@ -91,12 +94,147 @@ final class FlTerraForgedCarver {
             throw new IllegalStateException("TerrainWorld returned an invalid carver sample tile");
         }
 
+        SurfaceEnvelope surface = buildSurfaceEnvelope(originX, originZ, samples);
         int worldHeight = context.maxYExclusive() - context.minY();
         boolean[] mask = new boolean[AREA * worldHeight];
-        buildMask(seed, chunkPos, originX, originZ, samples, mask);
+        buildMask(seed, chunkPos, originX, originZ, surface.carveCeiling(), mask);
 
-        FloodResult flood = resolveConnectedWater(originX, originZ, samples, mask);
+        FloodResult flood = resolveConnectedWater(surface, mask);
         materialize(chunk, originX, originZ, samples, mask, flood.level());
+    }
+
+    private SurfaceEnvelope buildSurfaceEnvelope(
+            int originX,
+            int originZ,
+            TerrainSample[] samples) {
+        int[] carveCeiling = new int[AREA];
+        int[] hydraulicCeiling = new int[AREA];
+        int[] wetTop = new int[AREA];
+        int[] firstWaterY = new int[AREA];
+        int[] wetPriority = new int[AREA];
+        int[] surfaceBlockY = new int[AREA];
+        boolean[] protectedSurfaceWater = new boolean[AREA];
+
+        Arrays.fill(hydraulicCeiling, context.maxYExclusive());
+        Arrays.fill(wetTop, Integer.MIN_VALUE);
+        Arrays.fill(firstWaterY, Integer.MAX_VALUE);
+        Arrays.fill(surfaceBlockY, Integer.MIN_VALUE);
+
+        for (int localZ = 0; localZ < WIDTH; localZ++) {
+            int z = originZ + localZ;
+            for (int localX = 0; localX < WIDTH; localX++) {
+                int x = originX + localX;
+                int column = columnIndex(localX, localZ);
+                TerrainSample sample = samples[column];
+                MaterializedSurfaceGeometry geometry =
+                        MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
+                surfaceBlockY[column] = geometry.blockY();
+
+                boolean wet = materializer.hasFinalWetEnvelope(sample, x, z);
+                int waterTop = wet
+                        ? clamp(materializer.waterTopExclusive(sample),
+                                context.minY(), context.maxYExclusive())
+                        : Integer.MIN_VALUE;
+                int waterStart = wet
+                        ? clamp((int) Math.ceil(geometry.topY() - GEOMETRY_EPSILON),
+                                context.minY(), context.maxYExclusive())
+                        : Integer.MAX_VALUE;
+                int roof = surfaceRoofThickness(sample, wet, waterStart, waterTop);
+                carveCeiling[column] = geometry.blockY() - roof;
+
+                if (!wet) {
+                    continue;
+                }
+                wetTop[column] = waterTop;
+                firstWaterY[column] = waterStart;
+                hydraulicCeiling[column] = waterTop;
+                wetPriority[column] = waterPriority(sample);
+                protectedSurfaceWater[column] = wetPriority[column] >= WATER_PRIORITY_LAKE;
+            }
+        }
+
+        applyLateralSurfaceWaterSeal(
+                carveCeiling,
+                firstWaterY,
+                protectedSurfaceWater);
+        return new SurfaceEnvelope(
+                carveCeiling,
+                hydraulicCeiling,
+                wetTop,
+                firstWaterY,
+                wetPriority,
+                surfaceBlockY);
+    }
+
+    private static void applyLateralSurfaceWaterSeal(
+            int[] carveCeiling,
+            int[] firstWaterY,
+            boolean[] protectedSurfaceWater) {
+        int[] sealed = carveCeiling.clone();
+        for (int localZ = 0; localZ < WIDTH; localZ++) {
+            for (int localX = 0; localX < WIDTH; localX++) {
+                int column = columnIndex(localX, localZ);
+                int ceiling = carveCeiling[column];
+                ceiling = lateralWaterLimit(
+                        ceiling, localX - 1, localZ, firstWaterY, protectedSurfaceWater);
+                ceiling = lateralWaterLimit(
+                        ceiling, localX + 1, localZ, firstWaterY, protectedSurfaceWater);
+                ceiling = lateralWaterLimit(
+                        ceiling, localX, localZ - 1, firstWaterY, protectedSurfaceWater);
+                ceiling = lateralWaterLimit(
+                        ceiling, localX, localZ + 1, firstWaterY, protectedSurfaceWater);
+                sealed[column] = ceiling;
+            }
+        }
+        System.arraycopy(sealed, 0, carveCeiling, 0, AREA);
+    }
+
+    private static int lateralWaterLimit(
+            int current,
+            int localX,
+            int localZ,
+            int[] firstWaterY,
+            boolean[] protectedSurfaceWater) {
+        if (localX < 0 || localX >= WIDTH || localZ < 0 || localZ >= WIDTH) {
+            return current;
+        }
+        int neighbor = columnIndex(localX, localZ);
+        if (!protectedSurfaceWater[neighbor]) {
+            return current;
+        }
+        return Math.min(current, firstWaterY[neighbor] - 1);
+    }
+
+    private int surfaceRoofThickness(
+            TerrainSample sample,
+            boolean wet,
+            int waterStart,
+            int waterTop) {
+        if (wet) {
+            int waterDepth = Math.max(0, waterTop - waterStart);
+            if (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
+                    || StandardTerrainTypes.COAST.equals(sample.terrainType())) {
+                return OCEAN_FLOOR_ROOF + Math.min(3, waterDepth / 12);
+            }
+            if (StandardTerrainTypes.LAKE.equals(sample.terrainType())) {
+                return LAKE_FLOOR_ROOF + Math.min(2, waterDepth / 8);
+            }
+            if (StandardTerrainTypes.RIVER.equals(sample.terrainType())) {
+                return RIVER_FLOOR_ROOF + Math.min(1, waterDepth / 6);
+            }
+            return 4;
+        }
+        if (StandardTerrainTypes.COAST.equals(sample.terrainType())
+                || StandardTerrainTypes.LAKE_SHORE.equals(sample.terrainType())
+                || StandardTerrainTypes.RIVER.equals(sample.terrainType())
+                || StandardTerrainTypes.LAKE.equals(sample.terrainType())) {
+            return 6;
+        }
+        if (StandardTerrainTypes.MOUNTAINS.equals(sample.terrainType())
+                || sample.slope() > 0.85D) {
+            return 2;
+        }
+        return 4;
     }
 
     private void buildMask(
@@ -104,7 +242,7 @@ final class FlTerraForgedCarver {
             ChunkPos target,
             int originX,
             int originZ,
-            TerrainSample[] samples,
+            int[] carveCeiling,
             boolean[] mask) {
         for (int sourceZ = target.z - SOURCE_RADIUS; sourceZ <= target.z + SOURCE_RADIUS; sourceZ++) {
             for (int sourceX = target.x - SOURCE_RADIUS; sourceX <= target.x + SOURCE_RADIUS; sourceX++) {
@@ -115,13 +253,13 @@ final class FlTerraForgedCarver {
                 if (caves.nextDouble() < CAVE_ORIGIN_CHANCE) {
                     int count = 1 + caves.nextInt(3);
                     for (int i = 0; i < count; i++) {
-                        carveCavePath(caves, sourceX, sourceZ, originX, originZ, samples, mask);
+                        carveCavePath(caves, sourceX, sourceZ, originX, originZ, carveCeiling, mask);
                     }
                 }
 
                 SplittableRandom ravines = new SplittableRandom(sourceSeed ^ RAVINE_SALT);
                 if (ravines.nextDouble() < RAVINE_ORIGIN_CHANCE) {
-                    carveRavinePath(ravines, sourceX, sourceZ, originX, originZ, samples, mask);
+                    carveRavinePath(ravines, sourceX, sourceZ, originX, originZ, carveCeiling, mask);
                 }
             }
         }
@@ -133,7 +271,7 @@ final class FlTerraForgedCarver {
             int sourceChunkZ,
             int originX,
             int originZ,
-            TerrainSample[] samples,
+            int[] carveCeiling,
             boolean[] mask) {
         double x = sourceChunkX * 16.0D + random.nextDouble(16.0D);
         double z = sourceChunkZ * 16.0D + random.nextDouble(16.0D);
@@ -148,7 +286,7 @@ final class FlTerraForgedCarver {
             double profile = 0.62D + Math.sin(progress * Math.PI) * 0.58D;
             double horizontal = baseRadius * profile;
             double vertical = horizontal * (0.70D + random.nextDouble() * 0.18D);
-            markEllipsoid(x, y, z, horizontal, vertical, originX, originZ, samples, mask);
+            markEllipsoid(x, y, z, horizontal, vertical, originX, originZ, carveCeiling, mask);
 
             double horizontalMotion = Math.cos(pitch);
             x += Math.cos(yaw) * horizontalMotion;
@@ -165,7 +303,7 @@ final class FlTerraForgedCarver {
             int sourceChunkZ,
             int originX,
             int originZ,
-            TerrainSample[] samples,
+            int[] carveCeiling,
             boolean[] mask) {
         double x = sourceChunkX * 16.0D + random.nextDouble(16.0D);
         double z = sourceChunkZ * 16.0D + random.nextDouble(16.0D);
@@ -180,7 +318,7 @@ final class FlTerraForgedCarver {
             double profile = 0.55D + Math.sin(progress * Math.PI) * 0.75D;
             double horizontal = baseWidth * profile;
             double vertical = horizontal * (1.28D + random.nextDouble() * 0.32D);
-            markEllipsoid(x, y, z, horizontal, vertical, originX, originZ, samples, mask);
+            markEllipsoid(x, y, z, horizontal, vertical, originX, originZ, carveCeiling, mask);
 
             x += Math.cos(yaw);
             z += Math.sin(yaw);
@@ -207,7 +345,7 @@ final class FlTerraForgedCarver {
             double radiusY,
             int originX,
             int originZ,
-            TerrainSample[] samples,
+            int[] carveCeiling,
             boolean[] mask) {
         int minX = Math.max(originX, (int) Math.floor(centerX - radiusXz));
         int maxX = Math.min(originX + WIDTH - 1, (int) Math.ceil(centerX + radiusXz));
@@ -233,11 +371,7 @@ final class FlTerraForgedCarver {
                     continue;
                 }
                 int column = columnIndex(localX, localZ);
-                TerrainSample sample = samples[column];
-                MaterializedSurfaceGeometry geometry =
-                        MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
-                int roof = surfaceRoofThickness(sample, x, z);
-                int columnMaxY = Math.min(maxY, geometry.blockY() - roof);
+                int columnMaxY = Math.min(maxY, carveCeiling[column]);
                 if (columnMaxY < minY) {
                     continue;
                 }
@@ -251,88 +385,40 @@ final class FlTerraForgedCarver {
         }
     }
 
-    private int surfaceRoofThickness(TerrainSample sample, int x, int z) {
-        if (materializer.hasFinalWetEnvelope(sample, x, z)) {
-            return 0;
-        }
-        if (StandardTerrainTypes.COAST.equals(sample.terrainType())
-                || StandardTerrainTypes.LAKE_SHORE.equals(sample.terrainType())
-                || StandardTerrainTypes.RIVER.equals(sample.terrainType())
-                || StandardTerrainTypes.LAKE.equals(sample.terrainType())) {
-            return 6;
-        }
-        if (StandardTerrainTypes.MOUNTAINS.equals(sample.terrainType())
-                || sample.slope() > 0.85D) {
-            return 2;
-        }
-        return 4;
-    }
-
     private FloodResult resolveConnectedWater(
-            int originX,
-            int originZ,
-            TerrainSample[] samples,
+            SurfaceEnvelope surface,
             boolean[] mask) {
         int[] floodLevel = new int[mask.length];
         int[] floodPriority = new int[mask.length];
-        int[] hydraulicCeiling = new int[AREA];
-        int[] wetTop = new int[AREA];
-        int[] firstWaterY = new int[AREA];
-        int[] wetPriority = new int[AREA];
-        int[] surfaceBlockY = new int[AREA];
         Arrays.fill(floodLevel, Integer.MIN_VALUE);
-        Arrays.fill(hydraulicCeiling, context.maxYExclusive());
-        Arrays.fill(wetTop, Integer.MIN_VALUE);
-        Arrays.fill(firstWaterY, Integer.MAX_VALUE);
-        Arrays.fill(surfaceBlockY, Integer.MIN_VALUE);
         ArrayDeque<Integer> queue = new ArrayDeque<>();
 
-        for (int localZ = 0; localZ < WIDTH; localZ++) {
-            int z = originZ + localZ;
-            for (int localX = 0; localX < WIDTH; localX++) {
-                int x = originX + localX;
-                int column = columnIndex(localX, localZ);
-                TerrainSample sample = samples[column];
-                MaterializedSurfaceGeometry geometry =
-                        MaterializerGeometry.surfaceGeometry(materializer, sample, x, z);
-                surfaceBlockY[column] = geometry.blockY();
-                if (!materializer.hasFinalWetEnvelope(sample, x, z)) {
-                    continue;
-                }
-                int waterTop = clamp(
-                        materializer.waterTopExclusive(sample),
-                        context.minY(),
-                        context.maxYExclusive());
-                int waterStart = clamp(
-                        (int) Math.ceil(geometry.topY() - GEOMETRY_EPSILON),
-                        context.minY(),
-                        context.maxYExclusive());
-                wetTop[column] = waterTop;
-                firstWaterY[column] = waterStart;
-                hydraulicCeiling[column] = waterTop;
-                wetPriority[column] = waterPriority(sample);
-
-                int surfaceY = geometry.blockY();
-                if (surfaceY >= context.minY()
-                        && surfaceY < context.maxYExclusive()
-                        && waterTop > surfaceY
-                        && mask[pack(column, surfaceY)]) {
-                    offerFlood(
-                            queue,
-                            floodLevel,
-                            floodPriority,
-                            pack(column, surfaceY),
-                            wetPriority[column],
-                            waterTop);
-                }
+        for (int column = 0; column < AREA; column++) {
+            int surfaceY = surface.surfaceBlockY()[column];
+            int waterTop = surface.wetTop()[column];
+            if (surface.wetPriority()[column] == 0
+                    || surfaceY < context.minY()
+                    || surfaceY >= context.maxYExclusive()
+                    || waterTop <= surfaceY) {
+                continue;
+            }
+            int packed = pack(column, surfaceY);
+            if (mask[packed]) {
+                offerFlood(
+                        queue,
+                        floodLevel,
+                        floodPriority,
+                        packed,
+                        surface.wetPriority()[column],
+                        waterTop);
             }
         }
 
         seedSideWaterContacts(
                 mask,
-                wetTop,
-                firstWaterY,
-                wetPriority,
+                surface.wetTop(),
+                surface.firstWaterY(),
+                surface.wetPriority(),
                 floodLevel,
                 floodPriority,
                 queue);
@@ -347,17 +433,17 @@ final class FlTerraForgedCarver {
             int localZ = column / WIDTH;
             int y = context.minY() + vertical;
 
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX - 1, localZ, y, priority, level);
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX + 1, localZ, y, priority, level);
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX, localZ - 1, y, priority, level);
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX, localZ + 1, y, priority, level);
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX, localZ, y - 1, priority, level);
-            offerNeighbor(queue, floodLevel, floodPriority, hydraulicCeiling, mask,
+            offerNeighbor(queue, floodLevel, floodPriority, surface.hydraulicCeiling(), mask,
                     localX, localZ, y + 1, priority, level);
         }
         return new FloodResult(floodLevel, floodPriority);
@@ -561,6 +647,15 @@ final class FlTerraForgedCarver {
         value ^= value >>> 27;
         value *= 0x94D049BB133111EBL;
         return value ^ value >>> 31;
+    }
+
+    private record SurfaceEnvelope(
+            int[] carveCeiling,
+            int[] hydraulicCeiling,
+            int[] wetTop,
+            int[] firstWaterY,
+            int[] wetPriority,
+            int[] surfaceBlockY) {
     }
 
     private record FloodResult(int[] level, int[] priority) {
