@@ -6,10 +6,9 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.NaturalMaterialRes
 import dev.foucaultleon.flterraforged.engine.api.chunk.ChunkSnapshot;
 import dev.foucaultleon.flterraforged.engine.api.chunk.ColumnSnapshot;
 import dev.foucaultleon.flterraforged.engine.api.chunk.NaturalMaterial;
-import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
+import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.NaturalMaterialFallback;
 import java.util.Objects;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
@@ -17,10 +16,11 @@ import net.minecraft.world.chunk.Chunk;
 /**
  * Writes one complete immutable Engine chunk snapshot into a Minecraft chunk.
  *
- * <p>This class performs block mapping only. It never asks Minecraft's NoiseRouter, surface rules,
- * carvers or aquifers for natural geometry. Optional {@link NaturalMaterialResolver} implementations
- * may map Engine geology and fractional surface metadata to custom providers such as Conquest
- * Reforged without moving geometry ownership out of the Engine.</p>
+ * <p>This class performs geometry traversal and materializer delegation only. It never asks
+ * Minecraft's NoiseRouter, surface rules, carvers or aquifers for natural geometry. Optional
+ * {@link NaturalMaterialResolver} implementations may map Engine geology and fractional surface
+ * metadata to custom providers such as Conquest Reforged without moving geometry ownership out of
+ * the Engine.</p>
  */
 public final class EngineChunkMaterializer {
 
@@ -90,15 +90,6 @@ public final class EngineChunkMaterializer {
                 return resolved;
             }
         }
-        TerrainSample sample = column.terrain();
-        return switch (natural) {
-            case AIR -> materializer.airState(sample);
-            case SURFACE -> materializer.composedTopState(sample, x, z);
-            case SOIL -> materializer.fillerState(sample, x, y, z);
-            case ROCK, DEEP_ROCK -> materializer.substrateState(sample);
-            case BEDROCK -> materializer.bedrockState(sample);
-            case WATER -> materializer.fluidState(sample);
-            case LAVA -> Blocks.LAVA.getDefaultState();
-        };
+        return NaturalMaterialFallback.resolve(materializer, column, natural, x, y, z);
     }
 }
