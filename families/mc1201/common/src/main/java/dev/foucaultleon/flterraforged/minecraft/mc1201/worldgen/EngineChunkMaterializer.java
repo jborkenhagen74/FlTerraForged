@@ -16,8 +16,8 @@ import net.minecraft.world.chunk.Chunk;
 /**
  * Writes one complete immutable Engine chunk snapshot into a Minecraft chunk.
  *
- * <p>This class performs geometry traversal and materializer delegation only. It never asks
- * Minecraft's NoiseRouter, surface rules, carvers or aquifers for natural geometry. Optional
+ * <p>This class performs geometry traversal and materializer delegation only. It never asks any
+ * Vanilla noise, surface, carver or aquifer system for natural geometry. Optional
  * {@link NaturalMaterialResolver} implementations may map Engine geology and fractional surface
  * metadata to custom providers such as Conquest Reforged without moving geometry ownership out of
  * the Engine.</p>
