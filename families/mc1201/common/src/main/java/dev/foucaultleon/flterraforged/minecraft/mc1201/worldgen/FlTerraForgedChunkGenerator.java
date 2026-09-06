@@ -24,9 +24,14 @@ import net.minecraft.structure.StructureSet;
 import net.minecraft.structure.StructureStart;
 import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.random.CheckedRandom;
+import net.minecraft.util.math.random.ChunkRandom;
+import net.minecraft.util.math.random.RandomSeed;
 import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.SpawnHelper;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.biome.source.BiomeSource;
@@ -299,9 +304,20 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         bind(noiseConfig);
     }
 
+    /**
+     * Runs Minecraft's biome-driven mob population after Engine-owned natural geometry exists.
+     * This stage does not create or modify terrain.
+     */
     @Override
     public void populateEntities(ChunkRegion region) {
-        super.populateEntities(region);
+        if (settings.value().mobGenerationDisabled()) {
+            return;
+        }
+        ChunkPos chunkPos = region.getCenterPos();
+        var biome = region.getBiome(chunkPos.getStartPos().withY(region.getTopY() - 1));
+        ChunkRandom random = new ChunkRandom(new CheckedRandom(RandomSeed.getSeed()));
+        random.setPopulationSeed(region.getSeed(), chunkPos.getStartX(), chunkPos.getStartZ());
+        SpawnHelper.populateEntities(region, biome, chunkPos, random);
     }
 
     @Override
