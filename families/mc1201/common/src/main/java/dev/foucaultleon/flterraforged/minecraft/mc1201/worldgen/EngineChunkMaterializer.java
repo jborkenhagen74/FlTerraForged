@@ -12,16 +12,9 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.ChunkSection;
 
-/**
- * Writes one complete immutable Engine chunk snapshot into a Minecraft chunk.
- *
- * <p>This class performs geometry traversal and materializer delegation only. It never asks any
- * Vanilla noise, surface, carver or aquifer system for natural geometry. Optional
- * {@link NaturalMaterialResolver} implementations may map Engine geology and fractional surface
- * metadata to custom providers such as Conquest Reforged without moving geometry ownership out of
- * the Engine.</p>
- */
+/** Writes one complete immutable Engine chunk snapshot into a Minecraft chunk. */
 public final class EngineChunkMaterializer {
 
     private final BlockMaterializer materializer;
@@ -42,11 +35,11 @@ public final class EngineChunkMaterializer {
     /**
      * Materializes the complete natural block volume for one chunk.
      *
-     * <p>Engine snapshots are dense in storage but natural columns cannot contain material above
-     * the higher of their solid surface and water surface. The target proto-chunk is air before
-     * this stage, so R59 does not traverse that guaranteed-air upper volume and does not resolve or
-     * write cave-air cells. This removes most block-state lookups from ordinary lowland chunks while
-     * preserving the exact Engine-owned geometry below the natural top.</p>
+     * <p>Fresh proto-chunks contain air before this stage. R60 therefore writes ordinary natural
+     * states directly through {@link ChunkSection}, avoiding a redundant block lookup and global
+     * position dispatch for every stone/soil/water voxel. Blocks requiring host bookkeeping, such
+     * as block entities or luminant states, retain the safe chunk-level write path. Heightmaps are
+     * rebuilt after the complete snapshot has been materialized.</p>
      *
      * @param chunk target Minecraft chunk
      * @param snapshot immutable Engine-owned natural chunk snapshot
@@ -73,17 +66,25 @@ public final class EngineChunkMaterializer {
                 ColumnSnapshot column = snapshot.column(localX, localZ);
                 int topY = Math.max(column.solidSurfaceY(), column.waterTopExclusive() - 1);
                 topY = Math.min(topY, snapshot.maxYExclusive() - 1);
+                int currentSectionIndex = Integer.MIN_VALUE;
+                ChunkSection currentSection = null;
                 for (int y = snapshot.minY(); y <= topY; y++) {
                     NaturalMaterial natural = snapshot.materialAt(localX, y, localZ);
                     if (natural == NaturalMaterial.AIR) {
                         continue;
                     }
                     BlockState target = resolve(column, natural, blockX, y, blockZ);
-                    mutable.set(blockX, y, blockZ);
-                    BlockState current = chunk.getBlockState(mutable);
-                    if (!target.equals(current)) {
+                    if (requiresChunkWrite(target)) {
+                        mutable.set(blockX, y, blockZ);
                         chunk.setBlockState(mutable, target, false);
+                        continue;
                     }
+                    int sectionIndex = chunk.getSectionIndex(y);
+                    if (sectionIndex != currentSectionIndex) {
+                        currentSectionIndex = sectionIndex;
+                        currentSection = chunk.getSection(sectionIndex);
+                    }
+                    currentSection.setBlockState(localX, y & 15, localZ, target, false);
                 }
             }
         }
@@ -102,5 +103,9 @@ public final class EngineChunkMaterializer {
             }
         }
         return NaturalMaterialFallback.resolve(materializer, column, natural, x, y, z);
+    }
+
+    private static boolean requiresChunkWrite(BlockState state) {
+        return state.hasBlockEntity() || state.getLuminance() > 0;
     }
 }
