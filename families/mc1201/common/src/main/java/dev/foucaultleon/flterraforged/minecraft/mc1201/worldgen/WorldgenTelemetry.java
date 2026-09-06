@@ -11,6 +11,7 @@ final class WorldgenTelemetry {
     enum Stage {
         BIOMES,
         SNAPSHOT,
+        EXACT_BIOMES,
         MATERIALIZE,
         HEIGHTMAP,
         NOISE_TOTAL,
@@ -32,9 +33,10 @@ final class WorldgenTelemetry {
     String compactSummary() {
         return String.format(
                 Locale.ROOT,
-                "FTF avg ms biome=%.1f snapshot=%.1f materialize=%.1f noise=%.1f features=%.1f maxNoise=%.1f",
+                "FTF avg ms biome=%.1f snapshot=%.1f exactBiome=%.1f materialize=%.1f noise=%.1f features=%.1f maxNoise=%.1f",
                 averageMillis(Stage.BIOMES),
                 averageMillis(Stage.SNAPSHOT),
+                averageMillis(Stage.EXACT_BIOMES),
                 averageMillis(Stage.MATERIALIZE),
                 averageMillis(Stage.NOISE_TOTAL),
                 averageMillis(Stage.FEATURES),
