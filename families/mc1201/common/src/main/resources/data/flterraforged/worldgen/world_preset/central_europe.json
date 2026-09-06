@@ -111,7 +111,26 @@
         "engine": "flterraforged:default",
         "engine_config": {
           "preset": "central_europe",
-          "climateLayout": "randomized"
+          "climateLayout": "randomized",
+          "climateRegionalContrast": "0.46",
+          "climateContinentalDryness": "0.24",
+          "climateRiverMoisture": "0.12",
+          "terrainScale": "0.00158",
+          "detailScale": "0.00840",
+          "terrainRegionScale": "0.00115",
+          "terrainRegionJitter": "0.82",
+          "terrainBlendWidth": "0.46",
+          "terrainPlainsWeight": "0.12",
+          "terrainHillsWeight": "0.40",
+          "terrainValleyWeight": "0.18",
+          "terrainPlateauWeight": "0.16",
+          "terrainMountainWeight": "0.14",
+          "riverScale": "0.00070",
+          "relief": "50.0",
+          "mountainRelief": "78.0",
+          "erosionStrength": "0.58",
+          "erosionDeposition": "0.53",
+          "thermalErosionStrength": "0.12"
         }
       }
     },
