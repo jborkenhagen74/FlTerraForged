@@ -12,14 +12,7 @@ import java.util.stream.Stream;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.biome.Biome;
 
-/**
- * Data-driven native biome palette used by the Minecraft 1.20.1 adapter.
- *
- * <p>The serialized form is a map from stable {@link BiomeRole#key()} values to one or more native
- * biome registry entries. The schema therefore does not need a Java record component for every
- * biome Minecraft happens to expose. Later version families can reuse the same semantic roles and
- * supply larger candidate lists containing biomes that do not exist in 1.20.1.</p>
- */
+/** Data-driven native biome palette used by the Minecraft 1.20.1 adapter. */
 public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome>> {
 
     /** Fallback key used when a data pack omits a semantic role. */
@@ -29,6 +22,8 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
     public static final Codec<BiomePalette> CODEC = Codec
             .unboundedMap(Codec.STRING, Biome.REGISTRY_CODEC.listOf())
             .xmap(BiomePalette::new, BiomePalette::entries);
+
+    private static final int SPECIES_VARIATION_SCALE = 288;
 
     private final Map<String, List<RegistryEntry<Biome>>> entries;
 
@@ -57,29 +52,37 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
         this.entries = Map.copyOf(normalized);
     }
 
-    /**
-     * Returns the immutable serialized palette entries.
-     *
-     * @return role-key mappings
-     */
+    /** Returns the immutable serialized palette entries. */
     public Map<String, List<RegistryEntry<Biome>>> entries() {
         return entries;
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public RegistryEntry<Biome> resolve(BiomeRole role, TerrainSample sample) {
+        return resolve(role, sample, 0, 0, 0L);
+    }
+
     /**
-     * Resolves a role to a 1.20.1 biome, selecting optional sub-variants from broad Engine signals.
+     * Resolves a role using slow world-seeded spatial variation between native candidates.
      *
-     * <p>Candidate lists are intentionally version-owned. A later adapter may provide more
-     * candidates for the same role, while old adapters can keep a single candidate. Selection uses
-     * broad climate/continental signals rather than block coordinates, preventing checkerboard
-     * biome noise.</p>
+     * <p>Climate still controls the semantic role. The spatial field only chooses sub-variants,
+     * preventing one smooth climate region from becoming hundreds of blocks of a single tree
+     * species. Duplicate entries in a data palette intentionally act as deterministic weights.</p>
      *
      * @param role semantic biome role
      * @param sample Engine sample
+     * @param blockX world block X
+     * @param blockZ world block Z
+     * @param seed world seed
      * @return selected native biome entry
      */
-    @Override
-    public RegistryEntry<Biome> resolve(BiomeRole role, TerrainSample sample) {
+    public RegistryEntry<Biome> resolve(
+            BiomeRole role,
+            TerrainSample sample,
+            int blockX,
+            int blockZ,
+            long seed) {
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(sample, "sample");
         List<RegistryEntry<Biome>> candidates = entries.get(role.key());
@@ -89,14 +92,10 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
         if (candidates.size() == 1) {
             return candidates.get(0);
         }
-        return candidates.get(variantIndex(role, sample, candidates.size()));
+        return candidates.get(variantIndex(role, sample, candidates.size(), blockX, blockZ, seed));
     }
 
-    /**
-     * Returns the deterministic bootstrap fallback biome.
-     *
-     * @return first configured default biome
-     */
+    /** Returns the deterministic bootstrap fallback biome. */
     public RegistryEntry<Biome> fallback() {
         return entries.get(DEFAULT_KEY).get(0);
     }
@@ -106,7 +105,13 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
         return entries.values().stream().flatMap(List::stream).distinct();
     }
 
-    private static int variantIndex(BiomeRole role, TerrainSample sample, int count) {
+    private static int variantIndex(
+            BiomeRole role,
+            TerrainSample sample,
+            int count,
+            int blockX,
+            int blockZ,
+            long seed) {
         double temperature = sample.climate().isAvailable() ? sample.climate().temperature() : 0.5D;
         double moisture = sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
         double continentalness = sample.hasContinentalness()
@@ -131,14 +136,42 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
             return temperature > 0.86D ? count - 1 : 0;
         }
 
-        double selector = temperature * 0.24D
-                + moisture * 0.34D
-                + continentalness * 0.20D
+        double ecological = temperature * 0.20D
+                + moisture * 0.30D
+                + continentalness * 0.18D
                 + erosion * 0.12D
-                + slope * 0.10D;
-        selector = selector + (role.ordinal() * 0.17320508075688773D);
+                + slope * 0.08D;
+        double spatial = spatialSelector(blockX, blockZ, seed);
+        double selector = ecological * 0.62D + spatial * 0.38D
+                + role.ordinal() * 0.17320508075688773D;
         selector -= Math.floor(selector);
         return Math.min(count - 1, (int) Math.floor(selector * count));
+    }
+
+    private static double spatialSelector(int x, int z, long seed) {
+        int cellX = Math.floorDiv(x, SPECIES_VARIATION_SCALE);
+        int cellZ = Math.floorDiv(z, SPECIES_VARIATION_SCALE);
+        double tx = smooth(Math.floorMod(x, SPECIES_VARIATION_SCALE)
+                / (double) SPECIES_VARIATION_SCALE);
+        double tz = smooth(Math.floorMod(z, SPECIES_VARIATION_SCALE)
+                / (double) SPECIES_VARIATION_SCALE);
+        double a = hash01(cellX, cellZ, seed);
+        double b = hash01(cellX + 1, cellZ, seed);
+        double c = hash01(cellX, cellZ + 1, seed);
+        double d = hash01(cellX + 1, cellZ + 1, seed);
+        return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
+    }
+
+    private static double hash01(int x, int z, long seed) {
+        long value = seed ^ 0xE7037ED1A0B428DBL;
+        value ^= (long) x * 0x9E3779B97F4A7C15L;
+        value ^= (long) z * 0x165667B19E3779F9L;
+        value ^= value >>> 30;
+        value *= 0xBF58476D1CE4E5B9L;
+        value ^= value >>> 27;
+        value *= 0x94D049BB133111EBL;
+        value ^= value >>> 31;
+        return (value >>> 11) * 0x1.0p-53;
     }
 
     private static String normalize(String key) {
@@ -152,5 +185,13 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
 
     private static double clamp01(double value) {
         return Math.max(0.0D, Math.min(1.0D, value));
+    }
+
+    private static double smooth(double value) {
+        return value * value * (3.0D - 2.0D * value);
+    }
+
+    private static double lerp(double a, double b, double alpha) {
+        return a + (b - a) * alpha;
     }
 }
