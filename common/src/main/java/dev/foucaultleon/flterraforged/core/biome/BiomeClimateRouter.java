@@ -44,17 +44,19 @@ public final class BiomeClimateRouter {
             return temperature < 0.25D ? BiomeRole.RIVER_COLD : BiomeRole.RIVER_TEMPERATE;
         }
 
-        // Hydrologic riparian context has priority over a generic sandy/coast surface. This is
-        // especially important where a through-flowing river crosses a desert or another dry
-        // lowland: the bank should become a narrow vegetated corridor instead of remaining beach
-        // or desert all the way to the water.
+        // Coast ownership must win before riparian recoloring. Otherwise a river crossing a dry
+        // beach can turn a large part of the sandy coast into an implausible green island. The
+        // actual watercourse materializer still owns the narrow wet bank immediately beside water.
+        if (StandardTerrainTypes.COAST.equals(terrain)) {
+            return slope > 0.85D ? BiomeRole.COAST_ROCKY : BiomeRole.COAST_SANDY;
+        }
+
+        // Dry riparian vegetation is intentionally only a narrow transition in moderately dry
+        // terrain. Extremely arid land remains dry instead of being promoted into a grass biome.
         if (isDryRiparianBank(sample)) {
             return temperature > 0.68D
                     ? BiomeRole.MEDITERRANEAN_GRASSLAND
                     : BiomeRole.TEMPERATE_GRASSLAND;
-        }
-        if (StandardTerrainTypes.COAST.equals(terrain)) {
-            return slope > 0.85D ? BiomeRole.COAST_ROCKY : BiomeRole.COAST_SANDY;
         }
 
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain)) {
@@ -125,7 +127,9 @@ public final class BiomeClimateRouter {
      */
     public static boolean isDryRiparianBank(TerrainSample sample) {
         if (StandardTerrainTypes.RIVER.equals(sample.terrainType())
-                || StandardTerrainTypes.LAKE.equals(sample.terrainType())) {
+                || StandardTerrainTypes.LAKE.equals(sample.terrainType())
+                || StandardTerrainTypes.COAST.equals(sample.terrainType())
+                || !sample.climate().isAvailable()) {
             return false;
         }
         var river = sample.river();
@@ -136,12 +140,15 @@ public final class BiomeClimateRouter {
                 && river.waterSurfaceHeight() > sample.surfaceHeight() + 0.05D) {
             return false;
         }
-        double halfWidth = Math.max(1.0D, river.width() * 0.5D);
-        double fringe = 5.0D + Math.min(12.0D, Math.sqrt(river.flow()) * 1.80D);
-        if (river.distance() > halfWidth + fringe || !sample.climate().isAvailable()) {
+
+        double temperature = sample.climate().temperature();
+        double moisture = sample.climate().moisture();
+        if (temperature <= 0.58D || moisture < 0.30D || moisture >= 0.52D) {
             return false;
         }
-        return sample.climate().temperature() > 0.58D
-                && sample.climate().moisture() < 0.52D;
+
+        double halfWidth = Math.max(1.0D, river.width() * 0.5D);
+        double fringe = 3.0D + Math.min(6.0D, Math.sqrt(river.flow()));
+        return river.distance() <= halfWidth + fringe;
     }
 }
