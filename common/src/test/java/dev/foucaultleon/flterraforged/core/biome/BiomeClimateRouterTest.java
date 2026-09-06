@@ -26,9 +26,8 @@ final class BiomeClimateRouterTest {
         assertEquals(BiomeRole.HOT_DRY, role(0.88D, 0.10D));
     }
 
-
     @Test
-    void dryRiverbankOverridesGenericCoastRole() {
+    void dryRiverbankCannotOverrideCoastOwnership() {
         TerrainSample sample = new TerrainSample(
                 70.0D,
                 0.1D,
@@ -37,6 +36,19 @@ final class BiomeClimateRouterTest {
                 StandardTerrainTypes.COAST,
                 new ClimateSample(0.82D, 0.18D),
                 new RiverSample(8.0D, 6.0D, 0.0D, 69.0D, 16.0D));
+        assertEquals(BiomeRole.COAST_SANDY, BiomeClimateRouter.route(sample));
+    }
+
+    @Test
+    void moderatelyDryInlandRiverbankStillGetsNarrowRiparianRole() {
+        TerrainSample sample = new TerrainSample(
+                70.0D,
+                0.1D,
+                0.0D,
+                0.25D,
+                StandardTerrainTypes.PLAINS,
+                new ClimateSample(0.72D, 0.38D),
+                new RiverSample(5.0D, 6.0D, 0.0D, 69.0D, 16.0D));
         assertEquals(BiomeRole.MEDITERRANEAN_GRASSLAND, BiomeClimateRouter.route(sample));
     }
 
