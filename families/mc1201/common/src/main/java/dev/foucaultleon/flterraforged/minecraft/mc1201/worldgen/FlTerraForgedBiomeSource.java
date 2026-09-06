@@ -5,6 +5,11 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.biome.Biome;
@@ -15,15 +20,18 @@ import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 /** Minecraft 1.20.1 biome source backed by the external terrain engine. */
 public final class FlTerraForgedBiomeSource extends BiomeSource {
 
-    /** Codec registered in the vanilla biome-source type registry. */
+    /** Codec registered in Minecraft's biome-source type registry. */
     public static final Codec<FlTerraForgedBiomeSource> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     BiomePalette.CODEC.fieldOf("palette").forGetter(FlTerraForgedBiomeSource::palette)
             ).apply(instance, FlTerraForgedBiomeSource::new));
 
+    private static final int STRUCTURE_SAMPLE_CELL_SIZE = 128;
+    private static final int MAXIMUM_STRUCTURE_BIOME_ENTRIES = 2048;
+
     private final BiomePalette palette;
-    private volatile TerrainWorld terrainWorld;
-    private volatile int seaLevel = 63;
+    private final ThreadLocal<Integer> structureSamplingDepth = ThreadLocal.withInitial(() -> 0);
+    private volatile Binding binding;
 
     /** Creates an unbound biome source from a native biome palette. */
     public FlTerraForgedBiomeSource(BiomePalette palette) {
@@ -33,12 +41,20 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
     /**
      * Binds this biome source to the same engine world used by the chunk generator.
      *
+     * <p>A new world identity receives a fresh structure-stage cache. Repeated binds to the same
+     * world are intentionally cheap because Minecraft invokes several generator stages with the
+     * same {@link TerrainWorld}.</p>
+     *
      * @param terrainWorld active engine world
      * @param seaLevel active Minecraft sea level used for shallow/deep ocean roles
      */
-    public void bind(TerrainWorld terrainWorld, int seaLevel) {
-        this.terrainWorld = Objects.requireNonNull(terrainWorld, "terrainWorld");
-        this.seaLevel = seaLevel;
+    public synchronized void bind(TerrainWorld terrainWorld, int seaLevel) {
+        TerrainWorld requested = Objects.requireNonNull(terrainWorld, "terrainWorld");
+        Binding current = binding;
+        if (current != null && current.world == requested && current.seaLevel == seaLevel) {
+            return;
+        }
+        binding = new Binding(requested, seaLevel);
     }
 
     /**
@@ -53,6 +69,26 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
     /** Returns the serialized palette. */
     public BiomePalette palette() {
         return palette;
+    }
+
+    /**
+     * Marks the current thread as executing a vanilla structure-placement biome query.
+     *
+     * <p>The marker is thread-local because Minecraft may generate unrelated chunks in parallel.
+     * It must always be paired with {@link #endStructureSampling()} in a {@code finally} block.</p>
+     */
+    void beginStructureSampling() {
+        structureSamplingDepth.set(structureSamplingDepth.get() + 1);
+    }
+
+    /** Ends one current-thread structure-placement sampling scope. */
+    void endStructureSampling() {
+        int depth = structureSamplingDepth.get();
+        if (depth <= 1) {
+            structureSamplingDepth.remove();
+        } else {
+            structureSamplingDepth.set(depth - 1);
+        }
     }
 
     @Override
@@ -71,15 +107,106 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
             int biomeY,
             int biomeZ,
             MultiNoiseUtil.MultiNoiseSampler noise) {
-        TerrainWorld world = terrainWorld;
-        if (world == null) {
+        Binding current = binding;
+        if (current == null) {
             // Registry/bootstrap code can query a biome source before NoiseConfig
             // exists. Use a deterministic safe fallback until the generator binds it.
             return palette.fallback();
         }
         int blockX = BiomeCoords.toBlock(biomeX);
         int blockZ = BiomeCoords.toBlock(biomeZ);
-        TerrainSample sample = world.sample(blockX, blockZ);
-        return NativeBiomeRouter.route(sample, palette, seaLevel);
+        if (structureSamplingDepth.get() > 0) {
+            return structureBiome(current, blockX, blockZ);
+        }
+        TerrainSample sample = current.world.sample(blockX, blockZ);
+        return NativeBiomeRouter.route(sample, palette, current.seaLevel);
+    }
+
+    private RegistryEntry<Biome> structureBiome(Binding current, int blockX, int blockZ) {
+        int cellX = Math.floorDiv(blockX, STRUCTURE_SAMPLE_CELL_SIZE);
+        int cellZ = Math.floorDiv(blockZ, STRUCTURE_SAMPLE_CELL_SIZE);
+        long key = key(cellX, cellZ);
+        RegistryEntry<Biome> completed = current.structureBiomes.get(key);
+        if (completed != null) {
+            return completed;
+        }
+
+        CompletableFuture<RegistryEntry<Biome>> owned = new CompletableFuture<>();
+        CompletableFuture<RegistryEntry<Biome>> existing = current.inFlight.putIfAbsent(key, owned);
+        if (existing != null) {
+            return await(existing);
+        }
+        try {
+            int sampleX = Math.addExact(
+                    Math.multiplyExact(cellX, STRUCTURE_SAMPLE_CELL_SIZE),
+                    STRUCTURE_SAMPLE_CELL_SIZE / 2);
+            int sampleZ = Math.addExact(
+                    Math.multiplyExact(cellZ, STRUCTURE_SAMPLE_CELL_SIZE),
+                    STRUCTURE_SAMPLE_CELL_SIZE / 2);
+            TerrainSample sample = current.world.sample(sampleX, sampleZ);
+            RegistryEntry<Biome> generated = NativeBiomeRouter.route(sample, palette, current.seaLevel);
+            RegistryEntry<Biome> retained = current.structureBiomes.putIfAbsent(key, generated);
+            RegistryEntry<Biome> result = retained == null ? generated : retained;
+            if (retained == null) {
+                current.insertionOrder.add(key);
+                trim(current);
+            }
+            owned.complete(result);
+            return result;
+        } catch (Throwable throwable) {
+            owned.completeExceptionally(throwable);
+            throw propagate(throwable);
+        } finally {
+            current.inFlight.remove(key, owned);
+        }
+    }
+
+    private static void trim(Binding current) {
+        while (current.structureBiomes.size() > MAXIMUM_STRUCTURE_BIOME_ENTRIES) {
+            Long eldest = current.insertionOrder.poll();
+            if (eldest == null) {
+                return;
+            }
+            current.structureBiomes.remove(eldest);
+        }
+    }
+
+    private static RegistryEntry<Biome> await(CompletableFuture<RegistryEntry<Biome>> future) {
+        try {
+            return future.join();
+        } catch (CompletionException exception) {
+            Throwable cause = exception.getCause();
+            throw propagate(cause == null ? exception : cause);
+        }
+    }
+
+    private static RuntimeException propagate(Throwable throwable) {
+        if (throwable instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        if (throwable instanceof Error error) {
+            throw error;
+        }
+        return new IllegalStateException("Structure-stage biome sampling failed", throwable);
+    }
+
+    private static long key(int x, int z) {
+        return (((long) x) << 32) ^ (z & 0xFFFFFFFFL);
+    }
+
+    private static final class Binding {
+
+        private final TerrainWorld world;
+        private final int seaLevel;
+        private final ConcurrentMap<Long, RegistryEntry<Biome>> structureBiomes =
+                new ConcurrentHashMap<>();
+        private final ConcurrentMap<Long, CompletableFuture<RegistryEntry<Biome>>> inFlight =
+                new ConcurrentHashMap<>();
+        private final ConcurrentLinkedQueue<Long> insertionOrder = new ConcurrentLinkedQueue<>();
+
+        Binding(TerrainWorld world, int seaLevel) {
+            this.world = world;
+            this.seaLevel = seaLevel;
+        }
     }
 }
