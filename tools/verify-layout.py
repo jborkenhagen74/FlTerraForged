@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify FlTerraForged layout and R60 Engine-owned worldgen invariants."""
+"""Verify FlTerraForged layout and R61 Engine-owned worldgen invariants."""
 
 from __future__ import annotations
 
@@ -110,6 +110,8 @@ def verify_workflow() -> None:
             "actions/upload-artifact@v7.0.1",
             "--refresh-dependencies",
             "publish_branch: maven",
+            "FlTerraForged-R61-Engine-R51-1.20.1-Fabric-${short_sha}.jar",
+            "0.1.0-SNAPSHOT-r51",
         ),
         "build workflow")
     if workflow.count("java-version: '21'") < 2:
@@ -142,7 +144,7 @@ def verify_mc1201_binding() -> None:
 
 def verify_engine_owned_worldgen() -> None:
     worldgen = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen"
-    generator = require_file(worldgen / "FlTerraForgedChunkGenerator.java", "R60 chunk generator")
+    generator = require_file(worldgen / "FlTerraForgedChunkGenerator.java", "R61 chunk generator")
 
     for obsolete in (
         "VanillaWorldgenDelegate.java",
@@ -172,8 +174,12 @@ def verify_engine_owned_worldgen() -> None:
             "super.generateFeatures(world, chunk, structureAccessor);",
             "MarineStructureGuard.permits",
             "SpawnHelper.populateEntities",
+            "ThreadLocal<Integer> structureSamplingDepth",
+            "terrainWorld.placementSample(x, z)",
+            "WorldgenTelemetry.Stage.STRUCTURE_PLACEMENT",
+            "WorldgenTelemetry.Stage.STRUCTURE_STARTS",
         ),
-        "R60 chunk generator")
+        "R61 chunk generator")
     forbid_tokens(
         generator,
         (
@@ -185,21 +191,35 @@ def verify_engine_owned_worldgen() -> None:
             "super.carve(",
             "super.populateEntities(",
         ),
-        "R60 chunk generator")
+        "R61 chunk generator")
 
-    biome_source = require_file(worldgen / "FlTerraForgedBiomeSource.java", "R60 biome source")
+    biome_source = require_file(worldgen / "FlTerraForgedBiomeSource.java", "R61 biome source")
     require_tokens(
         biome_source,
         (
+            "STRUCTURE_SAMPLE_CELL_SIZE = 256",
             "world.placementSample",
             "beginExactBiomePopulation",
             "ExactBiomeScope",
             "snapshot.column(localX, localZ).terrain()",
+            "return world.placementSample(blockX, blockZ)",
             "NativeBiomeRouter.route(",
         ),
-        "R60 biome source")
+        "R61 biome source")
 
-    materializer = require_file(worldgen / "EngineChunkMaterializer.java", "R60 Engine chunk materializer")
+    marine = require_file(worldgen / "MarineEnvironmentCache.java", "R61 marine cache")
+    require_tokens(
+        marine,
+        (
+            "world.placementSample(x, z)",
+            "ConcurrentHashMap",
+            "ConcurrentLinkedQueue",
+            "SingleFlightCache",
+        ),
+        "R61 marine cache")
+    forbid_tokens(marine, ("world.sample(x, z)", "synchronized"), "R61 marine cache")
+
+    materializer = require_file(worldgen / "EngineChunkMaterializer.java", "R61 Engine chunk materializer")
     require_tokens(
         materializer,
         (
@@ -210,14 +230,24 @@ def verify_engine_owned_worldgen() -> None:
             "state.hasBlockEntity()",
             "state.getLuminance() > 0",
         ),
-        "R60 Engine chunk materializer")
-    forbid_tokens(materializer, ("chunk.getBlockState", "NoiseChunkGenerator", "NoiseRouter"), "R60 Engine chunk materializer")
+        "R61 Engine chunk materializer")
+    forbid_tokens(materializer, ("chunk.getBlockState", "NoiseChunkGenerator", "NoiseRouter"), "R61 Engine chunk materializer")
 
-    telemetry = require_file(worldgen / "WorldgenTelemetry.java", "R60 worldgen telemetry")
+    telemetry = require_file(worldgen / "WorldgenTelemetry.java", "R61 worldgen telemetry")
     require_tokens(
         telemetry,
-        ("LongAdder", "AtomicLong", "EXACT_BIOMES", "SNAPSHOT", "MATERIALIZE", "NOISE_TOTAL", "FEATURES"),
-        "R60 telemetry")
+        (
+            "LongAdder",
+            "AtomicLong",
+            "STRUCTURE_PLACEMENT",
+            "STRUCTURE_STARTS",
+            "EXACT_BIOMES",
+            "SNAPSHOT",
+            "MATERIALIZE",
+            "NOISE_TOTAL",
+            "FEATURES",
+        ),
+        "R61 telemetry")
 
 
 def verify_materializer_spi() -> None:
@@ -261,14 +291,15 @@ def verify_biomes_and_presets() -> None:
     require_tokens(
         palette,
         (
-            "SPECIES_VARIATION_SCALE",
+            "SPECIES_VARIATION_SCALE = 160",
             "spatialSelector",
-            "resolve(\n            BiomeRole role",
+            "long roleSeed",
             "blockX",
             "blockZ",
             "seed",
         ),
-        "BiomePalette")
+        "R61 BiomePalette")
+    forbid_tokens(palette, ("ecological * 0.62D", "role.ordinal() * 0.17320508075688773D"), "R61 BiomePalette")
 
     preset_root = ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset"
     preset_paths = (
@@ -284,12 +315,15 @@ def verify_biomes_and_presets() -> None:
         palette_map = generator.get("biome_source", {}).get("palette", {})
         cool = palette_map.get("cool_forest", [])
         if "minecraft:forest" not in cool or "minecraft:birch_forest" not in cool:
-            fail(f"cool_forest must be a mixed forest in {path.relative_to(ROOT)}")
-        if all("birch" in candidate for candidate in cool):
-            fail(f"birch monoculture retained in {path.relative_to(ROOT)}")
+            fail(f"cool_forest must retain a small birch component in {path.relative_to(ROOT)}")
+        if sum("birch" in candidate for candidate in cool) > 1:
+            fail(f"cool_forest birch share is too high in {path.relative_to(ROOT)}")
+        for role in ("temperate_open_woodland", "temperate_forest", "temperate_dense_forest", "mediterranean_woodland"):
+            if any("birch" in candidate for candidate in palette_map.get(role, [])):
+                fail(f"unexpected birch candidate in {role} of {path.relative_to(ROOT)}")
         open_woodland = palette_map.get("temperate_open_woodland", [])
-        if "minecraft:plains" not in open_woodland or "minecraft:forest" not in open_woodland:
-            fail(f"open woodland must contain both forest and clearing candidates in {path.relative_to(ROOT)}")
+        if open_woodland.count("minecraft:plains") < 2 or "minecraft:forest" not in open_woodland:
+            fail(f"open woodland must contain weighted clearings and forest in {path.relative_to(ROOT)}")
 
     central = json.loads(preset_paths[1].read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["engine_config"]
     north_south = json.loads(preset_paths[2].read_text(encoding="utf-8"))["dimensions"]["minecraft:overworld"]["generator"]["engine_config"]
@@ -333,8 +367,8 @@ def main() -> None:
     verify_biomes_and_presets()
     verify_registry_and_fabric()
     print(
-        f"OK: {target_count} targets; R60 Engine-owned worldgen, Blender-aware exact biome refinement, "
-        "variable mixed woodland and direct section materialization verified"
+        f"OK: {target_count} targets; R61 cold-start guards, Blender-aware exact biome refinement, "
+        "mixed woodland and direct section materialization verified"
     )
 
 
