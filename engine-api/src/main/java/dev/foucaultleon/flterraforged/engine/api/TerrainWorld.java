@@ -7,8 +7,8 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
  * Seeded natural-world view for one world.
  *
  * <p>Implementations must make sampling deterministic, order-independent and safe for concurrent
- * calls. API 0.2 makes the Engine the sole owner of natural chunk geometry. The placement sampler
- * is an additive compatibility extension that lets host structure discovery avoid cold-starting
+ * calls. API 0.2 makes the Engine the sole owner of natural chunk geometry. R59 adds the placement
+ * sampler as a source-compatible default method so host structure discovery can avoid cold-starting
  * complete hydrology and erosion regions before chunk progress becomes visible.</p>
  */
 public interface TerrainWorld extends AutoCloseable {
@@ -41,8 +41,8 @@ public interface TerrainWorld extends AutoCloseable {
      * this method only for coarse structure/feature discovery and must perform exact environment
      * validation with {@link #sample(int, int)} before accepting sensitive starts.</p>
      *
-     * <p>The default implementation preserves binary compatibility with older Engine
-     * implementations by falling back to the exact sampler.</p>
+     * <p>The default implementation preserves compatibility with Engine implementations that have
+     * not yet supplied a specialized placement path by falling back to the exact sampler.</p>
      *
      * @param x world X coordinate
      * @param z world Z coordinate
