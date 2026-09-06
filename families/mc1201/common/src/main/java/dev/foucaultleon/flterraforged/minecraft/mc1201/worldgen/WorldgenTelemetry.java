@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.LongAdder;
 final class WorldgenTelemetry {
 
     enum Stage {
+        STRUCTURE_PLACEMENT,
+        STRUCTURE_STARTS,
         BIOMES,
         SNAPSHOT,
         EXACT_BIOMES,
@@ -33,7 +35,9 @@ final class WorldgenTelemetry {
     String compactSummary() {
         return String.format(
                 Locale.ROOT,
-                "FTF avg ms biome=%.1f snapshot=%.1f exactBiome=%.1f materialize=%.1f noise=%.1f features=%.1f maxNoise=%.1f",
+                "FTF avg ms struct=%.1f starts=%.1f biome=%.1f snapshot=%.1f exactBiome=%.1f materialize=%.1f noise=%.1f features=%.1f maxNoise=%.1f",
+                averageMillis(Stage.STRUCTURE_PLACEMENT),
+                averageMillis(Stage.STRUCTURE_STARTS),
                 averageMillis(Stage.BIOMES),
                 averageMillis(Stage.SNAPSHOT),
                 averageMillis(Stage.EXACT_BIOMES),
