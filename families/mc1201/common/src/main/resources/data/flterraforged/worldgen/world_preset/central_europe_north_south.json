@@ -7,104 +7,63 @@
         "biome_source": {
           "type": "flterraforged:biome_source",
           "palette": {
-            "default": [
-              "minecraft:plains"
-            ],
-            "ocean_cold": [
-              "minecraft:cold_ocean",
-              "minecraft:frozen_ocean"
-            ],
-            "ocean_temperate": [
-              "minecraft:ocean"
-            ],
-            "ocean_warm": [
-              "minecraft:lukewarm_ocean"
-            ],
-            "coast_sandy": [
-              "minecraft:beach"
-            ],
-            "coast_rocky": [
-              "minecraft:stony_shore"
-            ],
-            "river_cold": [
-              "minecraft:frozen_river"
-            ],
-            "river_temperate": [
-              "minecraft:river"
-            ],
-            "polar_plain": [
-              "minecraft:snowy_plains"
-            ],
+            "default": ["minecraft:plains"],
+            "ocean_cold": ["minecraft:cold_ocean", "minecraft:frozen_ocean"],
+            "ocean_temperate": ["minecraft:ocean"],
+            "ocean_warm": ["minecraft:lukewarm_ocean"],
+            "coast_sandy": ["minecraft:beach"],
+            "coast_rocky": ["minecraft:stony_shore"],
+            "river_cold": ["minecraft:frozen_river"],
+            "river_temperate": ["minecraft:river"],
+            "polar_plain": ["minecraft:snowy_plains"],
             "boreal_forest": [
+              "minecraft:taiga",
               "minecraft:taiga",
               "minecraft:old_growth_spruce_taiga",
               "minecraft:old_growth_pine_taiga"
             ],
-            "cool_grassland": [
-              "minecraft:plains"
-            ],
+            "cool_grassland": ["minecraft:plains"],
             "cool_forest": [
-              "minecraft:birch_forest",
-              "minecraft:old_growth_birch_forest"
+              "minecraft:forest",
+              "minecraft:forest",
+              "minecraft:taiga",
+              "minecraft:birch_forest"
             ],
-            "temperate_grassland": [
-              "minecraft:plains",
-              "minecraft:sunflower_plains"
-            ],
+            "temperate_grassland": ["minecraft:plains", "minecraft:sunflower_plains"],
             "temperate_open_woodland": [
-              "minecraft:birch_forest",
-              "minecraft:forest"
+              "minecraft:plains",
+              "minecraft:forest",
+              "minecraft:plains",
+              "minecraft:birch_forest"
             ],
             "temperate_forest": [
+              "minecraft:forest",
               "minecraft:forest",
               "minecraft:flower_forest",
               "minecraft:birch_forest"
             ],
             "temperate_dense_forest": [
               "minecraft:dark_forest",
+              "minecraft:dark_forest",
+              "minecraft:forest",
               "minecraft:old_growth_birch_forest"
             ],
-            "wetland": [
-              "minecraft:swamp"
-            ],
-            "alpine_meadow": [
-              "minecraft:meadow"
-            ],
-            "alpine_rock": [
-              "minecraft:stony_peaks",
-              "minecraft:jagged_peaks",
-              "minecraft:frozen_peaks"
-            ],
-            "mediterranean_grassland": [
-              "minecraft:plains",
-              "minecraft:sunflower_plains"
-            ],
+            "wetland": ["minecraft:swamp"],
+            "alpine_meadow": ["minecraft:meadow"],
+            "alpine_rock": ["minecraft:stony_peaks", "minecraft:jagged_peaks", "minecraft:frozen_peaks"],
+            "mediterranean_grassland": ["minecraft:plains", "minecraft:sunflower_plains"],
             "mediterranean_woodland": [
+              "minecraft:forest",
+              "minecraft:plains",
               "minecraft:forest",
               "minecraft:birch_forest"
             ],
-            "hot_dry": [
-              "minecraft:plains"
-            ],
-            "hot_seasonal": [
-              "minecraft:plains",
-              "minecraft:sunflower_plains"
-            ],
-            "hot_wet": [
-              "minecraft:forest",
-              "minecraft:dark_forest"
-            ],
-            "ocean_deep_cold": [
-              "minecraft:deep_cold_ocean",
-              "minecraft:deep_frozen_ocean"
-            ],
-            "ocean_deep_temperate": [
-              "minecraft:deep_ocean",
-              "minecraft:deep_lukewarm_ocean"
-            ],
-            "ocean_deep_warm": [
-              "minecraft:deep_lukewarm_ocean"
-            ]
+            "hot_dry": ["minecraft:plains"],
+            "hot_seasonal": ["minecraft:plains", "minecraft:sunflower_plains"],
+            "hot_wet": ["minecraft:forest", "minecraft:dark_forest"],
+            "ocean_deep_cold": ["minecraft:deep_cold_ocean", "minecraft:deep_frozen_ocean"],
+            "ocean_deep_temperate": ["minecraft:deep_ocean", "minecraft:deep_lukewarm_ocean"],
+            "ocean_deep_warm": ["minecraft:deep_lukewarm_ocean"]
           }
         },
         "settings": "minecraft:overworld",
@@ -145,22 +104,13 @@
       "type": "minecraft:the_nether",
       "generator": {
         "type": "minecraft:noise",
-        "biome_source": {
-          "type": "minecraft:multi_noise",
-          "preset": "minecraft:nether"
-        },
+        "biome_source": {"type": "minecraft:multi_noise", "preset": "minecraft:nether"},
         "settings": "minecraft:nether"
       }
     },
     "minecraft:the_end": {
       "type": "minecraft:the_end",
-      "generator": {
-        "type": "minecraft:noise",
-        "biome_source": {
-          "type": "minecraft:the_end"
-        },
-        "settings": "minecraft:end"
-      }
+      "generator": {"type": "minecraft:noise", "biome_source": {"type": "minecraft:the_end"}, "settings": "minecraft:end"}
     }
   }
 }
