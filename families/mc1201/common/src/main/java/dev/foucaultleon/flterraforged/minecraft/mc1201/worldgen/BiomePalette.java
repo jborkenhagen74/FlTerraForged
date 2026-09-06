@@ -23,7 +23,7 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
             .unboundedMap(Codec.STRING, Biome.REGISTRY_CODEC.listOf())
             .xmap(BiomePalette::new, BiomePalette::entries);
 
-    private static final int SPECIES_VARIATION_SCALE = 288;
+    private static final int SPECIES_VARIATION_SCALE = 160;
 
     private final Map<String, List<RegistryEntry<Biome>>> entries;
 
@@ -64,11 +64,13 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
     }
 
     /**
-     * Resolves a role using slow world-seeded spatial variation between native candidates.
+     * Resolves a role using world-seeded spatial variation between native candidates.
      *
-     * <p>Climate still controls the semantic role. The spatial field only chooses sub-variants,
-     * preventing one smooth climate region from becoming hundreds of blocks of a single tree
-     * species. Duplicate entries in a data palette intentionally act as deterministic weights.</p>
+     * <p>Climate controls the semantic role while this field only selects a sub-variant. Candidate
+     * choice is deliberately not shifted by the role ordinal or the ecological values: the former
+     * R60 formula could place a whole climate role almost permanently into the last candidate bucket
+     * and therefore turn a nominally low birch weight into a birch monoculture. Duplicate entries
+     * remain deterministic weights and the shorter field scale creates natural mixed patches.</p>
      *
      * @param role semantic biome role
      * @param sample Engine sample
@@ -113,11 +115,6 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
             int blockZ,
             long seed) {
         double temperature = sample.climate().isAvailable() ? sample.climate().temperature() : 0.5D;
-        double moisture = sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
-        double continentalness = sample.hasContinentalness()
-                ? clamp01(sample.continentalness() * 0.5D + 0.5D)
-                : 0.5D;
-        double erosion = sample.hasErosion() ? clamp01(sample.erosion() * 0.5D + 0.5D) : 0.5D;
         double slope = sample.hasSlope() ? clamp01(sample.slope() / 3.0D) : 0.0D;
 
         if (role == BiomeRole.ALPINE_ROCK) {
@@ -136,15 +133,8 @@ public final class BiomePalette implements BiomeRoleResolver<RegistryEntry<Biome
             return temperature > 0.86D ? count - 1 : 0;
         }
 
-        double ecological = temperature * 0.20D
-                + moisture * 0.30D
-                + continentalness * 0.18D
-                + erosion * 0.12D
-                + slope * 0.08D;
-        double spatial = spatialSelector(blockX, blockZ, seed);
-        double selector = ecological * 0.62D + spatial * 0.38D
-                + role.ordinal() * 0.17320508075688773D;
-        selector -= Math.floor(selector);
+        long roleSeed = seed ^ ((long) role.ordinal() * 0xD6E8FEB86659FD93L);
+        double selector = spatialSelector(blockX, blockZ, roleSeed);
         return Math.min(count - 1, (int) Math.floor(selector * count));
     }
 
