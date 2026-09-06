@@ -63,6 +63,11 @@ public final class RiparianZone {
     /**
      * Returns continuous riverbank influence from one at the waterline to zero in the biome.
      *
+     * <p>R58 keeps the structural bank substantially narrower than R57. Dry climates narrow it
+     * again so river crossings through sandy terrain do not create broad green ribbons. The
+     * transition still scales weakly with accumulated flow, preserving wider banks on major rivers
+     * without allowing the envelope to dominate a whole local biome.</p>
+     *
      * @param sample Engine terrain sample
      * @return bank influence in {@code [0,1]}
      */
@@ -76,7 +81,12 @@ public final class RiparianZone {
             return 0.0D;
         }
         double halfWidth = Math.max(1.0D, river.width() * 0.5D);
-        double fringe = 8.0D + Math.min(4.0D, Math.sqrt(river.flow()) * 0.90D);
+        double fringe = 6.0D + Math.min(4.0D, Math.sqrt(river.flow()) * 0.65D);
+        if (sample.climate().isAvailable()
+                && sample.climate().temperature() > 0.58D
+                && sample.climate().moisture() < 0.52D) {
+            fringe *= 0.55D;
+        }
         double offset = Math.max(0.0D, river.distance() - halfWidth);
         return 1.0D - smooth(Math.min(1.0D, offset / fringe));
     }
