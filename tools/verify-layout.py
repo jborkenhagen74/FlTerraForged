@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify FlTerraForged layout and R61 Engine-owned worldgen invariants."""
+"""Verify FlTerraForged layout and R62 Engine-owned worldgen invariants."""
 
 from __future__ import annotations
 
@@ -95,7 +95,10 @@ def verify_engine_api() -> None:
     column = require_file(chunk_root / "ColumnSnapshot.java", "ColumnSnapshot")
     require_tokens(column, ("TerrainSample terrain", "GeologyType geology", "waterTopExclusive"), "ColumnSnapshot")
     natural = require_file(chunk_root / "NaturalMaterial.java", "NaturalMaterial")
-    require_tokens(natural, ("AIR", "SURFACE", "SOIL", "ROCK", "DEEP_ROCK", "BEDROCK", "WATER", "LAVA"), "NaturalMaterial")
+    require_tokens(
+        natural,
+        ("AIR", "SURFACE", "SOIL", "ROCK", "DEEP_ROCK", "BEDROCK", "WATER", "LAVA"),
+        "NaturalMaterial")
 
 
 def verify_workflow() -> None:
@@ -110,8 +113,9 @@ def verify_workflow() -> None:
             "actions/upload-artifact@v7.0.1",
             "--refresh-dependencies",
             "publish_branch: maven",
-            "FlTerraForged-R61-Engine-R51-1.20.1-Fabric-${short_sha}.jar",
-            "0.1.0-SNAPSHOT-r51",
+            "FlTerraForged-R62-Engine-R52-1.20.1-Fabric-${short_sha}.jar",
+            "0.1.0-SNAPSHOT-r52",
+            "release/r62-coast-ocean-structure-consistency",
         ),
         "build workflow")
     if workflow.count("java-version: '21'") < 2:
@@ -144,7 +148,7 @@ def verify_mc1201_binding() -> None:
 
 def verify_engine_owned_worldgen() -> None:
     worldgen = ROOT / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201/worldgen"
-    generator = require_file(worldgen / "FlTerraForgedChunkGenerator.java", "R61 chunk generator")
+    generator = require_file(worldgen / "FlTerraForgedChunkGenerator.java", "R62 chunk generator")
 
     for obsolete in (
         "VanillaWorldgenDelegate.java",
@@ -173,13 +177,14 @@ def verify_engine_owned_worldgen() -> None:
             "chunk.populateBiomes(",
             "super.generateFeatures(world, chunk, structureAccessor);",
             "MarineStructureGuard.permits",
+            "TerrestrialStructureGuard.permits",
             "SpawnHelper.populateEntities",
             "ThreadLocal<Integer> structureSamplingDepth",
             "terrainWorld.placementSample(x, z)",
             "WorldgenTelemetry.Stage.STRUCTURE_PLACEMENT",
             "WorldgenTelemetry.Stage.STRUCTURE_STARTS",
         ),
-        "R61 chunk generator")
+        "R62 chunk generator")
     forbid_tokens(
         generator,
         (
@@ -191,9 +196,9 @@ def verify_engine_owned_worldgen() -> None:
             "super.carve(",
             "super.populateEntities(",
         ),
-        "R61 chunk generator")
+        "R62 chunk generator")
 
-    biome_source = require_file(worldgen / "FlTerraForgedBiomeSource.java", "R61 biome source")
+    biome_source = require_file(worldgen / "FlTerraForgedBiomeSource.java", "R62 biome source")
     require_tokens(
         biome_source,
         (
@@ -205,9 +210,9 @@ def verify_engine_owned_worldgen() -> None:
             "return world.placementSample(blockX, blockZ)",
             "NativeBiomeRouter.route(",
         ),
-        "R61 biome source")
+        "R62 biome source")
 
-    marine = require_file(worldgen / "MarineEnvironmentCache.java", "R61 marine cache")
+    marine = require_file(worldgen / "MarineEnvironmentCache.java", "R62 marine cache")
     require_tokens(
         marine,
         (
@@ -216,10 +221,24 @@ def verify_engine_owned_worldgen() -> None:
             "ConcurrentLinkedQueue",
             "SingleFlightCache",
         ),
-        "R61 marine cache")
-    forbid_tokens(marine, ("world.sample(x, z)", "synchronized"), "R61 marine cache")
+        "R62 marine cache")
+    forbid_tokens(marine, ("world.sample(x, z)", "synchronized"), "R62 marine cache")
 
-    materializer = require_file(worldgen / "EngineChunkMaterializer.java", "R61 Engine chunk materializer")
+    terrestrial = require_file(worldgen / "TerrestrialStructureGuard.java", "R62 terrestrial structure guard")
+    require_tokens(
+        terrestrial,
+        (
+            'structureId.startsWith("minecraft:village_")',
+            "world.placementSample",
+            "MINIMUM_DRY_RATIO = 0.92D",
+            "VILLAGE_RADIUS = 48",
+            "StandardTerrainTypes.OCEAN",
+            "StandardTerrainTypes.COAST",
+        ),
+        "R62 terrestrial structure guard")
+    forbid_tokens(terrestrial, ("world.sample(", "chunkSnapshot("), "R62 terrestrial structure guard")
+
+    materializer = require_file(worldgen / "EngineChunkMaterializer.java", "R62 Engine chunk materializer")
     require_tokens(
         materializer,
         (
@@ -230,10 +249,10 @@ def verify_engine_owned_worldgen() -> None:
             "state.hasBlockEntity()",
             "state.getLuminance() > 0",
         ),
-        "R61 Engine chunk materializer")
-    forbid_tokens(materializer, ("chunk.getBlockState", "NoiseChunkGenerator", "NoiseRouter"), "R61 Engine chunk materializer")
+        "R62 Engine chunk materializer")
+    forbid_tokens(materializer, ("chunk.getBlockState", "NoiseChunkGenerator", "NoiseRouter"), "R62 Engine chunk materializer")
 
-    telemetry = require_file(worldgen / "WorldgenTelemetry.java", "R61 worldgen telemetry")
+    telemetry = require_file(worldgen / "WorldgenTelemetry.java", "R62 worldgen telemetry")
     require_tokens(
         telemetry,
         (
@@ -247,7 +266,40 @@ def verify_engine_owned_worldgen() -> None:
             "NOISE_TOTAL",
             "FEATURES",
         ),
-        "R61 telemetry")
+        "R62 telemetry")
+
+
+def verify_watercourse_geometry_ownership() -> None:
+    decorator_path = (
+        ROOT
+        / "families/mc1201/common/src/main/java/dev/foucaultleon/flterraforged/minecraft/mc1201"
+        / "materializer/standard/WatercourseDecorator.java"
+    )
+    decorator = require_file(decorator_path, "R62 watercourse decorator")
+    require_tokens(
+        decorator,
+        (
+            "Geometry-neutral post-feature decorator",
+            "Blocks.SEAGRASS",
+            "Blocks.LILY_PAD",
+            "placeInWater",
+            "placeOnDrySurface",
+        ),
+        "R62 watercourse decorator")
+    forbid_tokens(
+        decorator,
+        (
+            "STAIR_SALT",
+            "DAM_SALT",
+            "SPRAY_SALT",
+            "STAIRS",
+            "decorateDams",
+            "placeDam",
+            "Blocks.COBWEB",
+            "OAK_LOG",
+            "OAK_FENCE",
+        ),
+        "R62 watercourse decorator")
 
 
 def verify_materializer_spi() -> None:
@@ -265,7 +317,10 @@ def verify_materializer_spi() -> None:
     ):
         require_file(api_root / name, "materializer SPI")
     fallback = require_file(runtime_root / "NaturalMaterialFallback.java", "natural material fallback")
-    require_tokens(fallback, ("case AIR", "case SURFACE", "case SOIL", "case ROCK, DEEP_ROCK", "case WATER", "case LAVA"), "natural material fallback")
+    require_tokens(
+        fallback,
+        ("case AIR", "case SURFACE", "case SOIL", "case ROCK, DEEP_ROCK", "case WATER", "case LAVA"),
+        "natural material fallback")
 
 
 def verify_biomes_and_presets() -> None:
@@ -298,8 +353,8 @@ def verify_biomes_and_presets() -> None:
             "blockZ",
             "seed",
         ),
-        "R61 BiomePalette")
-    forbid_tokens(palette, ("ecological * 0.62D", "role.ordinal() * 0.17320508075688773D"), "R61 BiomePalette")
+        "R62 BiomePalette")
+    forbid_tokens(palette, ("ecological * 0.62D", "role.ordinal() * 0.17320508075688773D"), "R62 BiomePalette")
 
     preset_root = ROOT / "families/mc1201/common/src/main/resources/data/flterraforged/worldgen/world_preset"
     preset_paths = (
@@ -318,7 +373,12 @@ def verify_biomes_and_presets() -> None:
             fail(f"cool_forest must retain a small birch component in {path.relative_to(ROOT)}")
         if sum("birch" in candidate for candidate in cool) > 1:
             fail(f"cool_forest birch share is too high in {path.relative_to(ROOT)}")
-        for role in ("temperate_open_woodland", "temperate_forest", "temperate_dense_forest", "mediterranean_woodland"):
+        for role in (
+            "temperate_open_woodland",
+            "temperate_forest",
+            "temperate_dense_forest",
+            "mediterranean_woodland",
+        ):
             if any("birch" in candidate for candidate in palette_map.get(role, [])):
                 fail(f"unexpected birch candidate in {role} of {path.relative_to(ROOT)}")
         open_woodland = palette_map.get("temperate_open_woodland", [])
@@ -342,16 +402,23 @@ def verify_registry_and_fabric() -> None:
     fabric = ROOT / "families/mc1201/fabric/src/main/java/dev/foucaultleon/flterraforged/fabric/mc1201"
     initializer = require_file(fabric / "FlTerraForgedFabric.java", "Fabric initializer")
     registries = require_file(fabric / "FlTerraForgedWorldgenRegistries.java", "worldgen registries")
-    mixin_json = require_file(ROOT / "versions/1.20.1/fabric/src/main/resources/flterraforged.mixins.json", "mixin config")
+    mixin_json = require_file(
+        ROOT / "versions/1.20.1/fabric/src/main/resources/flterraforged.mixins.json",
+        "mixin config")
     if "FlTerraForgedWorldgenRegistries.register();" in initializer:
         fail("worldgen codec registries must not be registered after bootstrap freeze")
     for required in ("BiomeSourcesMixin", "ChunkGeneratorsMixin", "NoiseConfigMixin"):
         if required not in mixin_json:
             fail(f"mixin config missing {required}")
-    require_tokens(registries, ("Registry.register(registry, BIOME_SOURCE_ID", "Registry.register(registry, CHUNK_GENERATOR_ID"), "worldgen registries")
+    require_tokens(
+        registries,
+        ("Registry.register(registry, BIOME_SOURCE_ID", "Registry.register(registry, CHUNK_GENERATOR_ID"),
+        "worldgen registries")
 
     gradle_props = require_file(ROOT / "gradle.properties", "Gradle properties")
-    fabric_mod = json.loads(require_file(ROOT / "versions/1.20.1/fabric/src/main/resources/fabric.mod.json", "Fabric descriptor"))
+    fabric_mod = json.loads(require_file(
+        ROOT / "versions/1.20.1/fabric/src/main/resources/fabric.mod.json",
+        "Fabric descriptor"))
     require_tokens(gradle_props, ("mc1201_fabric_api_version=0.92.2+1.20.1",), "Gradle properties")
     if "fabric-api" not in fabric_mod.get("depends", {}):
         fail("fabric.mod.json must declare Fabric API")
@@ -363,12 +430,13 @@ def main() -> None:
     verify_workflow()
     verify_mc1201_binding()
     verify_engine_owned_worldgen()
+    verify_watercourse_geometry_ownership()
     verify_materializer_spi()
     verify_biomes_and_presets()
     verify_registry_and_fabric()
     print(
-        f"OK: {target_count} targets; R61 cold-start guards, Blender-aware exact biome refinement, "
-        "mixed woodland and direct section materialization verified"
+        f"OK: {target_count} targets; R62 coherent shoreline ownership, dry village stencil, "
+        "geometry-neutral watercourse decoration and cold-start guards verified"
     )
 
 
