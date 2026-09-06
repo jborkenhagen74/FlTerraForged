@@ -198,8 +198,11 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     }
 
     /**
-     * Fills native biome containers through Minecraft's normal Blender-aware scheduler while the
-     * custom biome source is temporarily switched to the Engine's cheap placement sampler.
+     * Fills provisional native biome containers through Minecraft's normal Blender-aware scheduler.
+     *
+     * <p>The source is temporarily switched to the cheap Engine placement sampler. This keeps the
+     * early BIOMES status responsive; the exact snapshot-backed pass in {@link #populateNoise}
+     * subsequently refines these values without repeating terrain generation.</p>
      */
     @Override
     public CompletableFuture<Chunk> populateBiomes(
@@ -241,6 +244,17 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             long started = totalStarted;
             ChunkSnapshot snapshot = world.chunkSnapshot(chunkX, chunkZ);
             telemetry.record(WorldgenTelemetry.Stage.SNAPSHOT, System.nanoTime() - started);
+
+            started = System.nanoTime();
+            engineBiomeSource.beginExactBiomePopulation(chunkX, chunkZ, snapshot);
+            try {
+                chunk.populateBiomes(
+                        blender.getBiomeSupplier(engineBiomeSource),
+                        noiseConfig.getMultiNoiseSampler());
+            } finally {
+                engineBiomeSource.endExactBiomePopulation();
+            }
+            telemetry.record(WorldgenTelemetry.Stage.EXACT_BIOMES, System.nanoTime() - started);
 
             started = System.nanoTime();
             chunkMaterializer.materialize(chunk, snapshot);
