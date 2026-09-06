@@ -48,9 +48,9 @@ import net.minecraft.world.gen.structure.Structure;
  * <p>The external Engine is the sole owner of natural terrain and subsurface geometry, including
  * surface shape, hydrology, geology, caves, ravines, underground fluids and the world floor.
  * Minecraft's chunk-status pipeline remains the scheduler, registry and feature/structure host,
- * but Vanilla's {@code NoiseChunkGenerator}, NoiseRouter substrate, surface rules, carvers and
- * aquifers are intentionally absent from the natural terrain hot path. The active replaceable
- * materializer maps one immutable Engine {@link ChunkSnapshot} directly to Minecraft blocks.</p>
+ * but Vanilla noise terrain, surface rules, carvers and aquifers are intentionally absent from the
+ * natural terrain hot path. The active replaceable materializer maps one immutable Engine
+ * {@link ChunkSnapshot} directly to Minecraft blocks.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
