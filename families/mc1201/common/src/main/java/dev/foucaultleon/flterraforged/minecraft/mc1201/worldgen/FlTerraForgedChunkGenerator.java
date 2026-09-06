@@ -47,16 +47,7 @@ import net.minecraft.world.gen.chunk.placement.StructurePlacementCalculator;
 import net.minecraft.world.gen.noise.NoiseConfig;
 import net.minecraft.world.gen.structure.Structure;
 
-/**
- * Minecraft 1.20.1 adapter for the Engine-owned FlTerraForged natural world.
- *
- * <p>The external Engine is the sole owner of natural terrain and subsurface geometry, including
- * surface shape, hydrology, geology, caves, ravines, underground fluids and the world floor.
- * Minecraft's chunk-status pipeline remains the scheduler, registry and feature/structure host,
- * but Vanilla noise terrain, surface rules, carvers and aquifers are intentionally absent from the
- * natural terrain hot path. The active replaceable materializer maps one immutable Engine
- * {@link ChunkSnapshot} directly to Minecraft blocks.</p>
- */
+/** Minecraft 1.20.1 adapter for the Engine-owned FlTerraForged natural world. */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
     /** Default external engine provider. */
@@ -89,6 +80,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final ColumnComposer columns;
     private final EngineChunkMaterializer chunkMaterializer;
     private final MarineEnvironmentCache marineEnvironmentCache;
+    private final WorldgenTelemetry telemetry = new WorldgenTelemetry();
 
     /**
      * Creates a data-driven generator from the registered codec.
@@ -205,6 +197,10 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         }
     }
 
+    /**
+     * Fills native biome containers through Minecraft's normal Blender-aware scheduler while the
+     * custom biome source is temporarily switched to the Engine's cheap placement sampler.
+     */
     @Override
     public CompletableFuture<Chunk> populateBiomes(
             Executor executor,
@@ -213,7 +209,21 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk) {
         bind(noiseConfig);
-        return super.populateBiomes(executor, noiseConfig, blender, structureAccessor, chunk);
+        int chunkX = chunk.getPos().x;
+        int chunkZ = chunk.getPos().z;
+        long started = System.nanoTime();
+        engineBiomeSource.beginBiomePopulation(chunkX, chunkZ);
+        CompletableFuture<Chunk> future;
+        try {
+            future = super.populateBiomes(executor, noiseConfig, blender, structureAccessor, chunk);
+        } catch (Throwable failure) {
+            engineBiomeSource.endBiomePopulation(chunkX, chunkZ);
+            throw failure;
+        }
+        return future.whenComplete((ignored, failure) -> {
+            engineBiomeSource.endBiomePopulation(chunkX, chunkZ);
+            telemetry.record(WorldgenTelemetry.Stage.BIOMES, System.nanoTime() - started);
+        });
     }
 
     @Override
@@ -227,9 +237,19 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         int chunkX = chunk.getPos().x;
         int chunkZ = chunk.getPos().z;
         return CompletableFuture.supplyAsync(() -> {
+            long totalStarted = System.nanoTime();
+            long started = totalStarted;
             ChunkSnapshot snapshot = world.chunkSnapshot(chunkX, chunkZ);
+            telemetry.record(WorldgenTelemetry.Stage.SNAPSHOT, System.nanoTime() - started);
+
+            started = System.nanoTime();
             chunkMaterializer.materialize(chunk, snapshot);
+            telemetry.record(WorldgenTelemetry.Stage.MATERIALIZE, System.nanoTime() - started);
+
+            started = System.nanoTime();
             Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
+            telemetry.record(WorldgenTelemetry.Stage.HEIGHTMAP, System.nanoTime() - started);
+            telemetry.record(WorldgenTelemetry.Stage.NOISE_TOTAL, System.nanoTime() - totalStarted);
             return chunk;
         }, executor);
     }
@@ -274,11 +294,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         return settings.value().seaLevel();
     }
 
-    /**
-     * The complete natural surface and worldgen heightmaps are already present after
-     * {@link #populateNoise}; Vanilla surface rules and a second full heightmap scan are both
-     * intentionally skipped.
-     */
     @Override
     public void buildSurface(
             ChunkRegion region,
@@ -288,10 +303,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         bind(noiseConfig);
     }
 
-    /**
-     * Caves, ravines and underground fluids are resolved in the Engine snapshot. Vanilla carvers
-     * are deliberately disabled so they cannot create a second subsurface truth.
-     */
     @Override
     public void carve(
             ChunkRegion chunkRegion,
@@ -304,10 +315,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         bind(noiseConfig);
     }
 
-    /**
-     * Runs Minecraft's biome-driven mob population after Engine-owned natural geometry exists.
-     * This stage does not create or modify terrain.
-     */
     @Override
     public void populateEntities(ChunkRegion region) {
         if (settings.value().mobGenerationDisabled()) {
@@ -325,17 +332,23 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureWorldAccess world,
             Chunk chunk,
             StructureAccessor structureAccessor) {
-        super.generateFeatures(world, chunk, structureAccessor);
-        materializer.decorateWatercourses(new WaterDecorationContext(
-                world,
-                chunk,
-                session.boundWorld()));
+        long started = System.nanoTime();
+        try {
+            super.generateFeatures(world, chunk, structureAccessor);
+            materializer.decorateWatercourses(new WaterDecorationContext(
+                    world,
+                    chunk,
+                    session.boundWorld()));
+        } finally {
+            telemetry.record(WorldgenTelemetry.Stage.FEATURES, System.nanoTime() - started);
+        }
     }
 
     @Override
     public void getDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
         TerrainSample sample = bind(noiseConfig).sample(pos.getX(), pos.getZ());
         text.add("FlTerraForged engine: " + session.providerId() + " @ " + session.providerVersion());
+        text.add(telemetry.compactSummary());
         text.add(String.format(
                 java.util.Locale.ROOT,
                 "FTF materializer=%s resolution=%.2f partial=%s waterlogging=%s marineCols=%d marineSummaries=%d",
