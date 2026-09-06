@@ -44,7 +44,7 @@ jobs:
         run: python3 tools/verify-layout.py
 
       - name: Build and test
-        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all clean check
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
       - name: Collect installable 1.20.1 Fabric JAR
         id: collect_mc1201_fabric
@@ -140,7 +140,7 @@ jobs:
           gradle-version: '9.7.1'
 
       - name: Build Maven repository
-        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --warning-mode all :engine-api:publish
+        run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all :engine-api:publish
 
       - name: Publish Maven repository branch
         uses: peaceiris/actions-gh-pages@v4.1.0
