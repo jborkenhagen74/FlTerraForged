@@ -158,7 +158,12 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             NoiseConfig noiseConfig,
             long seed) {
         bind(noiseConfig);
-        return super.createStructurePlacementCalculator(structureSetRegistry, noiseConfig, seed);
+        engineBiomeSource.beginStructureSampling();
+        try {
+            return super.createStructurePlacementCalculator(structureSetRegistry, noiseConfig, seed);
+        } finally {
+            engineBiomeSource.endStructureSampling();
+        }
     }
 
     @Override
@@ -168,12 +173,17 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             StructureTemplateManager structureTemplateManager) {
-        super.setStructureStarts(
-                registryManager,
-                placementCalculator,
-                structureAccessor,
-                chunk,
-                structureTemplateManager);
+        engineBiomeSource.beginStructureSampling();
+        try {
+            super.setStructureStarts(
+                    registryManager,
+                    placementCalculator,
+                    structureAccessor,
+                    chunk,
+                    structureTemplateManager);
+        } finally {
+            engineBiomeSource.endStructureSampling();
+        }
 
         Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
         var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
