@@ -6,6 +6,7 @@ import dev.foucaultleon.flterraforged.api.mc1201.materializer.BlockMaterializer;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.MaterializerContext;
 import dev.foucaultleon.flterraforged.api.mc1201.materializer.WaterDecorationContext;
 import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
+import dev.foucaultleon.flterraforged.engine.api.chunk.ChunkSnapshot;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.materializer.MaterializerRuntime;
 import java.util.HashMap;
@@ -42,12 +43,14 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 import net.minecraft.world.gen.structure.Structure;
 
 /**
- * Minecraft 1.20.1 chunk-generator adapter backed by FlTerraForged Engine.
+ * Minecraft 1.20.1 adapter for the Engine-owned FlTerraForged natural world.
  *
- * <p>The external engine owns the large-scale surface shape and climate. A vanilla
- * {@code NoiseChunkGenerator} supplies the absolute-Y 3D NoiseRouter substrate, aquifers, surface
- * rules, carvers and mob population. The density bridge then truncates or extends that substrate
- * to the engine surface without vertically translating caves or underground layers.</p>
+ * <p>The external Engine is the sole owner of natural terrain and subsurface geometry, including
+ * surface shape, hydrology, geology, caves, ravines, underground fluids and the world floor.
+ * Minecraft's chunk-status pipeline remains the scheduler, registry and feature/structure host,
+ * but Vanilla's {@code NoiseChunkGenerator}, NoiseRouter substrate, surface rules, carvers and
+ * aquifers are intentionally absent from the natural terrain hot path. The active replaceable
+ * materializer maps one immutable Engine {@link ChunkSnapshot} directly to Minecraft blocks.</p>
  */
 public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
 
@@ -79,18 +82,14 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final EngineWorldSession session;
     private final BlockMaterializer materializer;
     private final ColumnComposer columns;
-    private final VanillaWorldgenDelegate vanilla;
-    private final EngineDensityBridge densityBridge;
-    private final EngineSurfaceGuard surfaceGuard;
-    private final HydrologyCarverGuard hydrologyCarverGuard;
-    private final HydrologyFillPass hydrologyFillPass;
+    private final EngineChunkMaterializer chunkMaterializer;
     private final MarineEnvironmentCache marineEnvironmentCache;
 
     /**
      * Creates a data-driven generator from the registered codec.
      *
      * @param biomeSource FlTerraForged biome source
-     * @param settings vanilla chunk-generator settings
+     * @param settings Minecraft world-height, sea-level and feature settings
      * @param engineId configured Engine provider identifier
      * @param engineConfig immutable Engine configuration
      */
@@ -124,25 +123,21 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                 MaterializerRuntime.options());
         this.materializer = MaterializerRuntime.create(materializerContext);
         this.columns = new ColumnComposer(materializer);
-        this.vanilla = new VanillaWorldgenDelegate(biomeSource, settings);
-        this.densityBridge = new EngineDensityBridge(materializer);
-        this.surfaceGuard = new EngineSurfaceGuard(materializer);
-        this.hydrologyCarverGuard = new HydrologyCarverGuard(materializer);
-        this.hydrologyFillPass = new HydrologyFillPass(materializer);
+        this.chunkMaterializer = new EngineChunkMaterializer(materializer);
         this.marineEnvironmentCache = new MarineEnvironmentCache(materializer);
     }
 
-    /** Returns the configured vanilla chunk-generator settings entry. */
+    /** Returns the configured Minecraft chunk-generator settings entry. */
     public RegistryEntry<ChunkGeneratorSettings> settings() {
         return settings;
     }
 
-    /** Returns the external engine provider identifier. */
+    /** Returns the external Engine provider identifier. */
     public String engineId() {
         return engineId;
     }
 
-    /** Returns the immutable engine configuration. */
+    /** Returns the immutable Engine configuration. */
     public Map<String, String> engineConfig() {
         return engineConfig;
     }
@@ -224,11 +219,14 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk) {
         TerrainWorld world = bind(noiseConfig);
-        return vanilla.populateNoise(executor, blender, noiseConfig, structureAccessor, chunk)
-                .thenApply(generated -> {
-                    densityBridge.reshape(generated, world);
-                    return generated;
-                });
+        int chunkX = chunk.getPos().x;
+        int chunkZ = chunk.getPos().z;
+        return CompletableFuture.supplyAsync(() -> {
+            ChunkSnapshot snapshot = world.chunkSnapshot(chunkX, chunkZ);
+            chunkMaterializer.materialize(chunk, snapshot);
+            Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
+            return chunk;
+        }, executor);
     }
 
     @Override
@@ -271,19 +269,24 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
         return settings.value().seaLevel();
     }
 
+    /**
+     * The complete natural surface is already present after {@link #populateNoise}; Vanilla surface
+     * rules must not alter Engine-owned geometry.
+     */
     @Override
     public void buildSurface(
             ChunkRegion region,
             StructureAccessor structures,
             NoiseConfig noiseConfig,
             Chunk chunk) {
-        TerrainWorld world = bind(noiseConfig);
-        vanilla.buildSurface(region, structures, noiseConfig, chunk);
-        surfaceGuard.apply(chunk, world);
-        hydrologyFillPass.apply(chunk, world);
+        bind(noiseConfig);
         Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
+    /**
+     * Caves, ravines and underground fluids are resolved in the Engine snapshot. Vanilla carvers
+     * are deliberately disabled so they cannot create a second subsurface truth.
+     */
     @Override
     public void carve(
             ChunkRegion chunkRegion,
@@ -293,17 +296,12 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             GenerationStep.Carver carverStep) {
-        TerrainWorld world = bind(noiseConfig);
-        vanilla.carve(
-                chunkRegion, seed, noiseConfig, biomeAccess, structureAccessor, chunk, carverStep);
-        hydrologyCarverGuard.repair(chunk, world);
-        hydrologyFillPass.apply(chunk, world);
-        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
+        bind(noiseConfig);
     }
 
     @Override
     public void populateEntities(ChunkRegion region) {
-        vanilla.populateEntities(region);
+        super.populateEntities(region);
     }
 
     @Override
