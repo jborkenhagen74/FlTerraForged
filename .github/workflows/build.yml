@@ -96,18 +96,21 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R54 Minecraft 1.20.1 Fabric artifact"
+            echo "### FlTerraForged R57 Minecraft 1.20.1 Fabric artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
-            echo "- Paired Engine: FlTerraForged-Engine R44"
+            echo "- Paired Engine: FlTerraForged-Engine R47"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish-engine-api-snapshot:
     name: Publish Engine API Snapshot
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/develop' ||
+       github.ref == 'refs/heads/release/r57-engine-owned-worldgen')
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -147,4 +150,4 @@ jobs:
           publish_dir: ./build/maven-repository
           keep_files: true
           force_orphan: false
-          commit_message: "Publish Engine API ${{ github.sha }}"
+          commit_message: "Publish Engine API R57 ${{ github.sha }}"
