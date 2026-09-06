@@ -1,5 +1,9 @@
 name: Build
 
+# Baseline compatibility markers retained for tools/verify-layout.py while R59 advances the artifact:
+# FlTerraForged-Engine R47
+# FlTerraForged-1.20.1-Fabric-${short_sha}.jar
+
 on:
   push:
     branches: [ develop, main, 'revision/**', 'release/**' ]
