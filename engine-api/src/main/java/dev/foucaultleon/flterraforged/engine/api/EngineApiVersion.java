@@ -15,7 +15,7 @@ public record EngineApiVersion(int major, int minor, int patch)
         implements Comparable<EngineApiVersion> {
 
     /** Current engine API version implemented by this artifact. */
-    public static final EngineApiVersion CURRENT = new EngineApiVersion(0, 1, 0);
+    public static final EngineApiVersion CURRENT = new EngineApiVersion(0, 2, 0);
 
     /**
      * Creates and validates an API version.
