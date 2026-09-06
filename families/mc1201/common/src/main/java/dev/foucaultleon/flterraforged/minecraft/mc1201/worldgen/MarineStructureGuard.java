@@ -19,8 +19,9 @@ final class MarineStructureGuard {
      *
      * <p>Empty and unrelated starts return before any terrain lookup. Underwater structures first
      * validate one cached center column; land, rivers, lakes, lake shores and shallow puddles are
-     * therefore rejected without constructing a perimeter summary. Only plausible marine centers
-     * request the shared inner/outer environment stencil.</p>
+     * therefore rejected without constructing a perimeter summary. Beached shipwrecks now require
+     * an explicit Engine coast center before requesting the shared stencil, so inland dry candidates
+     * cannot turn one structure probe into several sparse terrain-tile loads.</p>
      *
      * @param structureId namespaced Minecraft structure identifier
      * @param hasChildren whether vanilla created at least one structure piece
@@ -51,6 +52,11 @@ final class MarineStructureGuard {
 
         MarineColumn center = cache.column(world, centerX, centerZ);
         if (rule == MarineRule.BEACHED_SHIPWRECK) {
+            if (!center.coast()
+                    || center.inlandWater()
+                    || !center.geometry().supportsDryPlacement()) {
+                return false;
+            }
             return permitsBeached(center, cache.summary(world, centerX, centerZ));
         }
         if (!center.isMarineWater()
@@ -77,11 +83,9 @@ final class MarineStructureGuard {
     private static boolean permitsBeached(
             MarineColumn center,
             MarineEnvironmentSummary summary) {
-        if (center.inlandWater() || !center.geometry().supportsDryPlacement()) {
-            return false;
-        }
-        boolean plausibleShoreCenter = center.coast() || !center.materializedWater();
-        if (!plausibleShoreCenter) {
+        if (!center.coast()
+                || center.inlandWater()
+                || !center.geometry().supportsDryPlacement()) {
             return false;
         }
         if (summary.inner().inlandWater() > 0 || summary.outer().inlandWater() > 0) {
