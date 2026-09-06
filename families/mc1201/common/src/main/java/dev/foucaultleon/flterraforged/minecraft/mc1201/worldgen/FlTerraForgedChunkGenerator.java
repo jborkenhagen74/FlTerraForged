@@ -149,12 +149,16 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             RegistryWrapper<StructureSet> structureSetRegistry,
             NoiseConfig noiseConfig,
             long seed) {
+        long started = System.nanoTime();
         bind(noiseConfig);
         engineBiomeSource.beginStructureSampling();
         try {
             return super.createStructurePlacementCalculator(structureSetRegistry, noiseConfig, seed);
         } finally {
             engineBiomeSource.endStructureSampling();
+            telemetry.record(
+                    WorldgenTelemetry.Stage.STRUCTURE_PLACEMENT,
+                    System.nanoTime() - started);
         }
     }
 
@@ -165,35 +169,42 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureAccessor structureAccessor,
             Chunk chunk,
             StructureTemplateManager structureTemplateManager) {
-        engineBiomeSource.beginStructureSampling();
+        long started = System.nanoTime();
         try {
-            super.setStructureStarts(
-                    registryManager,
-                    placementCalculator,
-                    structureAccessor,
-                    chunk,
-                    structureTemplateManager);
-        } finally {
-            engineBiomeSource.endStructureSampling();
-        }
+            engineBiomeSource.beginStructureSampling();
+            try {
+                super.setStructureStarts(
+                        registryManager,
+                        placementCalculator,
+                        structureAccessor,
+                        chunk,
+                        structureTemplateManager);
+            } finally {
+                engineBiomeSource.endStructureSampling();
+            }
 
-        Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
-        var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
-        int centerX = chunk.getPos().getCenterX();
-        int centerZ = chunk.getPos().getCenterZ();
-        TerrainWorld terrainWorld = session.boundWorld();
-        boolean changed = retained.entrySet().removeIf(entry -> {
-            var id = structureRegistry.getId(entry.getKey());
-            return id != null && !MarineStructureGuard.permits(
-                    id.toString(),
-                    entry.getValue().hasChildren(),
-                    centerX,
-                    centerZ,
-                    terrainWorld,
-                    marineEnvironmentCache);
-        });
-        if (changed) {
-            chunk.setStructureStarts(retained);
+            Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
+            var structureRegistry = registryManager.get(RegistryKeys.STRUCTURE);
+            int centerX = chunk.getPos().getCenterX();
+            int centerZ = chunk.getPos().getCenterZ();
+            TerrainWorld terrainWorld = session.boundWorld();
+            boolean changed = retained.entrySet().removeIf(entry -> {
+                var id = structureRegistry.getId(entry.getKey());
+                return id != null && !MarineStructureGuard.permits(
+                        id.toString(),
+                        entry.getValue().hasChildren(),
+                        centerX,
+                        centerZ,
+                        terrainWorld,
+                        marineEnvironmentCache);
+            });
+            if (changed) {
+                chunk.setStructureStarts(retained);
+            }
+        } finally {
+            telemetry.record(
+                    WorldgenTelemetry.Stage.STRUCTURE_STARTS,
+                    System.nanoTime() - started);
         }
     }
 
