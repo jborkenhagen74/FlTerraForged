@@ -248,13 +248,13 @@ def verify_mc1201_engine_owned_worldgen() -> None:
          "super.populateBiomes", "super.setStructureStarts", "MarineStructureGuard.permits",
          "super.generateFeatures(world, chunk, structureAccessor);",
          "materializer.decorateWatercourses(new WaterDecorationContext(",
-         "super.populateEntities(region);"),
+         "settings.value().mobGenerationDisabled()", "ChunkRandom", "SpawnHelper.populateEntities"),
         "R57 chunk generator")
     forbid_tokens(
         generator,
         ("NoiseChunkGenerator", "VanillaWorldgenDelegate", "vanilla.populateNoise", "vanilla.buildSurface",
          "vanilla.carve", "densityBridge", "surfaceGuard", "hydrologyCarverGuard", "hydrologyFillPass",
-         "super.buildSurface(", "super.carve("),
+         "super.buildSurface(", "super.carve(", "super.populateEntities("),
         "R57 chunk generator")
 
     noise_start = generator.find("public CompletableFuture<Chunk> populateNoise(")
@@ -271,12 +271,22 @@ def verify_mc1201_engine_owned_worldgen() -> None:
     surface_start = generator.find("public void buildSurface(")
     carve_start = generator.find("public void carve(", surface_start)
     entity_start = generator.find("public void populateEntities(", carve_start)
-    if min(surface_start, carve_start, entity_start) < 0:
-        fail("R57 surface/carver methods cannot be located")
+    feature_start = generator.find("public void generateFeatures(", entity_start)
+    if min(surface_start, carve_start, entity_start, feature_start) < 0:
+        fail("R57 surface/carver/entity methods cannot be located")
     surface = generator[surface_start:carve_start]
     carve = generator[carve_start:entity_start]
+    entities = generator[entity_start:feature_start]
     forbid_tokens(surface, ("super.buildSurface", "setBlockState", "materializer."), "R57 buildSurface")
     forbid_tokens(carve, ("super.carve", "setBlockState", "materializer."), "R57 carve")
+    require_tokens(
+        entities,
+        ("settings.value().mobGenerationDisabled()", "random.setPopulationSeed", "SpawnHelper.populateEntities"),
+        "R57 mob population")
+    forbid_tokens(
+        entities,
+        ("super.populateEntities", "setBlockState", "chunkMaterializer", "TerrainWorld", "chunkSnapshot"),
+        "R57 mob population")
 
     chunk_materializer = require_file(worldgen / "EngineChunkMaterializer.java", "Engine chunk materializer")
     require_tokens(
