@@ -143,7 +143,11 @@ public final class FlTerraForgedBiomeSource extends BiomeSource {
             int sampleZ = Math.addExact(
                     Math.multiplyExact(cellZ, STRUCTURE_SAMPLE_CELL_SIZE),
                     STRUCTURE_SAMPLE_CELL_SIZE / 2);
-            TerrainSample sample = current.world.sample(sampleX, sampleZ);
+            // Structure discovery needs broad land/ocean/climate semantics, not a cold start of
+            // final erosion, lakes and river maps. API 0.3 gives Engines a dedicated placement
+            // sampler for exactly this pre-progress stage. Exact marine validation still runs after
+            // a structure start has been proposed.
+            TerrainSample sample = current.world.placementSample(sampleX, sampleZ);
             RegistryEntry<Biome> generated = NativeBiomeRouter.route(sample, palette, current.seaLevel);
             RegistryEntry<Biome> retained = current.structureBiomes.putIfAbsent(key, generated);
             RegistryEntry<Biome> result = retained == null ? generated : retained;

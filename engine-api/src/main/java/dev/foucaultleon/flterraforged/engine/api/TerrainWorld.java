@@ -7,8 +7,9 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
  * Seeded natural-world view for one world.
  *
  * <p>Implementations must make sampling deterministic, order-independent and safe for concurrent
- * calls. API 0.2 makes the Engine the sole owner of natural chunk geometry: terrain, hydrology,
- * geology, caves, underground fluids and the world floor are resolved in {@link #chunkSnapshot}.</p>
+ * calls. API 0.2 makes the Engine the sole owner of natural chunk geometry. The placement sampler
+ * is an additive compatibility extension that lets host structure discovery avoid cold-starting
+ * complete hydrology and erosion regions before chunk progress becomes visible.</p>
  */
 public interface TerrainWorld extends AutoCloseable {
 
@@ -20,16 +21,36 @@ public interface TerrainWorld extends AutoCloseable {
     EngineContext context();
 
     /**
-     * Samples terrain data at an X/Z world position.
+     * Samples exact final terrain data at an X/Z world position.
      *
-     * <p>This lightweight query exists for biome routing, height queries and structure suitability.
-     * Full block geometry must be consumed through {@link #chunkSnapshot(int, int)}.</p>
+     * <p>This query contains final terrain, erosion, hydrology and climate semantics. Full block
+     * geometry must be consumed through {@link #chunkSnapshot(int, int)}.</p>
      *
      * @param x world X coordinate
      * @param z world Z coordinate
-     * @return terrain sample for the requested position
+     * @return final terrain sample for the requested position
      */
     TerrainSample sample(int x, int z);
+
+    /**
+     * Samples terrain for broad host placement decisions without requiring final local hydrology.
+     *
+     * <p>Implementations may use a lower-cost continent, base-terrain and climate path here. The
+     * returned value must remain deterministic and preserve broad land/ocean/climate semantics, but
+     * it need not contain final river incision, lake fill or physical erosion. Hosts should use
+     * this method only for coarse structure/feature discovery and must perform exact environment
+     * validation with {@link #sample(int, int)} before accepting sensitive starts.</p>
+     *
+     * <p>The default implementation preserves binary compatibility with older Engine
+     * implementations by falling back to the exact sampler.</p>
+     *
+     * @param x world X coordinate
+     * @param z world Z coordinate
+     * @return deterministic placement-stage terrain sample
+     */
+    default TerrainSample placementSample(int x, int z) {
+        return sample(x, z);
+    }
 
     /**
      * Returns the immutable, complete natural-world snapshot for one chunk.

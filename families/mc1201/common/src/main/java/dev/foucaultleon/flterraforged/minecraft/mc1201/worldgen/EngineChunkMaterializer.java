@@ -42,6 +42,12 @@ public final class EngineChunkMaterializer {
     /**
      * Materializes the complete natural block volume for one chunk.
      *
+     * <p>Engine snapshots are dense in storage but natural columns cannot contain material above
+     * the higher of their solid surface and water surface. The target proto-chunk is air before
+     * this stage, so R59 does not traverse that guaranteed-air upper volume and does not resolve or
+     * write cave-air cells. This removes most block-state lookups from ordinary lowland chunks while
+     * preserving the exact Engine-owned geometry below the natural top.</p>
+     *
      * @param chunk target Minecraft chunk
      * @param snapshot immutable Engine-owned natural chunk snapshot
      * @throws IllegalArgumentException when the Engine snapshot does not match the target chunk or
@@ -65,8 +71,13 @@ public final class EngineChunkMaterializer {
             for (int localX = 0; localX < ChunkSnapshot.WIDTH; localX++) {
                 int blockX = pos.getStartX() + localX;
                 ColumnSnapshot column = snapshot.column(localX, localZ);
-                for (int y = snapshot.minY(); y < snapshot.maxYExclusive(); y++) {
+                int topY = Math.max(column.solidSurfaceY(), column.waterTopExclusive() - 1);
+                topY = Math.min(topY, snapshot.maxYExclusive() - 1);
+                for (int y = snapshot.minY(); y <= topY; y++) {
                     NaturalMaterial natural = snapshot.materialAt(localX, y, localZ);
+                    if (natural == NaturalMaterial.AIR) {
+                        continue;
+                    }
                     BlockState target = resolve(column, natural, blockX, y, blockZ);
                     mutable.set(blockX, y, blockZ);
                     BlockState current = chunk.getBlockState(mutable);
