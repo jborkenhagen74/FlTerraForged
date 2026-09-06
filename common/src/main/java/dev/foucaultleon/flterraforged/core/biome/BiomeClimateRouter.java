@@ -6,14 +6,7 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
 import java.util.Objects;
 
-/**
- * Selects version-neutral biome roles from continuous Engine climate and terrain semantics.
- *
- * <p>The thresholds deliberately contain intermediate roles between climate extremes. With the
- * Engine's continuous climate fields this means a hot/dry region transitions through warm dry
- * grassland/woodland before reaching temperate forest or wetland instead of allowing implausible
- * direct desert-to-swamp or desert-to-dense-forest boundaries.</p>
- */
+/** Selects version-neutral biome roles from continuous Engine climate and terrain semantics. */
 public final class BiomeClimateRouter {
 
     private BiomeClimateRouter() {
@@ -43,29 +36,20 @@ public final class BiomeClimateRouter {
                 || StandardTerrainTypes.LAKE.equals(terrain)) {
             return temperature < 0.25D ? BiomeRole.RIVER_COLD : BiomeRole.RIVER_TEMPERATE;
         }
-
-        // Coast ownership must win before riparian recoloring. Otherwise a river crossing a dry
-        // beach can turn a large part of the sandy coast into an implausible green island. The
-        // actual watercourse materializer still owns the narrow wet bank immediately beside water.
         if (StandardTerrainTypes.COAST.equals(terrain)) {
             return slope > 0.85D ? BiomeRole.COAST_ROCKY : BiomeRole.COAST_SANDY;
         }
-
-        // Dry riparian vegetation is intentionally only a narrow transition in moderately dry
-        // terrain. Extremely arid land remains dry instead of being promoted into a grass biome.
         if (isDryRiparianBank(sample)) {
             return temperature > 0.68D
                     ? BiomeRole.MEDITERRANEAN_GRASSLAND
                     : BiomeRole.TEMPERATE_GRASSLAND;
         }
-
         if (StandardTerrainTypes.MOUNTAINS.equals(terrain)) {
             if (temperature < 0.23D) {
                 return BiomeRole.POLAR_PLAIN;
             }
             return moisture > 0.43D ? BiomeRole.ALPINE_MEADOW : BiomeRole.ALPINE_ROCK;
         }
-
         if (temperature < 0.16D) {
             return BiomeRole.POLAR_PLAIN;
         }
@@ -78,7 +62,6 @@ public final class BiomeClimateRouter {
             }
             return moisture >= 0.43D ? BiomeRole.TEMPERATE_OPEN_WOODLAND : BiomeRole.COOL_GRASSLAND;
         }
-
         if (temperature <= 0.68D) {
             if (moisture > 0.84D && slope < 0.40D) {
                 return BiomeRole.WETLAND;
@@ -99,17 +82,12 @@ public final class BiomeClimateRouter {
             }
             return BiomeRole.TEMPERATE_GRASSLAND;
         }
-
         if (temperature <= 0.82D) {
             if (moisture > 0.52D) {
                 return BiomeRole.MEDITERRANEAN_WOODLAND;
             }
-            // Warm-temperate dry regions remain Mediterranean in character. Savanna/jungle
-            // semantics are reserved for genuinely hot macroclimates so a temperate preset does
-            // not produce tropical islands at a regional moisture minimum.
             return BiomeRole.MEDITERRANEAN_GRASSLAND;
         }
-
         if (moisture < 0.18D) {
             return BiomeRole.HOT_DRY;
         }
@@ -117,6 +95,33 @@ public final class BiomeClimateRouter {
             return BiomeRole.HOT_SEASONAL;
         }
         return BiomeRole.HOT_WET;
+    }
+
+    /**
+     * Computes the climate/terrain component of natural woodland density.
+     *
+     * <p>The Minecraft adapter combines this broad value with a slow deterministic spatial field.
+     * This prevents an entire climate region from becoming one uniform tree-density class while
+     * retaining gradual ecological transitions.</p>
+     *
+     * @param sample Engine terrain sample
+     * @return normalized woodland-density propensity in {@code [0,1]}
+     */
+    public static double woodlandDensity(TerrainSample sample) {
+        Objects.requireNonNull(sample, "sample");
+        double moisture = sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
+        double slope = sample.hasSlope() ? Math.min(1.0D, sample.slope() / 1.8D) : 0.0D;
+        double erosion = sample.hasErosion()
+                ? clamp01(sample.erosion() * 0.5D + 0.5D)
+                : 0.5D;
+        double continental = sample.hasContinentalness()
+                ? clamp01(sample.continentalness() * 0.5D + 0.5D)
+                : 0.5D;
+        return clamp01(
+                moisture * 0.58D
+                        + (1.0D - slope) * 0.18D
+                        + erosion * 0.12D
+                        + continental * 0.12D);
     }
 
     /**
@@ -140,15 +145,17 @@ public final class BiomeClimateRouter {
                 && river.waterSurfaceHeight() > sample.surfaceHeight() + 0.05D) {
             return false;
         }
-
         double temperature = sample.climate().temperature();
         double moisture = sample.climate().moisture();
         if (temperature <= 0.58D || moisture < 0.30D || moisture >= 0.52D) {
             return false;
         }
-
         double halfWidth = Math.max(1.0D, river.width() * 0.5D);
         double fringe = 3.0D + Math.min(6.0D, Math.sqrt(river.flow()));
         return river.distance() <= halfWidth + fringe;
+    }
+
+    private static double clamp01(double value) {
+        return Math.max(0.0D, Math.min(1.0D, value));
     }
 }
