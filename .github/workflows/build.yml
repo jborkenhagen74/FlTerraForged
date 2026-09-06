@@ -43,10 +43,10 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
-      - name: Build and test against published Engine R52 snapshot
+      - name: Build and test against published Engine R53 snapshot
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect and verify combined R62 + R52 1.20.1 Fabric JAR
+      - name: Collect and verify combined R63 + R53 1.20.1 Fabric JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -67,7 +67,7 @@ jobs:
 
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-R62-Engine-R52-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R63-Engine-R53-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
 
           engine_entry="$(unzip -Z1 "$artifact_path" | grep -E '(^|/)flterraforged-engine-[^/]+\.jar$' | head -n 1 || true)"
@@ -78,12 +78,12 @@ jobs:
           unzip -p "$artifact_path" "$engine_entry" > build/artifacts/embedded-engine.jar
           if ! unzip -p build/artifacts/embedded-engine.jar \
               dev/foucaultleon/flterraforged/engine/DefaultEngineProvider.class \
-              | grep -a -q '0.1.0-SNAPSHOT-r52'; then
-            echo "::error::Combined mod JAR does not contain FlTerraForged-Engine R52."
+              | grep -a -q '0.1.0-SNAPSHOT-r53'; then
+            echo "::error::Combined mod JAR does not contain FlTerraForged-Engine R53."
             exit 1
           fi
 
-          echo "Verified embedded Engine R52: $engine_entry"
+          echo "Verified embedded Engine R53: $engine_entry"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
@@ -104,15 +104,14 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R62 + Engine R52 Minecraft 1.20.1 Fabric artifact"
+            echo "### FlTerraForged R63 + Engine R53 Minecraft 1.20.1 Fabric artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
-            echo "- Embedded Engine: verified FlTerraForged-Engine R52"
-            echo "- Coast: one physical shoreline authority; no post-hoc marine apron lift"
-            echo "- Ocean: contiguous canonical water columns and deeper shallow-water cave seal"
-            echo "- Rivers: geometry-neutral decoration; no stairs, dams or spray geometry"
-            echo "- Structures: villages require a conservative dry placement stencil"
-            echo "- Cold start: structure checks stay on the cheap placement sampler"
+            echo "- Embedded Engine: verified FlTerraForged-Engine R53"
+            echo "- Water: ChunkSnapshot is the only wet/dry authority during materialization"
+            echo "- Inland water: rivers and lakes preserve local levels above sea level"
+            echo "- Performance: canonical surface-water spans and fallback block states are reused per column"
+            echo "- Structures: conservative dry village stencil and cheap placement sampling retained"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -126,7 +125,8 @@ jobs:
        github.ref == 'refs/heads/release/r59-cold-start-coast-fix' ||
        github.ref == 'refs/heads/release/r60-biome-vegetation-performance' ||
        github.ref == 'refs/heads/release/r61-water-biome-coldstart-performance' ||
-       github.ref == 'refs/heads/release/r62-coast-ocean-structure-consistency')
+       github.ref == 'refs/heads/release/r62-coast-ocean-structure-consistency' ||
+       github.ref == 'refs/heads/release/r63-water-state-performance')
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -166,4 +166,4 @@ jobs:
           publish_dir: ./build/maven-repository
           keep_files: true
           force_orphan: false
-          commit_message: "Publish Engine API R62 ${{ github.sha }}"
+          commit_message: "Publish Engine API R63 ${{ github.sha }}"
