@@ -81,6 +81,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     private final EngineChunkMaterializer chunkMaterializer;
     private final MarineEnvironmentCache marineEnvironmentCache;
     private final WorldgenTelemetry telemetry = new WorldgenTelemetry();
+    private final ThreadLocal<Integer> structureSamplingDepth = ThreadLocal.withInitial(() -> 0);
 
     /**
      * Creates a data-driven generator from the registered codec.
@@ -151,11 +152,11 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             long seed) {
         long started = System.nanoTime();
         bind(noiseConfig);
-        engineBiomeSource.beginStructureSampling();
+        beginStructureSampling();
         try {
             return super.createStructurePlacementCalculator(structureSetRegistry, noiseConfig, seed);
         } finally {
-            engineBiomeSource.endStructureSampling();
+            endStructureSampling();
             telemetry.record(
                     WorldgenTelemetry.Stage.STRUCTURE_PLACEMENT,
                     System.nanoTime() - started);
@@ -171,7 +172,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             StructureTemplateManager structureTemplateManager) {
         long started = System.nanoTime();
         try {
-            engineBiomeSource.beginStructureSampling();
+            beginStructureSampling();
             try {
                 super.setStructureStarts(
                         registryManager,
@@ -180,7 +181,7 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                         chunk,
                         structureTemplateManager);
             } finally {
-                engineBiomeSource.endStructureSampling();
+                endStructureSampling();
             }
 
             Map<Structure, StructureStart> retained = new HashMap<>(chunk.getStructureStarts());
@@ -286,7 +287,10 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             Heightmap.Type heightmap,
             HeightLimitView world,
             NoiseConfig noiseConfig) {
-        TerrainSample sample = bind(noiseConfig).sample(x, z);
+        TerrainWorld terrainWorld = bind(noiseConfig);
+        TerrainSample sample = structureSamplingDepth.get() > 0
+                ? terrainWorld.placementSample(x, z)
+                : terrainWorld.sample(x, z);
         if (heightmap == Heightmap.Type.OCEAN_FLOOR
                 || heightmap == Heightmap.Type.OCEAN_FLOOR_WG) {
             return columns.surfaceTop(sample);
@@ -300,7 +304,10 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             int z,
             HeightLimitView world,
             NoiseConfig noiseConfig) {
-        TerrainSample sample = bind(noiseConfig).sample(x, z);
+        TerrainWorld terrainWorld = bind(noiseConfig);
+        TerrainSample sample = structureSamplingDepth.get() > 0
+                ? terrainWorld.placementSample(x, z)
+                : terrainWorld.sample(x, z);
         return new VerticalBlockSample(getMinimumY(), columns.compose(sample, x, z));
     }
 
@@ -400,6 +407,21 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                     sample.river().waterSurfaceHeight(),
                     sample.river().flow(),
                     materializer.hasMaterializedWater(sample)));
+        }
+    }
+
+    private void beginStructureSampling() {
+        structureSamplingDepth.set(structureSamplingDepth.get() + 1);
+        engineBiomeSource.beginStructureSampling();
+    }
+
+    private void endStructureSampling() {
+        engineBiomeSource.endStructureSampling();
+        int depth = structureSamplingDepth.get();
+        if (depth <= 1) {
+            structureSamplingDepth.remove();
+        } else {
+            structureSamplingDepth.set(depth - 1);
         }
     }
 
