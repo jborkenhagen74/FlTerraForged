@@ -275,8 +275,9 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
     }
 
     /**
-     * The complete natural surface is already present after {@link #populateNoise}; Vanilla surface
-     * rules must not alter Engine-owned geometry.
+     * The complete natural surface and worldgen heightmaps are already present after
+     * {@link #populateNoise}; Vanilla surface rules and a second full heightmap scan are both
+     * intentionally skipped.
      */
     @Override
     public void buildSurface(
@@ -285,7 +286,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             NoiseConfig noiseConfig,
             Chunk chunk) {
         bind(noiseConfig);
-        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     /**
@@ -330,7 +330,6 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
                 world,
                 chunk,
                 session.boundWorld()));
-        Heightmap.populateHeightmaps(chunk, GENERATED_HEIGHTMAPS);
     }
 
     @Override
