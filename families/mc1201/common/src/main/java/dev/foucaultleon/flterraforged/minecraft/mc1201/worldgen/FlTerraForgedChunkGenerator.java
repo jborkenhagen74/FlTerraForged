@@ -191,13 +191,25 @@ public final class FlTerraForgedChunkGenerator extends ChunkGenerator {
             TerrainWorld terrainWorld = session.boundWorld();
             boolean changed = retained.entrySet().removeIf(entry -> {
                 var id = structureRegistry.getId(entry.getKey());
-                return id != null && !MarineStructureGuard.permits(
-                        id.toString(),
-                        entry.getValue().hasChildren(),
-                        centerX,
-                        centerZ,
-                        terrainWorld,
-                        marineEnvironmentCache);
+                if (id == null) {
+                    return false;
+                }
+                String structureId = id.toString();
+                boolean hasChildren = entry.getValue().hasChildren();
+                return !MarineStructureGuard.permits(
+                                structureId,
+                                hasChildren,
+                                centerX,
+                                centerZ,
+                                terrainWorld,
+                                marineEnvironmentCache)
+                        || !TerrestrialStructureGuard.permits(
+                                structureId,
+                                hasChildren,
+                                centerX,
+                                centerZ,
+                                getSeaLevel(),
+                                terrainWorld);
             });
             if (changed) {
                 chunk.setStructureStarts(retained);
