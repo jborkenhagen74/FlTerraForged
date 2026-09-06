@@ -7,23 +7,25 @@ import dev.foucaultleon.flterraforged.engine.api.TerrainWorld;
 import dev.foucaultleon.flterraforged.engine.api.terrain.StandardTerrainTypes;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainType;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
 /**
  * Bounded multi-stage cache for marine structure environment checks.
  *
- * <p>Level one stores resolved materialized columns. Level two stores the bounded environment
- * stencil shared by every marine structure rule for one start position. Both levels coalesce
- * concurrent cold misses without scheduling additional executor tasks. Engine samples, provider
- * geometry and environment stencils are therefore generated once per key and reused by parallel
- * structure-start workers.</p>
+ * <p>Structure discovery is intentionally restricted to the Engine placement sampler. It can
+ * classify broad ocean/coast geometry without cold-starting erosion regions, river maps, lake
+ * reconciliation or subsurface generation before Minecraft reports visible spawn progress. The
+ * conservative stencil therefore rejects ambiguous inland/shallow candidates rather than paying
+ * for the exact final terrain pipeline during {@code STRUCTURE_STARTS}.</p>
+ *
+ * <p>Both cache levels use exact-key single-flight ownership and a monitor-free completed hit path.
+ * Approximate FIFO eviction keeps memory bounded without serializing parallel structure workers.</p>
  */
 final class MarineEnvironmentCache {
 
@@ -79,7 +81,9 @@ final class MarineEnvironmentCache {
     }
 
     private MarineColumn resolveColumn(TerrainWorld world, int x, int z) {
-        TerrainSample sample = world.sample(x, z);
+        // Never call world.sample(...) from STRUCTURE_STARTS. One sparse exact sample would cold-load
+        // a complete 16x16 final terrain tile and can fan out into erosion/hydrology region work.
+        TerrainSample sample = world.placementSample(x, z);
         TerrainType terrainType = sample.terrainType();
         boolean ocean = StandardTerrainTypes.OCEAN.equals(terrainType);
         boolean coast = StandardTerrainTypes.COAST.equals(terrainType);
@@ -201,18 +205,20 @@ final class MarineEnvironmentCache {
 
     private static final class SingleFlightCache<K, V> {
 
-        private final BoundedMap<K, V> completed;
+        private final int maximumSize;
+        private final ConcurrentMap<K, V> completed = new ConcurrentHashMap<>();
+        private final ConcurrentLinkedQueue<K> insertionOrder = new ConcurrentLinkedQueue<>();
         private final ConcurrentMap<K, CompletableFuture<V>> inFlight = new ConcurrentHashMap<>();
 
         SingleFlightCache(int maximumSize) {
-            completed = new BoundedMap<>(maximumSize);
+            if (maximumSize < 1) {
+                throw new IllegalArgumentException("maximumSize must be >= 1");
+            }
+            this.maximumSize = maximumSize;
         }
 
         V get(K key, Supplier<V> loader) {
-            V cached;
-            synchronized (completed) {
-                cached = completed.get(key);
-            }
+            V cached = completed.get(key);
             if (cached != null) {
                 return cached;
             }
@@ -225,15 +231,11 @@ final class MarineEnvironmentCache {
 
             try {
                 V loaded = Objects.requireNonNull(loader.get(), "cache loader returned null");
-                V retained;
-                synchronized (completed) {
-                    V secondLook = completed.get(key);
-                    if (secondLook == null) {
-                        completed.put(key, loaded);
-                        retained = loaded;
-                    } else {
-                        retained = secondLook;
-                    }
+                V retained = completed.putIfAbsent(key, loaded);
+                if (retained == null) {
+                    retained = loaded;
+                    insertionOrder.add(key);
+                    evictOverflow();
                 }
                 owned.complete(retained);
                 return retained;
@@ -246,8 +248,16 @@ final class MarineEnvironmentCache {
         }
 
         int completedSize() {
-            synchronized (completed) {
-                return completed.size();
+            return completed.size();
+        }
+
+        private void evictOverflow() {
+            while (completed.size() > maximumSize) {
+                K oldest = insertionOrder.poll();
+                if (oldest == null) {
+                    return;
+                }
+                completed.remove(oldest);
             }
         }
 
@@ -268,25 +278,6 @@ final class MarineEnvironmentCache {
                 throw error;
             }
             return new IllegalStateException("Marine environment cache load failed", throwable);
-        }
-    }
-
-    private static final class BoundedMap<K, V> extends LinkedHashMap<K, V> {
-
-        private static final long serialVersionUID = 1L;
-        private final int maximumSize;
-
-        BoundedMap(int maximumSize) {
-            super(maximumSize + 1, 0.75F, true);
-            if (maximumSize < 1) {
-                throw new IllegalArgumentException("maximumSize must be >= 1");
-            }
-            this.maximumSize = maximumSize;
-        }
-
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-            return size() > maximumSize;
         }
     }
 }
