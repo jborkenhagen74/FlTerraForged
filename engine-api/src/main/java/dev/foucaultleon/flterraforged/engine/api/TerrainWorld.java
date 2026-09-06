@@ -13,7 +13,11 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
  */
 public interface TerrainWorld extends AutoCloseable {
 
-    /** Returns the immutable world context used to create this view. */
+    /**
+     * Returns the immutable world context used to create this view.
+     *
+     * @return immutable world context
+     */
     EngineContext context();
 
     /**
