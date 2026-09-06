@@ -43,10 +43,10 @@ jobs:
       - name: Verify layout
         run: python3 tools/verify-layout.py
 
-      - name: Build and test
+      - name: Build and test against fresh Engine snapshot
         run: gradle -Dorg.gradle.java.installations.paths="$FLTERRAFORGED_JAVA17_HOME,$JAVA_HOME" --no-daemon --refresh-dependencies --warning-mode all clean check
 
-      - name: Collect installable 1.20.1 Fabric JAR
+      - name: Collect combined R59 + R49 1.20.1 Fabric JAR
         id: collect_mc1201_fabric
         shell: bash
         run: |
@@ -73,13 +73,27 @@ jobs:
 
           mkdir -p build/artifacts
           short_sha="${GITHUB_SHA:0:7}"
-          artifact_path="build/artifacts/FlTerraForged-1.20.1-Fabric-${short_sha}.jar"
+          artifact_path="build/artifacts/FlTerraForged-R59-Engine-R49-1.20.1-Fabric-${short_sha}.jar"
           cp "${jars[0]}" "$artifact_path"
 
+          engine_entry="$(unzip -Z1 "$artifact_path" | grep -E '(^|/)flterraforged-engine-[^/]+\.jar$' | head -n 1 || true)"
+          if [ -z "$engine_entry" ]; then
+            echo "::error::Combined mod JAR does not contain the external Engine JAR."
+            exit 1
+          fi
+          unzip -p "$artifact_path" "$engine_entry" > build/artifacts/embedded-engine.jar
+          if ! unzip -p build/artifacts/embedded-engine.jar \
+              dev/foucaultleon/flterraforged/engine/DefaultEngineProvider.class \
+              | grep -a -q '0.1.0-SNAPSHOT-r49'; then
+            echo "::error::Combined mod JAR does not contain FlTerraForged-Engine R49."
+            exit 1
+          fi
+
+          echo "Verified embedded Engine: R49 ($engine_entry)"
           echo "artifact_path=$artifact_path" >> "$GITHUB_OUTPUT"
           echo "jar_name=$(basename "$artifact_path")" >> "$GITHUB_OUTPUT"
 
-      - name: Upload installable 1.20.1 Fabric JAR
+      - name: Upload combined installable 1.20.1 Fabric JAR
         id: upload_mc1201_fabric
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -96,16 +110,17 @@ jobs:
           JAR_NAME: ${{ steps.collect_mc1201_fabric.outputs.jar_name }}
         run: |
           {
-            echo "### FlTerraForged R59 Minecraft 1.20.1 Fabric artifact"
+            echo "### FlTerraForged R59 + Engine R49 Minecraft 1.20.1 Fabric artifact"
             echo
             echo "- JAR: \`$JAR_NAME\`"
+            echo "- Embedded Engine: verified FlTerraForged-Engine R49"
             echo "- Runtime dependency: Fabric API 0.92.2+1.20.1"
-            echo "- Paired Engine: FlTerraForged-Engine R49"
+            echo "- Coast: narrow beach shoreline rather than broad land regions"
+            echo "- Cold start: cheap structure placement path + centered erosion + bulk chunk sampling"
             echo "- SHA-256: \`$ARTIFACT_DIGEST\`"
             echo "- [Download artifact]($ARTIFACT_URL)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # R57 remains the Engine-owned baseline paired with FlTerraForged-Engine R47.
   publish-engine-api-snapshot:
     name: Publish Engine API Snapshot
     if: >-
