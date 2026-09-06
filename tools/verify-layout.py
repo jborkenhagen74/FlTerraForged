@@ -150,7 +150,7 @@ def verify_public_maven_and_workflow() -> None:
         fail("engine-api build Maven repository is not configured")
     require_tokens(
         workflow,
-        ("publish_branch: maven", "release/r57-engine-owned-worldgen", "FlTerraForged Engine R47"),
+        ("publish_branch: maven", "release/r57-engine-owned-worldgen", "FlTerraForged-Engine R47"),
         "R57 workflow")
     forbid_tokens(workflow, ("packages: write", "packages: read"), "R57 workflow")
     if workflow.count("java-version: '21'") < 2:
