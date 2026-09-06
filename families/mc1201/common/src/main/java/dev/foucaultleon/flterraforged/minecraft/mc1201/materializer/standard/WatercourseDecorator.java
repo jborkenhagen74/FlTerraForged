@@ -7,39 +7,30 @@ import dev.foucaultleon.flterraforged.engine.api.terrain.TerrainSample;
 import dev.foucaultleon.flterraforged.minecraft.mc1201.worldgen.RiparianZone;
 import java.util.Map;
 import java.util.Objects;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.enums.DoubleBlockHalf;
-import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.world.chunk.Chunk;
 
-/** Version-bound post-feature decorator for natural Minecraft 1.20.1 watercourses. */
+/**
+ * Geometry-neutral post-feature decorator for natural Minecraft 1.20.1 watercourses.
+ *
+ * <p>R62 deliberately limits this stage to vegetation. Earlier revisions could replace river-bed
+ * blocks with stairs, construct log dams and add spray markers. Those decorations changed the
+ * already finalized hydraulic cross-section and were visually indistinguishable from broken river
+ * steps. The Engine now owns every solid and fluid shape; decoration may only replace suitable
+ * vegetation/fluid cells and never raises, lowers or blocks a watercourse.</p>
+ */
 final class WatercourseDecorator {
-
-    private static final Direction[] HORIZONTAL_DIRECTIONS = {
-        Direction.NORTH,
-        Direction.EAST,
-        Direction.SOUTH,
-        Direction.WEST
-    };
 
     private static final long SEAGRASS_SALT = 0x1892C6F04DB73A5EL;
     private static final long LILY_SALT = 0xD7A20B5E4C91386FL;
     private static final long BANK_PLANT_SALT = 0x5C8E21A7D4903BF6L;
-    private static final long STAIR_SALT = 0x83F1D46A20B79CE5L;
-    private static final long SPRAY_SALT = 0x31B8E5C792A40DF6L;
-    private static final long DAM_SALT = 0xA17C58D3E60942BFL;
 
     private final VanillaBlockMaterializer materializer;
     private final boolean enabled;
     private final boolean plants;
-    private final boolean partialBlocks;
-    private final boolean spray;
-    private final boolean dams;
 
     /**
      * Creates the family-local decorator from validated materializer options.
@@ -47,24 +38,19 @@ final class WatercourseDecorator {
      * @param materializer active standard materializer
      * @param options materializer configuration
      */
-    WatercourseDecorator(
-            VanillaBlockMaterializer materializer,
-            Map<String, String> options) {
+    WatercourseDecorator(VanillaBlockMaterializer materializer, Map<String, String> options) {
         this.materializer = Objects.requireNonNull(materializer, "materializer");
         this.enabled = option(options, "decoration.enabled", true);
         this.plants = option(options, "decoration.plants", true);
-        this.partialBlocks = option(options, "decoration.partial_blocks", true);
-        this.spray = option(options, "decoration.spray", true);
-        this.dams = option(options, "decoration.dams", true);
     }
 
     /**
-     * Applies deterministic habitat clusters and rare bounded structures to one completed chunk.
+     * Applies deterministic vegetation without changing final terrain or water geometry.
      *
      * @param context writable completed chunk and semantic terrain view
      */
     void decorate(WaterDecorationContext context) {
-        if (!enabled) {
+        if (!enabled || !plants) {
             return;
         }
         Chunk chunk = context.chunk();
@@ -77,16 +63,12 @@ final class WatercourseDecorator {
             for (int localX = 0; localX < 16; localX++) {
                 int x = chunkPos.getStartX() + localX;
                 TerrainSample sample = terrain.sample(x, z);
-                if (isAquatic(sample)) {
+                if (materializer.hasMaterializedWater(sample)) {
                     decorateAquatic(context, mutable, x, z, sample);
-                } else {
+                } else if (isBank(sample)) {
                     decorateBank(context, mutable, x, z, sample);
                 }
             }
-        }
-
-        if (dams) {
-            decorateDams(context, mutable);
         }
     }
 
@@ -99,56 +81,35 @@ final class WatercourseDecorator {
         int bedY = materializer.solidSurfaceY(sample);
         int waterTop = materializer.waterTopExclusive(sample);
         int waterDepth = waterTop - bedY - 1;
-        if (waterDepth < 1) {
+        if (waterDepth < 2) {
             return;
         }
 
-        if (partialBlocks && waterDepth >= 2 && shouldPlaceStair(sample, x, z)) {
-            Direction facing = bedFacing(context.terrainWorld(), x, z);
-            BlockState stair = stairState(sample, bedY, facing);
-            mutable.set(x, bedY, z);
-            if (stair.canPlaceAt(context.world(), mutable)) {
-                context.chunk().setBlockState(mutable, stair, false);
-            }
-        }
-
-        if (plants && waterDepth >= 2 && waterDepth <= 8 && sample.slope() < 0.90D) {
+        if (waterDepth <= 8 && sample.slope() < 0.90D) {
             double habitat = NaturalMaterialField.sample(x, z, SEAGRASS_SALT, 38.0D);
-            boolean plantAnchor = habitat > 0.48D
-                    && NaturalMaterialField.sparse(x, z, SEAGRASS_SALT, 2, habitat);
-            pruneAquaticPlant(context, mutable, x, bedY + 1, z, sample, plantAnchor);
-            if (plantAnchor) {
-                if (waterDepth >= 3 && habitat > 0.68D) {
-                    placeTallSeagrass(context, mutable, x, bedY + 1, z, sample);
-                } else {
-                    placeReplacingFluid(
-                            context,
-                            mutable,
-                            x,
-                            bedY + 1,
-                            z,
-                            Blocks.SEAGRASS.getDefaultState(),
-                            sample);
-                }
+            if (habitat > 0.48D
+                    && NaturalMaterialField.sparse(x, z, SEAGRASS_SALT, 2, habitat)) {
+                placeInWater(
+                        context,
+                        mutable,
+                        x,
+                        bedY + 1,
+                        z,
+                        Blocks.SEAGRASS.getDefaultState());
             }
         }
 
-        if (plants
-                && StandardTerrainTypes.LAKE.equals(sample.terrainType())
+        if (StandardTerrainTypes.LAKE.equals(sample.terrainType())
                 && waterDepth >= 2
                 && moist(sample) > 0.58D
                 && NaturalMaterialField.sparse(x, z, LILY_SALT, 7, 0.50D)) {
-            placeIfAir(
+            placeOnWater(
                     context,
                     mutable,
                     x,
                     waterTop,
                     z,
                     Blocks.LILY_PAD.getDefaultState());
-        }
-
-        if (spray) {
-            decorateSpray(context, mutable, x, z, sample, waterTop);
         }
     }
 
@@ -158,232 +119,76 @@ final class WatercourseDecorator {
             int x,
             int z,
             TerrainSample sample) {
-        if (!plants || !isBank(sample)) {
-            return;
-        }
         int y = materializer.solidSurfaceY(sample) + 1;
         double moisture = moist(sample);
         double strength = StandardTerrainTypes.LAKE_SHORE.equals(sample.terrainType())
                 ? RiparianZone.lakeShoreStrength(sample)
                 : RiparianZone.bankStrength(sample);
-        double habitat = NaturalMaterialField.sample(x, z, BANK_PLANT_SALT, 34.0D);
-        if (partialBlocks && moisture > 0.48D && habitat < strength * 0.82D) {
-            placeIfAir(
-                    context,
-                    mutable,
-                    x,
-                    y,
-                    z,
-                    Blocks.MOSS_CARPET.getDefaultState());
+        if (!NaturalMaterialField.sparse(x, z, BANK_PLANT_SALT, 6, strength * 0.46D)) {
             return;
         }
-        if (!NaturalMaterialField.sparse(x, z, BANK_PLANT_SALT, 5, strength * 0.58D)) {
-            return;
-        }
+
         BlockState plant;
-        if (sample.climate().isAvailable()
-                && sample.climate().temperature() > 0.78D
-                && moisture > 0.68D) {
-            plant = Blocks.BAMBOO.getDefaultState();
-        } else if (isBesideWater(context.terrainWorld(), x, z) && moisture > 0.42D) {
-            plant = Blocks.SUGAR_CANE.getDefaultState();
-        } else if (moisture > 0.55D) {
+        if (moisture > 0.62D) {
             plant = Blocks.FERN.getDefaultState();
         } else {
             plant = Blocks.GRASS.getDefaultState();
         }
-        placeIfAir(context, mutable, x, y, z, plant);
+        placeOnDrySurface(context, mutable, x, y, z, plant);
     }
 
-    private void decorateSpray(
+    private static void placeInWater(
             WaterDecorationContext context,
             BlockPos.Mutable mutable,
             int x,
-            int z,
-            TerrainSample sample,
-            int waterTop) {
-        if (!StandardTerrainTypes.RIVER.equals(sample.terrainType())
-                || sample.surfaceHeight() < 90.0D && sample.slope() < 0.55D
-                || !NaturalMaterialField.sparse(x, z, SPRAY_SALT, 3, 0.62D)) {
-            return;
-        }
-        Direction higher = higherWaterNeighbor(context.terrainWorld(), x, z, waterTop);
-        if (higher == null) {
-            return;
-        }
-        placeIfAir(
-                context,
-                mutable,
-                x,
-                waterTop,
-                z,
-                Blocks.COBWEB.getDefaultState());
-        int bankX = x + higher.rotateYClockwise().getOffsetX();
-        int bankZ = z + higher.rotateYClockwise().getOffsetZ();
-        TerrainSample bank = context.terrainWorld().sample(bankX, bankZ);
-        if (!isAquatic(bank) && insideChunk(context.chunk(), bankX, bankZ)) {
-            placeIfAir(
-                    context,
-                    mutable,
-                    bankX,
-                    materializer.solidSurfaceY(bank) + 1,
-                    bankZ,
-                    Blocks.WHITE_CARPET.getDefaultState());
-        }
-    }
-
-    private void decorateDams(WaterDecorationContext context, BlockPos.Mutable mutable) {
-        ChunkPos chunkPos = context.chunk().getPos();
-        for (int localZ = 4; localZ < 12; localZ++) {
-            int z = chunkPos.getStartZ() + localZ;
-            for (int localX = 4; localX < 12; localX++) {
-                int x = chunkPos.getStartX() + localX;
-                if (!NaturalMaterialField.sparse(x, z, DAM_SALT, 32, 0.18D)) {
-                    continue;
-                }
-                TerrainSample sample = context.terrainWorld().sample(x, z);
-                if (!damHabitat(sample) || sample.river().distance() > 1.25D) {
-                    continue;
-                }
-                Direction crossing = crossChannelDirection(context.terrainWorld(), x, z);
-                int halfWidth = Math.max(1, Math.min(
-                        3,
-                        (int) Math.ceil(sample.river().width() * 0.38D)));
-                if (validDamSpan(context.terrainWorld(), x, z, crossing, halfWidth)) {
-                    placeDam(context, mutable, x, z, crossing, halfWidth);
-                }
-            }
-        }
-    }
-
-    private boolean validDamSpan(
-            TerrainWorld terrain,
-            int x,
-            int z,
-            Direction crossing,
-            int halfWidth) {
-        int referenceTop = materializer.waterTopExclusive(terrain.sample(x, z));
-        for (int offset = -halfWidth; offset <= halfWidth; offset++) {
-            TerrainSample sample = terrain.sample(
-                    x + crossing.getOffsetX() * offset,
-                    z + crossing.getOffsetZ() * offset);
-            if (!materializer.hasMaterializedWater(sample)
-                    || Math.abs(materializer.waterTopExclusive(sample) - referenceTop) > 1) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void placeDam(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int z,
-            Direction crossing,
-            int halfWidth) {
-        TerrainSample center = context.terrainWorld().sample(x, z);
-        int waterTop = materializer.waterTopExclusive(center);
-        BlockState log = Blocks.OAK_LOG.getDefaultState().with(Properties.AXIS, crossing.getAxis());
-        BlockState fence = Blocks.OAK_FENCE.getDefaultState().with(Properties.WATERLOGGED, true);
-        for (int offset = -halfWidth; offset <= halfWidth; offset++) {
-            int px = x + crossing.getOffsetX() * offset;
-            int pz = z + crossing.getOffsetZ() * offset;
-            mutable.set(px, waterTop - 1, pz);
-            context.chunk().setBlockState(mutable, log, false);
-            if (Math.floorMod(offset, 2) == 0) {
-                mutable.set(px, waterTop, pz);
-                if (context.chunk().getBlockState(mutable).isAir()
-                        && fence.canPlaceAt(context.world(), mutable)) {
-                    context.chunk().setBlockState(mutable, fence.with(Properties.WATERLOGGED, false), false);
-                }
-            }
-            if (Math.abs(offset) == halfWidth) {
-                mutable.set(px, waterTop - 2, pz);
-                context.chunk().setBlockState(mutable, Blocks.MUD.getDefaultState(), false);
-            }
-        }
-    }
-
-    private boolean shouldPlaceStair(TerrainSample sample, int x, int z) {
-        if (sample.slope() < 0.32D && sample.surfaceHeight() < 90.0D) {
-            return false;
-        }
-        double formation = NaturalMaterialField.sample(x, z, STAIR_SALT, 28.0D);
-        return formation > 0.70D && formation < 0.84D;
-    }
-
-    private static BlockState stairState(
-            TerrainSample sample,
             int y,
-            Direction facing) {
-        Block block;
-        if (y >= 90) {
-            block = sample.slope() > 0.90D ? Blocks.ANDESITE_STAIRS : Blocks.COBBLESTONE_STAIRS;
-        } else if (sample.climate().isAvailable()
-                && sample.climate().temperature() > 0.68D
-                && sample.climate().moisture() < 0.38D) {
-            block = Blocks.SANDSTONE_STAIRS;
-        } else {
-            block = Blocks.COBBLESTONE_STAIRS;
+            int z,
+            BlockState state) {
+        mutable.set(x, y, z);
+        if (!context.chunk().getBlockState(mutable).isOf(Blocks.WATER)) {
+            return;
         }
-        return block.getDefaultState()
-                .with(Properties.HORIZONTAL_FACING, facing)
-                .with(Properties.WATERLOGGED, true);
+        if (state.canPlaceAt(context.world(), mutable)) {
+            context.chunk().setBlockState(mutable, state, false);
+        }
     }
 
-    private Direction bedFacing(TerrainWorld terrain, int x, int z) {
-        int west = materializer.solidSurfaceY(terrain.sample(x - 1, z));
-        int east = materializer.solidSurfaceY(terrain.sample(x + 1, z));
-        int north = materializer.solidSurfaceY(terrain.sample(x, z - 1));
-        int south = materializer.solidSurfaceY(terrain.sample(x, z + 1));
-        int dx = east - west;
-        int dz = south - north;
-        if (Math.abs(dx) >= Math.abs(dz)) {
-            return dx > 0 ? Direction.WEST : Direction.EAST;
+    private static void placeOnWater(
+            WaterDecorationContext context,
+            BlockPos.Mutable mutable,
+            int x,
+            int y,
+            int z,
+            BlockState state) {
+        mutable.set(x, y, z);
+        if (!context.chunk().getBlockState(mutable).isAir()) {
+            return;
         }
-        return dz > 0 ? Direction.NORTH : Direction.SOUTH;
+        mutable.setY(y - 1);
+        boolean waterBelow = !context.chunk().getFluidState(mutable).isEmpty();
+        mutable.setY(y);
+        if (waterBelow && state.canPlaceAt(context.world(), mutable)) {
+            context.chunk().setBlockState(mutable, state, false);
+        }
     }
 
-    private static Direction crossChannelDirection(TerrainWorld terrain, int x, int z) {
-        double dx = terrain.sample(x + 1, z).river().distance()
-                - terrain.sample(x - 1, z).river().distance();
-        double dz = terrain.sample(x, z + 1).river().distance()
-                - terrain.sample(x, z - 1).river().distance();
-        return Math.abs(dx) >= Math.abs(dz) ? Direction.EAST : Direction.SOUTH;
-    }
-
-    private Direction higherWaterNeighbor(TerrainWorld terrain, int x, int z, int waterTop) {
-        for (Direction direction : HORIZONTAL_DIRECTIONS) {
-            TerrainSample neighbor = terrain.sample(
-                    x + direction.getOffsetX(),
-                    z + direction.getOffsetZ());
-            if (isAquatic(neighbor)
-                    && materializer.waterTopExclusive(neighbor) == waterTop + 1) {
-                return direction;
-            }
+    private static void placeOnDrySurface(
+            WaterDecorationContext context,
+            BlockPos.Mutable mutable,
+            int x,
+            int y,
+            int z,
+            BlockState state) {
+        mutable.set(x, y, z);
+        if (!context.chunk().getBlockState(mutable).isAir()) {
+            return;
         }
-        return null;
-    }
-
-    private boolean isBesideWater(TerrainWorld terrain, int x, int z) {
-        for (Direction direction : HORIZONTAL_DIRECTIONS) {
-            if (isAquatic(terrain.sample(
-                    x + direction.getOffsetX(),
-                    z + direction.getOffsetZ()))) {
-                return true;
-            }
+        mutable.setY(y - 1);
+        boolean drySupport = context.chunk().getFluidState(mutable).isEmpty();
+        mutable.setY(y);
+        if (drySupport && state.canPlaceAt(context.world(), mutable)) {
+            context.chunk().setBlockState(mutable, state, false);
         }
-        return false;
-    }
-
-    private boolean isAquatic(TerrainSample sample) {
-        if (materializer.hasMaterializedWater(sample)) {
-            return true;
-        }
-        return (StandardTerrainTypes.OCEAN.equals(sample.terrainType())
-                        || StandardTerrainTypes.COAST.equals(sample.terrainType()))
-                && materializer.waterTopExclusive(sample) > materializer.solidSurfaceTop(sample);
     }
 
     private static boolean isBank(TerrainSample sample) {
@@ -391,149 +196,12 @@ final class WatercourseDecorator {
                 || RiparianZone.isRiverBank(sample);
     }
 
-    private static boolean damHabitat(TerrainSample sample) {
-        if (!StandardTerrainTypes.RIVER.equals(sample.terrainType())
-                || !sample.river().hasFlow()
-                || sample.river().flow() < 3.5D
-                || sample.river().flow() > 18.0D
-                || sample.river().width() < 3.0D
-                || sample.river().width() > 8.0D
-                || sample.surfaceHeight() < 60.0D
-                || sample.surfaceHeight() > 89.0D
-                || sample.slope() > 0.65D
-                || !sample.climate().isAvailable()) {
-            return false;
-        }
-        return sample.climate().moisture() > 0.54D
-                && sample.climate().temperature() > 0.22D
-                && sample.climate().temperature() < 0.78D;
-    }
-
-    private void placeReplacingFluid(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int y,
-            int z,
-            BlockState state,
-            TerrainSample sample) {
-        if (!insideChunk(context.chunk(), x, z)) {
-            return;
-        }
-        mutable.set(x, y, z);
-        if (context.chunk().getBlockState(mutable).equals(materializer.fluidState(sample))
-                && state.canPlaceAt(context.world(), mutable)) {
-            context.chunk().setBlockState(mutable, state, false);
-        }
-    }
-
-    private void placeTallSeagrass(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int y,
-            int z,
-            TerrainSample sample) {
-        if (!insideChunk(context.chunk(), x, z)) {
-            return;
-        }
-        BlockState fluid = materializer.fluidState(sample);
-        BlockState lower = Blocks.TALL_SEAGRASS.getDefaultState()
-                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.LOWER);
-        BlockState upper = Blocks.TALL_SEAGRASS.getDefaultState()
-                .with(Properties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER);
-        mutable.set(x, y, z);
-        if (!context.chunk().getBlockState(mutable).equals(fluid)
-                || !lower.canPlaceAt(context.world(), mutable)) {
-            return;
-        }
-        mutable.set(x, y + 1, z);
-        if (!context.chunk().getBlockState(mutable).equals(fluid)) {
-            return;
-        }
-        mutable.set(x, y, z);
-        context.chunk().setBlockState(mutable, lower, false);
-        mutable.set(x, y + 1, z);
-        if (upper.canPlaceAt(context.world(), mutable)) {
-            context.chunk().setBlockState(mutable, upper, false);
-        } else {
-            mutable.set(x, y, z);
-            context.chunk().setBlockState(mutable, fluid, false);
-        }
-    }
-
-    private void pruneAquaticPlant(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int y,
-            int z,
-            TerrainSample sample,
-            boolean keep) {
-        if (keep || !insideChunk(context.chunk(), x, z)) {
-            return;
-        }
-        BlockState fluid = materializer.fluidState(sample);
-        mutable.set(x, y, z);
-        BlockState lower = context.chunk().getBlockState(mutable);
-        if (lower.isOf(Blocks.SEAGRASS)) {
-            context.chunk().setBlockState(mutable, fluid, false);
-            return;
-        }
-        if (!lower.isOf(Blocks.TALL_SEAGRASS)) {
-            return;
-        }
-        context.chunk().setBlockState(mutable, fluid, false);
-        mutable.set(x, y + 1, z);
-        if (context.chunk().getBlockState(mutable).isOf(Blocks.TALL_SEAGRASS)) {
-            context.chunk().setBlockState(mutable, fluid, false);
-        }
-    }
-
-    private static void placeIfAir(
-            WaterDecorationContext context,
-            BlockPos.Mutable mutable,
-            int x,
-            int y,
-            int z,
-            BlockState state) {
-        if (!insideChunk(context.chunk(), x, z)) {
-            return;
-        }
-        mutable.set(x, y, z);
-        if (context.chunk().getBlockState(mutable).isAir()
-                && state.canPlaceAt(context.world(), mutable)) {
-            context.chunk().setBlockState(mutable, state, false);
-        }
-    }
-
     private static double moist(TerrainSample sample) {
         return sample.climate().isAvailable() ? sample.climate().moisture() : 0.5D;
     }
 
-    private static boolean insideChunk(Chunk chunk, int x, int z) {
-        ChunkPos pos = chunk.getPos();
-        return x >= pos.getStartX()
-                && x < pos.getStartX() + 16
-                && z >= pos.getStartZ()
-                && z < pos.getStartZ() + 16;
-    }
-
-    private static boolean option(
-            Map<String, String> options,
-            String key,
-            boolean fallback) {
-        String raw = options.get(key);
-        if (raw == null || raw.isBlank()) {
-            return fallback;
-        }
-        if ("true".equalsIgnoreCase(raw.trim())) {
-            return true;
-        }
-        if ("false".equalsIgnoreCase(raw.trim())) {
-            return false;
-        }
-        throw new IllegalArgumentException(
-                "Materializer option '" + key + "' must be true or false");
+    private static boolean option(Map<String, String> options, String key, boolean fallback) {
+        String value = options.get(key);
+        return value == null ? fallback : Boolean.parseBoolean(value);
     }
 }
